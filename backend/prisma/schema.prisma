@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+  
+}
+
+datasource db {
+  provider = "postgresql"
+  url = "postgresql://nguchi_dev:munoh000dev@localhost:5432/lewa_db"
+}
+
+model student {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  matricule     String          @unique @db.VarChar(50)
+  email         String          @unique @db.VarChar(255)
+  phone         String?         @db.VarChar(30)
+  password_hash String?
+  full_name     String          @db.VarChar(255)
+  faculty       String?         @db.VarChar(150)
+  department    String?         @db.VarChar(150)
+  level         String?         @db.VarChar(50)
+  fee_status    fee_status_enum @default(NOT_PAID)
+  is_active     Boolean         @default(true)
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @db.Timestamptz(6)
+
+  @@index([email], map: "idx_student_email")
+  @@index([matricule], map: "idx_student_matricule")
+}
+
+enum fee_status_enum {
+  NOT_PAID
+  PARTIAL
+  PAID
+}
