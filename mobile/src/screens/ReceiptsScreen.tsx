@@ -1,17 +1,17 @@
 /**
  * ReceiptsScreen Component
- * 
- * Screen for displaying payment receipts with tabs for Fee Payments and Resources
+ *
+ * Screen for displaying payment receipts with tabs for Fee Payments and Subscriptions
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
@@ -19,84 +19,29 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppHeader from '../components/AppHeader';
+import { api } from '../services/api';
 
-// Mock receipt data
+// Receipt data interface
 interface Receipt {
   id: string;
-  studentId: string;
-  paymentType: 'fee_payment' | 'resource';
-  amount: number;
-  referenceId: string;
-  studentName: string;
-  level: string;
-  dateOfPayment: string;
-  faculty: string;
-  paymentMethod: 'mtn' | 'orange' | 'bank';
-  feeType?: 'complete Fee Payment' | 'half Fee Payment';
-  feeDescription?: string;
-  resourceName?: string;
-  resourceDescription?: string;
+  receiptNumber: string;
+  amount: string;
+  receiptType: 'school_fee' | 'subscription';
+  paymentType: 'fee' | 'subscription';
+  academicYear: string;
+  issuedAt: string;
+  paymentReference: string;
+  paymentMethod: 'mtn' | 'orange';
+  phoneNumber: string;
+  feeInstallment: 'full' | 'half' | null;
+  paidAt: string;
+  student: {
+    name: string;
+    matricule: string;
+    faculty: string;
+    level: string;
+  };
 }
-
-const mockReceipts: Receipt[] = [
-  {
-    id: '1',
-    studentId: 'CT24A456',
-    paymentType: 'fee_payment',
-    amount: 25000,
-    referenceId: 'CIFT873JS',
-    studentName: 'Munoh Nguchi',
-    level: 'Level 400',
-    dateOfPayment: '15/10/2026; 04:56pm',
-    faculty: 'College of Technology',
-    paymentMethod: 'mtn',
-    feeType: 'complete Fee Payment',
-    feeDescription: 'Fee Payment - installment',
-  },
-  {
-    id: '2',
-    studentId: 'CT24A456',
-    paymentType: 'fee_payment',
-    amount: 25000,
-    referenceId: 'CIFT456XY',
-    studentName: 'Munoh Nguchi',
-    level: 'Level 400',
-    dateOfPayment: '10/09/2026; 02:30pm',
-    faculty: 'College of Technology',
-    paymentMethod: 'mtn',
-    feeType: 'half Fee Payment',
-    feeDescription: 'Fee Payment - installment',
-  },
-  {
-    id: '3',
-    studentId: 'CT24A456',
-    paymentType: 'resource',
-    amount: 500,
-    referenceId: 'CIFT124XY',
-    studentName: 'Munoh Nguchi',
-    level: 'Level 400',
-    dateOfPayment: '10/10/2026; 02:30pm',
-    faculty: 'College of Technology',
-    paymentMethod: 'mtn',
-    resourceName: 'Past Questions - Mathematics',
-    resourceDescription: 'Platform charges - past question',
-  },
-  {
-    id: '4',
-    studentId: 'CT24A456',
-    paymentType: 'resource',
-    amount: 500,
-    referenceId: 'CIFT124XY',
-    studentName: 'Munoh Nguchi',
-    level: 'Level 400',
-    dateOfPayment: '10/10/2026; 02:30pm',
-    faculty: 'College of Technology',
-    paymentMethod: 'mtn',
-    resourceName: 'Past Questions - Mathematics',
-    resourceDescription: 'Platform charges - past question',
-  },
-  
-];
 
 type RootStackParamList = {
   MainTabs: { screen: string };
@@ -106,9 +51,51 @@ type RootStackParamList = {
 
 type ReceiptsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Receipts'>;
 
+const getReceiptTitle = (receipt: Receipt) => {
+  if (receipt.receiptType === 'subscription') {
+    return 'Subscription Payment';
+  }
+
+  return receipt.feeInstallment === 'half' ? 'Half Fee Payment' : 'Complete Fee Payment';
+};
+
+const getTransactionType = (receipt: Receipt) => {
+  if (receipt.receiptType === 'subscription') {
+    return 'Subscription';
+  }
+
+  return receipt.feeInstallment === 'half' ? 'Half Fee Payment' : 'Complete Fee Payment';
+};
+
+const formatReceiptDate = (dateString: string) => {
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Date unavailable';
+  }
+
+  return date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const formatReceiptAmount = (amount: string) => {
+  const numericAmount = Number.parseFloat(amount);
+
+  if (Number.isNaN(numericAmount)) {
+    return '+0 XAF';
+  }
+
+  return `+${numericAmount.toLocaleString('en-US').replace(/,/g, ' ')} XAF`;
+};
+
 const ReceiptsScreen: React.FC = () => {
   const navigation = useNavigation<ReceiptsScreenNavigationProp>();
-  const [selectedTab, setSelectedTab] = useState<'fee_payment' | 'resource'>('fee_payment');
+  const [selectedTab, setSelectedTab] = useState<'school_fee' | 'subscription'>('school_fee');
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -117,17 +104,31 @@ const ReceiptsScreen: React.FC = () => {
     Poppins_700Bold,
   });
 
+  // Fetch receipts on component mount
+  useEffect(() => {
+    fetchReceipts();
+  }, []);
+
+  const fetchReceipts = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/receipts/my');
+
+      if (response.data.success) {
+        setReceipts(response.data.data);
+      }
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!fontsLoaded) {
     return null;
   }
 
   // Filter receipts based on selected tab
-  const filteredReceipts = mockReceipts.filter(receipt => receipt.paymentType === selectedTab);
-
-  const handleDeleteReceipt = (receiptId: string) => {
-    // TODO: Call backend API to delete receipt
-    console.log('Delete receipt:', receiptId);
-  };
+  const filteredReceipts = receipts.filter(receipt => receipt.receiptType === selectedTab);
 
   const handleReceiptPress = (receipt: Receipt) => {
     navigation.navigate('ReceiptDetails', { receipt });
@@ -158,60 +159,60 @@ const ReceiptsScreen: React.FC = () => {
         {/* Tabs */}
         <View style={styles.tabsContainer}>
           <TouchableOpacity
-            style={[styles.tab, selectedTab === 'fee_payment' && styles.tabActive]}
-            onPress={() => setSelectedTab('fee_payment')}
+            style={[styles.tab, selectedTab === 'school_fee' && styles.tabActive]}
+            onPress={() => setSelectedTab('school_fee')}
           >
-            <Text style={[styles.tabText, selectedTab === 'fee_payment' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, selectedTab === 'school_fee' && styles.tabTextActive]}>
               Fee Payment
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tab, selectedTab === 'resource' && styles.tabActive]}
-            onPress={() => setSelectedTab('resource')}
+            style={[styles.tab, selectedTab === 'subscription' && styles.tabActive]}
+            onPress={() => setSelectedTab('subscription')}
           >
-            <Text style={[styles.tabText, selectedTab === 'resource' && styles.tabTextActive]}>
-              Resources
+            <Text style={[styles.tabText, selectedTab === 'subscription' && styles.tabTextActive]}>
+              Subscription
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Receipt Cards */}
-        <View style={styles.receiptsContainer}>
-          {filteredReceipts.map((receipt) => (
-            <TouchableOpacity
-              key={receipt.id}
-              style={styles.receiptCard}
-              onPress={() => handleReceiptPress(receipt)}
-              activeOpacity={0.7}
-            >
-              {/* Receipt Icon */}
-              <Image
-                source={require('../../assets/receipt-icon.png')}
-                style={styles.receiptIcon}
-              />
-
-              {/* Receipt Content */}
-              <View style={styles.receiptContent}>
-                <Text style={styles.receiptStudentId}>{receipt.studentId}</Text>
-                <Text style={styles.receiptDescription}>
-                  {receipt.paymentType === 'fee_payment'
-                    ? receipt.feeDescription
-                    : receipt.resourceDescription}
-                </Text>
-                <Text style={styles.receiptAmount}>XAF {receipt.amount.toLocaleString()}</Text>
-              </View>
-
-              {/* Delete Button */}
+        {/* Loading State */}
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Loading receipts...</Text>
+          </View>
+        ) : filteredReceipts.length === 0 ? (
+          /* Empty State */
+          <View style={styles.centerContainer}>
+            <Ionicons name="receipt-outline" size={64} color={colors.textBody} />
+            <Text style={styles.emptyText}>No payments made yet</Text>
+          </View>
+        ) : (
+          /* Receipt Cards */
+          <View style={styles.receiptsContainer}>
+            {filteredReceipts.map((receipt) => (
               <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleDeleteReceipt(receipt.id)}
+                key={receipt.id}
+                style={styles.receiptCard}
+                onPress={() => handleReceiptPress(receipt)}
+                activeOpacity={0.7}
               >
-                <Ionicons name="trash-outline" size={24} color={colors.textBody} />
+                <View style={styles.receiptContent}>
+                  <Text style={styles.receiptTitle} numberOfLines={1}>
+                    {getReceiptTitle(receipt)}
+                  </Text>
+                  <Text style={styles.receiptDate}>{formatReceiptDate(receipt.paidAt || receipt.issuedAt)}</Text>
+                  <Text style={styles.receiptDescription} numberOfLines={1}>
+                    Transaction type: {getTransactionType(receipt)}
+                  </Text>
+                </View>
+                <Text style={styles.receiptAmount}>{formatReceiptAmount(receipt.amount)}</Text>
               </TouchableOpacity>
-            </TouchableOpacity>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
 
         <View style={{ height: 120 }} />
       </ScrollView>
@@ -293,51 +294,71 @@ const styles = StyleSheet.create({
   },
   receiptsContainer: {
     paddingHorizontal: 20,
-    gap: 16,
+    gap: 20,
   },
   receiptCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    marginBottom: 12,
-  },
-  receiptIcon: {
-    width: 50,
-    height: 50,
-    resizeMode: 'contain',
-    marginRight: 16,
+    shadowRadius: 18,
+    elevation: 4,
+    minHeight: 96,
   },
   receiptContent: {
     flex: 1,
+    paddingRight: 12,
   },
-  receiptStudentId: {
+  receiptTitle: {
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
-    color: colors.textPrimary,
-    marginBottom: 4,
+    color: '#111827',
+    marginBottom: 2,
+  },
+  receiptDate: {
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    color: '#5F6673',
+    marginBottom: 5,
   },
   receiptDescription: {
-    fontSize: 13,
-    fontFamily: 'Poppins_400Regular',
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
     color: colors.textBody,
-    marginBottom: 6,
   },
   receiptAmount: {
     fontSize: 15,
-    fontFamily: 'Poppins_600SemiBold',
-    color: colors.primary,
+    fontFamily: 'Poppins_700Bold',
+    color: colors.success,
+    textAlign: 'right',
+    paddingTop: 2,
   },
-  deleteButton: {
-    padding: 8,
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    color: colors.textBody,
+    marginTop: 12,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontFamily: 'Poppins_500Medium',
+    color: colors.textBody,
+    marginTop: 16,
+    textAlign: 'center',
   },
 });
 
 export default ReceiptsScreen;
-

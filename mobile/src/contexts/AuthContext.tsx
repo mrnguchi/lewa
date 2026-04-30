@@ -1,0 +1,144 @@
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import { authStorage, UserData } from '../utils/authStorage';
+import { api } from '../services/api';
+
+/**
+ * Auth context type definition
+ */
+interface AuthContextType {
+  user: UserData | null;
+  token: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (token: string, userData: UserData) => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (userData: Partial<UserData>) => Promise<void>;
+  refreshUserData: () => Promise<void>;
+}
+
+/**
+ * Create Auth Context
+ */
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  token: null,
+  isLoading: true,
+  isAuthenticated: false,
+  login: async () => {},
+  logout: async () => {},
+  updateUser: async () => {},
+  refreshUserData: async () => {},
+});
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+/**
+ * Auth Provider Component
+ * Wraps the entire app to provide authentication state
+ */
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<UserData | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  /**
+   * Load stored auth data on app startup
+   */
+  useEffect(() => {
+    loadStoredAuth();
+  }, []);
+
+  /**
+   * Load authentication data from AsyncStorage
+   */
+  const loadStoredAuth = async () => {
+    try {
+      const storedToken = await authStorage.getToken();
+      const storedUser = await authStorage.getUserData();
+
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(storedUser);
+      }
+    } catch {
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Login user and store auth data
+   */
+  const login = async (authToken: string, userData: UserData) => {
+    try {
+      await authStorage.saveAuthData(authToken, userData);
+
+      setToken(authToken);
+      setUser(userData);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /**
+   * Logout user and clear auth data
+   */
+  const logout = async () => {
+    try {
+      await authStorage.clearAuthData();
+      setToken(null);
+      setUser(null);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /**
+   * Update user data (e.g., after payment)
+   */
+  const updateUser = async (userData: Partial<UserData>) => {
+    try {
+      const updatedUser = await authStorage.updateUserData(userData);
+      if (updatedUser) {
+        setUser(updatedUser);
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /**
+   * Refresh user data from backend
+   */
+  const refreshUserData = async () => {
+    try {
+      const studentId = await authStorage.getStudentId();
+      if (studentId) {
+        const response = await api.get(`/api/students/${studentId}`);
+        const freshUserData = response.data.data;
+        await updateUser(freshUserData);
+      }
+    } catch {
+      // Keep stale local data when refresh fails.
+    }
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        isAuthenticated: !!token && !!user,
+        login,
+        logout,
+        updateUser,
+        refreshUserData,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};

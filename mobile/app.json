@@ -27,7 +27,8 @@
       "favicon": "./assets/splash-icon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-notifications"
     ]
   }
 }

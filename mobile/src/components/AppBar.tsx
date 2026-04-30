@@ -6,7 +6,7 @@
  * - Calendar
  * - Updates
  * - Resources
- * - Lewa AI
+ * - Lewa Chat
  */
 
 import React from 'react';
@@ -20,6 +20,7 @@ interface TabItem {
   id: string;
   label: string;
   iconName: string;
+  iconLibrary?: 'ionicons' | 'material';
 }
 
 const tabs: TabItem[] = [
@@ -27,17 +28,10 @@ const tabs: TabItem[] = [
   { id: 'Calendar', label: 'Calendar', iconName: 'calendar' },
   { id: 'Lewa News', label: 'Lewa News', iconName: 'radio' },
   { id: 'Resources', label: 'Resources', iconName: 'book' },
-  { id: 'LewaAI', label: 'Lewa AI', iconName: 'robot' },
+  { id: 'LewaChat', label: 'Lewa Chat', iconName: 'message-text-outline', iconLibrary: 'material' },
 ];
 
 const AppBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {
-  const currentRoute = state.routes[state.index].name;
-
-  // Hide AppBar on Lewa AI screens
-  if (currentRoute === 'LewaAI') {
-    return null;
-  }
-
   return (
     <View style={styles.container}>
       {tabs.map((tab, index) => {
@@ -50,9 +44,9 @@ const AppBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {
             onPress={() => navigation.navigate(tab.id)}
             activeOpacity={0.7}
           >
-            {tab.id === 'LewaAI' ? (
+            {tab.iconLibrary === 'material' ? (
               <MaterialCommunityIcons
-                name="robot-outline"
+                name={tab.iconName}
                 size={24}
                 color={isActive ? colors.primary : colors.white}
               />
@@ -118,4 +112,3 @@ const styles = StyleSheet.create({
 });
 
 export default AppBar;
-

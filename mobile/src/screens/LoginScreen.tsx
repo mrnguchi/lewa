@@ -20,6 +20,9 @@ import {
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Ionicons } from '@expo/vector-icons';
+import { api } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import CustomToast from '../components/CustomToast';
 
 interface LoginScreenProps {
   onRegisterPress: () => void;
@@ -38,6 +41,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   initialPassword = '',
   onFormChange
 }) => {
+  // Get auth context
+  const { login } = useAuth();
+
   // Form state
   const [matricule, setMatricule] = useState(initialMatricule);
   const [password, setPassword] = useState(initialPassword);
@@ -46,6 +52,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
+
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
   // Handle matricule change with persistence
   const handleMatriculeChange = (text: string) => {
@@ -92,7 +103,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   };
 
   // Handle form submission
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const errors = new Set<string>();
     setErrorMessage('');
 
@@ -117,12 +128,63 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     setErrorMessage('');
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Call backend login API
+      const response = await api.post('/api/auth/login', {
+        matricule: matricule.toUpperCase(),
+        password: password,
+      });
+
+      console.log('LOGIN RESPONSE DEBUG');
+      console.log('Full response:', JSON.stringify(response.data, null, 2));
+      console.log('response.data:', response.data);
+      console.log('response.data.data:', response.data.data);
+
+      // Extract data from response - backend returns { success, data: { token, data: {...} } }
+      const loginData = response.data.data;
+      const token = loginData.token;
+      const userData = loginData.data;
+
+      console.log('Extracted token:', token);
+      console.log('Extracted user data:', JSON.stringify(userData, null, 2));
+
+      // Use centralized auth login
+      await login(token, userData);
+
+      console.log('User logged in successfully via AuthContext');
+
       setIsLoading(false);
-      console.log('Login successful:', { matricule });
-      onLoginSuccess();
-    }, 1500);
+
+      // Show success toast
+      setToastMessage('Login successful!');
+      setToastType('success');
+      setToastVisible(true);
+
+      // Navigate to main app after toast duration
+      setTimeout(() => {
+        onLoginSuccess();
+      }, 1000);
+
+    } catch (error: any) {
+      setIsLoading(false);
+
+      let errorMsg = error.userMessage || 'Login failed. Please check your credentials and try again.';
+
+      if (error.code === 'ECONNABORTED') {
+        errorMsg = 'Request timeout. Please check your internet connection and try again.';
+      } else if (error.response) {
+        errorMsg = error.response.data?.message || 'Login failed. Please check your credentials and try again.';
+      } else if (error.request) {
+        errorMsg = 'Cannot connect to server.';
+      }
+
+      setErrorMessage(errorMsg);
+
+      // Show error toast
+      setToastMessage(errorMsg);
+      setToastType('error');
+      setToastVisible(true);
+    }
   };
 
   // Show loading indicator while fonts load
@@ -139,6 +201,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* Custom Toast */}
+      <CustomToast
+        message={toastMessage}
+        type={toastType}
+        visible={toastVisible}
+        onHide={() => setToastVisible(false)}
+      />
+
       {/* Green header section with logo */}
       <View style={styles.header}>
         <Image
@@ -159,9 +229,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
           <Text style={styles.heading}>Welcome back</Text>
 
           {/* Error message display */}
-          {errorMessage ? (
+          {/* {errorMessage ? (
             <Text style={styles.errorMessage}>{errorMessage}</Text>
-          ) : null}
+          ) : null} */}
 
           {/* Matricule Input */}
           <View style={styles.inputContainer}>
@@ -276,6 +346,7 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginBottom: 20,
+    marginTop: 10,
   },
   label: {
     fontSize: 14,
@@ -348,5 +419,4 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
-
 

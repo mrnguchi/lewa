@@ -4,25 +4,27 @@
  * Screen displayed after successful payment with receipt details
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import AppHeader from '../components/AppHeader';
+import { api } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { showErrorToast } from '../services/toast';
 
 type RootStackParamList = {
   MainTabs: { screen: string };
-  PaymentSuccessful: { referenceId: string };
+  PaymentSuccessful: { reference: string };
 };
 
 type PaymentSuccessfulScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PaymentSuccessful'>;
@@ -31,12 +33,83 @@ type PaymentSuccessfulScreenRouteProp = RouteProp<RootStackParamList, 'PaymentSu
 const PaymentSuccessfulScreen: React.FC = () => {
   const navigation = useNavigation<PaymentSuccessfulScreenNavigationProp>();
   const route = useRoute<PaymentSuccessfulScreenRouteProp>();
-  const { referenceId } = route.params;
+  const { reference } = route.params;
+  const { refreshUserData } = useAuth();
 
-  // Mock data
-  const amountPaid = 50000;
-  const studentName = 'Munoh Nguchi';
-  const dateOfPayment = new Date().toLocaleString('en-GB', {
+  const [isLoading, setIsLoading] = useState(true);
+  const [receiptData, setReceiptData] = useState<any>(null);
+
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
+
+  // Fetch receipt data from backend
+  useEffect(() => {
+    const fetchReceiptData = async () => {
+      try {
+        console.log(`Fetching receipt for reference: ${reference}`);
+        const response = await api.get(`/api/payments/receipt/${reference}`);
+        console.log('Receipt data fetched:', response.data);
+        setReceiptData(response.data.data);
+        setIsLoading(false);
+      } catch {
+        showErrorToast('Failed to load receipt details.');
+        setIsLoading(false);
+        // Still allow user to go back home
+      }
+    };
+
+    fetchReceiptData();
+  }, [reference]);
+
+  if (!fontsLoaded || isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 16, fontFamily: 'Poppins_400Regular', color: colors.textBody }}>
+          Loading receipt...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!receiptData) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }}>
+          <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 18, color: colors.textPrimary, textAlign: 'center' }}>
+            Receipt not available
+          </Text>
+          <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 14, color: colors.textBody, textAlign: 'center', marginTop: 8 }}>
+            Please check your payment history
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Extract data from receipt (backend returns formatted data)
+  console.log('📄 Receipt data structure:', JSON.stringify(receiptData, null, 2));
+
+  const amountPaid = receiptData.amount || 0;
+  const studentName = receiptData.student?.name || 'Student';
+  const matricule = receiptData.student?.matricule || 'N/A';
+  const faculty = receiptData.student?.faculty || 'N/A';
+  const level = receiptData.student?.level || 'N/A';
+  const paymentType = receiptData.paymentType;
+  const isSubscription = paymentType === 'subscription';
+
+  console.log('💰 Amount paid:', amountPaid);
+  const dateOfPayment = new Date(receiptData.paidAt || receiptData.createdAt).toLocaleString('en-GB', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -44,30 +117,26 @@ const PaymentSuccessfulScreen: React.FC = () => {
     minute: '2-digit',
     hour12: true
   }).replace(',', ';');
-  const faculty = 'College of Technology';
-  const feeType = 'Tuition Fees';
-  const academicYear = '2026/2027';
-  const paymentMethod = 'MoMo';
-  const paymentMethodLogo = require('../../assets/momo.jpeg');
-  const [fontsLoaded] = useFonts({
-    Poppins_400Regular,
-    Poppins_500Medium,
-    Poppins_600SemiBold,
-    Poppins_700Bold,
-  });
-  
+  const feeType = isSubscription ? 'Subscription' : 'School Fees';
+  const academicYear = receiptData.academicYear || '2025/2026';
+  const paymentMethod = receiptData.paymentMethod?.toUpperCase() || 'MOMO';
+  const phoneNumber = receiptData.phoneNumber || 'N/A';
+  const feeInstallment = receiptData.feeInstallment === 'full' ? 'Complete Fees' : 'Half Fees';
 
-  if (!fontsLoaded) {
-    return null;
-  }
+  // Handle back to home with user data refresh
+  const handleBackHome = async () => {
+    console.log(' Refreshing user data before going home...');
+    await refreshUserData();
+    navigation.navigate('MainTabs', { screen: 'Home' });
+  };
 
   return (
     <View style={styles.container}>
       {/* Header with Back Button */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBackHome}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>Back home</Text>
         </TouchableOpacity>
 
       </View>
@@ -86,21 +155,20 @@ const PaymentSuccessfulScreen: React.FC = () => {
 
         {/* Title */}
         <Text style={styles.title}>Payment successful</Text>
-        <Text style={styles.subtitle}>Your fee status will be updated</Text>
+        <Text style={styles.subtitle}>
+          {isSubscription ? 'Your subscription is now active' : 'Your fee status will be updated'}
+        </Text>
 
         {/* Fee Type Card */}
         <View style={styles.feeCard}>
           <View style={styles.paymentIconContainer}>
-            <Image
-              source={paymentMethodLogo}
-              style={styles.paymentIcon}
-            />
-            {/* <Text style={styles.paymentMethodText}>{paymentMethod}</Text> */}
+            <Ionicons name={isSubscription ? "calendar-outline" : "card-outline"} size={32} color={colors.primary} />
           </View>
           <View style={styles.feeInfo}>
             <Text style={styles.feeTypeText}>{feeType}</Text>
-            <Text style={styles.feeStatus}>{feeType.includes('Half') ? 'Half Payment' : 'Complete'}</Text>
-            <Text style={styles.academicYear}>{academicYear}</Text>
+            {!isSubscription && <Text style={styles.feeStatus}>{feeInstallment}</Text>}
+            {!isSubscription && <Text style={styles.academicYear}>{academicYear}</Text>}
+            {isSubscription && <Text style={styles.feeStatus}>1 Year Access</Text>}
           </View>
         </View>
 
@@ -109,37 +177,59 @@ const PaymentSuccessfulScreen: React.FC = () => {
           <Text style={styles.summaryTitle}>Payment summary</Text>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Reference ID</Text>
-            <Text style={styles.summaryValue}>{referenceId}</Text>
-          </View>
-
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Amount Paid</Text>
-            <Text style={styles.summaryValue}>{amountPaid.toLocaleString()} FCFA</Text>
-          </View>
-
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Student name</Text>
+            <Text style={styles.summaryLabel}>Name</Text>
             <Text style={styles.summaryValue}>{studentName}</Text>
           </View>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Date of Payment</Text>
-            <Text style={styles.summaryValue}>{dateOfPayment}</Text>
+            <Text style={styles.summaryLabel}>Matricule</Text>
+            <Text style={styles.summaryValue}>{matricule}</Text>
+          </View>
+
+          {/* Show faculty and level only for fee payments */}
+          {!isSubscription && (
+            <>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Faculty</Text>
+                <Text style={styles.summaryValue}>{faculty}</Text>
+              </View>
+
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Level</Text>
+                <Text style={styles.summaryValue}>{level}</Text>
+              </View>
+            </>
+          )}
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Payment method</Text>
+            <Text style={styles.summaryValue}>{paymentMethod}</Text>
           </View>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Faculty</Text>
-            <Text style={styles.summaryValue}>{faculty}</Text>
+            <Text style={styles.summaryLabel}>Phone number</Text>
+            <Text style={styles.summaryValue}>{phoneNumber}</Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Amount</Text>
+            <Text style={styles.summaryValue}>{amountPaid.toLocaleString()} XAF</Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Reference</Text>
+            <Text style={styles.summaryValue}>{reference}</Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Date</Text>
+            <Text style={styles.summaryValue}>{dateOfPayment}</Text>
           </View>
         </View>
 
         {/* Download Receipt Button */}
         <TouchableOpacity style={styles.downloadButton} onPress={() => console.log('Download receipt')}>
-          <Image
-            source={require('../../assets/download-icon.png')}
-            style={styles.downloadIcon}
-          />
+          <Ionicons name="download-outline" size={20} color={colors.white} style={{ marginRight: 8 }} />
           <Text style={styles.downloadButtonText}>Download receipt</Text>
         </TouchableOpacity>
 
@@ -342,4 +432,3 @@ const styles = StyleSheet.create({
 });
 
 export default PaymentSuccessfulScreen;
-

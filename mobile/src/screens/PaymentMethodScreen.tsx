@@ -4,7 +4,7 @@
  * Screen for selecting payment method with carousel of payment options
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Image,
+  BackHandler,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
@@ -22,6 +23,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppHeader from '../components/AppHeader';
+import { useAuth } from '../hooks/useAuth';
+import { showErrorToast, showSuccessToast } from '../services/toast';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - 80;
@@ -38,10 +41,31 @@ interface PaymentMethod {
 type RootStackParamList = {
   MainTabs: { screen: string };
   FeeSelection: undefined;
-  PaymentMethod: { feeType: 'complete' | 'half'; amount: number };
-  ConfirmNumber: { feeType: 'complete' | 'half'; amount: number; paymentMethod: string };
-  PaymentSummary: { feeType: 'complete' | 'half'; amount: number; paymentMethod: string; phoneNumber: string };
-  PaymentProcessing: { feeType: 'complete' | 'half'; amount: number; paymentMethod: string; phoneNumber: string };
+  PaymentMethod: {
+    paymentType: 'fee' | 'subscription';
+    feeInstallment?: 'full' | 'half' | null;
+    amount: number
+  };
+  ConfirmNumber: {
+    paymentType: 'fee' | 'subscription';
+    feeInstallment?: 'full' | 'half' | null;
+    amount: number;
+    paymentMethod: string
+  };
+  PaymentSummary: {
+    paymentType: 'fee' | 'subscription';
+    feeInstallment?: 'full' | 'half' | null;
+    amount: number;
+    paymentMethod: string;
+    phoneNumber: string
+  };
+  PaymentProcessing: {
+    paymentType: 'fee' | 'subscription';
+    feeInstallment?: 'full' | 'half' | null;
+    amount: number;
+    paymentMethod: string;
+    phoneNumber: string
+  };
   PaymentSuccessful: { referenceId: string };
 };
 
@@ -76,7 +100,8 @@ const paymentMethods: PaymentMethod[] = [
 const PaymentMethodScreen: React.FC = () => {
   const navigation = useNavigation<PaymentMethodScreenNavigationProp>();
   const route = useRoute<PaymentMethodScreenRouteProp>();
-  const { feeType, amount } = route.params;
+  const { paymentType, feeInstallment, amount } = route.params;
+  const { user } = useAuth();
 
   const [selectedMethod, setSelectedMethod] = useState<string>('mtn');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -89,9 +114,45 @@ const PaymentMethodScreen: React.FC = () => {
     Poppins_700Bold,
   });
 
+  // Handle back button for subscription flow
+  useEffect(() => {
+    if (paymentType === 'fee' && user?.fee_status === 'PAID') {
+      showSuccessToast("You've completed fees for this school year.");
+      navigation.navigate('MainTabs', { screen: 'Home' });
+      return;
+    }
+
+    if (paymentType === 'fee' && user?.fee_status === 'PARTIAL' && feeInstallment === 'full') {
+      showErrorToast("You've already paid half. Please complete the remaining half payment.");
+      navigation.navigate('FeeSelection');
+      return;
+    }
+
+    if (paymentType === 'subscription') {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        // Navigate to home instead of going back
+        navigation.navigate('MainTabs', { screen: 'Home' });
+        return true; // Prevent default back behavior
+      });
+
+      return () => backHandler.remove();
+    }
+  }, [feeInstallment, paymentType, navigation, user?.fee_status]);
+
   if (!fontsLoaded) {
     return null;
   }
+
+  // Custom back handler
+  const handleBack = () => {
+    if (paymentType === 'subscription') {
+      // Go directly to home for subscription flow
+      navigation.navigate('MainTabs', { screen: 'Home' });
+    } else {
+      // Normal back navigation for fee flow
+      navigation.goBack();
+    }
+  };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = event.nativeEvent.contentOffset.x;
@@ -100,11 +161,33 @@ const PaymentMethodScreen: React.FC = () => {
   };
 
   const handleNext = () => {
-    // Navigate to confirm number screen
-    navigation.navigate('ConfirmNumber', { feeType, amount, paymentMethod: selectedMethod });
+    if (paymentType === 'fee' && user?.fee_status === 'PAID') {
+      showSuccessToast("You've completed fees for this school year.");
+      navigation.navigate('MainTabs', { screen: 'Home' });
+      return;
+    }
+
+    if (paymentType === 'fee' && user?.fee_status === 'PARTIAL' && feeInstallment === 'full') {
+      showErrorToast("You've already paid half. Please complete the remaining half payment.");
+      navigation.navigate('FeeSelection');
+      return;
+    }
+
+    // Navigate to confirm number screen with accumulated data
+    navigation.navigate('ConfirmNumber', {
+      paymentType,
+      feeInstallment,
+      amount,
+      paymentMethod: selectedMethod
+    });
   };
 
-  const feeTypeText = feeType === 'complete' ? 'Complete Fee' : 'Half Fee';
+  // Dynamic payment type text
+  const paymentTypeText = paymentType === 'subscription'
+    ? 'Yearly Subscription'
+    : feeInstallment === 'full'
+      ? 'Complete Fee'
+      : 'Half Fee';
 
   return (
     <View style={styles.container}>
@@ -121,7 +204,7 @@ const PaymentMethodScreen: React.FC = () => {
 
           {/* Back Button and Title */}
           <View style={styles.titleSection}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <TouchableOpacity style={styles.backButton} onPress={handleBack}>
               <Ionicons name="arrow-back" size={24} color="#1F2933" />
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
@@ -176,14 +259,14 @@ const PaymentMethodScreen: React.FC = () => {
                 {/* Payment Method Name */}
                 <Text style={styles.methodName}>{method.displayName}</Text>
 
-                {/* Fee Details */}
+                {/* Payment Type */}
                 <Text style={styles.feeDetails}>
-                  {feeTypeText} + Lewa charge
+                  {paymentTypeText}
                 </Text>
 
-                {/* Total Amount */}
+                {/* Amount */}
                 <Text style={styles.totalAmount}>
-                  {(amount + method.lewaCharge).toLocaleString()} <Text style={styles.currency}>FCFA</Text>
+                  {amount.toLocaleString()} <Text style={styles.currency}>XAF</Text>
                 </Text>
               </TouchableOpacity>
             ))}
@@ -249,6 +332,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 20,
     backgroundColor: colors.white,
+    marginTop: -10,
   },
   headerTop: {
     paddingTop: 60,
@@ -454,4 +538,3 @@ const styles = StyleSheet.create({
 });
 
 export default PaymentMethodScreen;
-

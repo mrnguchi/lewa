@@ -20,17 +20,118 @@ import {
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Ionicons } from '@expo/vector-icons';
+import { api } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import CustomToast from '../components/CustomToast';
 
 // List of faculties at the University of Buea
 const FACULTIES = [
-  'Faculty of Agriculture and Veterinary Medicine',
   'Faculty of Arts',
+  'Faculty of Veterinary Medicine and Agriculture',
   'Faculty of Education',
   'Faculty of Engineering and Technology',
   'Faculty of Health Sciences',
   'Faculty of Science',
-  'Faculty of Social and Management Sciences',
+  'Faculty of Social and Management Sciences (SMS)',
+  'Faculty of Laws and Political Science',
+  'College of Technology (COT)',
+  'Higher Technical Teachers\' Training College Kumba (HTTTC)',
+  'Advanced School of Translators and Interpreters (ASTI)',
 ];
+
+// Faculty to Department mapping
+const FACULTY_DEPARTMENTS: Record<string, string[]> = {
+  'Faculty of Arts': [
+    'Department Of English',
+    'Department Of French',
+    'Department Of History',
+    'Department Of Linguistics',
+    'Department Of Performing And Visual Arts',
+  ],
+  'Faculty of Veterinary Medicine and Agriculture': [
+    'Department of Agricultural Economics and Agribusiness',
+    'Department of Agricultural Extension and Rural Development',
+    'Department of Agronomic and Applied Molecular Sciences',
+    'Department of Animal Science',
+    'Department of Food Science and Technology',
+    'Department of Forestry and Wildlife',
+    'Department of Veterinary Medicine',
+  ],
+  'Faculty of Education': [
+    'Department of Curriculum Studies and Teaching (CST)',
+    'Department of Educational Foundations Administration (EFA)',
+    'Department of Educational Psychology (EPY)',
+  ],
+  'Faculty of Engineering and Technology': [
+    'Department of Computer Engineering',
+    'Department of Electrical and Electronic Engineering',
+    'Department of Civil Engineering',
+  ],
+  'Faculty of Health Sciences': [
+    'Department of Biomedical Sciences',
+    'Department of Nursing',
+    'Department of Medical Laboratory Sciences',
+    'Department of Public Health and Hygiene',
+  ],
+  'Faculty of Science': [
+    'Department Of Biochemistry and Molecular Biology',
+    'Department Of Botany and Plant Physiology',
+    'Department Of Chemistry',
+    'Department Of Computer Science',
+    'Department Of Environmental Science',
+    'Department Of Geology',
+    'Department Of Mathematics',
+    'Department Of Microbiology and Parasitology',
+    'Department Of Physics',
+    'Department Of Zoology and Animal Physiology',
+  ],
+  'Faculty of Social and Management Sciences (SMS)': [
+    'Department Of Banking and Finance',
+    'Department Of Economics and Management',
+    'Department Of Management',
+    'Department Of Geography',
+    'Department Of Journalism and Mass Communications',
+    'Department Of Sociology and Anthropology',
+    'Department Of Women and Gender Studies',
+  ],
+  'Faculty of Laws and Political Science': [
+    'Department of Business Law',
+    'Department of Civil Law',
+    'Department of English Law',
+    'Department of Political Science and Comparative Politics',
+    'Department of Public Law and Public Administration',
+    'Department of International Relations and Conflict Resolutions',
+  ],
+  'College of Technology (COT)': [
+    'Department of Computer Engineering',
+    'Department of Electrical and Electronic Engineering',
+    'Department of Mechanical Engineering',
+  ],
+  'Higher Technical Teachers\' Training College Kumba (HTTTC)': [
+    'Department Of Administrative Techniques',
+    'Department Of Agriculture',
+    'Department Of Civil Engineering and Forestry Techniques',
+    'Department Of Computer Science',
+    'Department Of Electrical and Power Engineering',
+    'Department Of Guidance Counselling',
+    'Department Of Law',
+    'Department Of Management Science',
+    'Department Of Mechanical Engineering',
+    'Department Of Renewable Energy',
+    'Department Of Science of Education',
+    'Department Of Social Economy and Family Management',
+    'Department Of Topography and Real Estate Management',
+    'Department Of Tourism and Hospitality Management',
+  ],
+  'Advanced School of Translators and Interpreters (ASTI)': [
+    'Department Of General Studies And Promotion Of Bilingualism',
+    'Department Of Interpretation',
+    'Department Of Translation',
+  ],
+};
+
+// List of academic levels
+const LEVELS = [200, 300, 400, 500];
 
 interface RegisterScreenProps {
   onLoginPress: () => void;
@@ -38,9 +139,14 @@ interface RegisterScreenProps {
 }
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegisterSuccess }) => {
+  // Get auth context
+  const { login } = useAuth();
+
   // Form state
   const [fullName, setFullName] = useState('');
   const [faculty, setFaculty] = useState('');
+  const [department, setDepartment] = useState('');
+  const [level, setLevel] = useState<number | null>(null);
   const [matricule, setMatricule] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -50,9 +156,16 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showFacultyDropdown, setShowFacultyDropdown] = useState(false);
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+  const [showLevelDropdown, setShowLevelDropdown] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
+
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
   // Load fonts
   const [fontsLoaded] = useFonts({
@@ -85,7 +198,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
   };
 
   // Handle form submission
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     const errors = new Set<string>();
     setErrorMessage('');
 
@@ -100,6 +213,20 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
     if (!faculty) {
       errors.add('faculty');
       setErrorMessage('Please select your faculty');
+      setFieldErrors(errors);
+      return;
+    }
+
+    if (!department) {
+      errors.add('department');
+      setErrorMessage('Please select your department');
+      setFieldErrors(errors);
+      return;
+    }
+
+    if (!level) {
+      errors.add('level');
+      setErrorMessage('Please select your level');
       setFieldErrors(errors);
       return;
     }
@@ -137,12 +264,65 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
     setErrorMessage('');
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Call backend registration API
+      const response = await api.post('/api/auth/register', {
+        full_name: fullName,
+        matricule: matricule.toUpperCase(),
+        phone_number: `237${phoneNumber}`, // Format with country code
+        password: password,
+        faculty: faculty,
+        department: department,
+        level: level, // User-selected level
+      });
+
+      console.log('Registration response:', response.data);
+
+      // Extract data from response - backend now returns { success, data: { token, data: {...} } }
+      const registrationData = response.data.data;
+      const token = registrationData.token;
+      const userData = registrationData.data;
+
+      console.log('Extracted token:', token);
+      console.log('Extracted user data:', userData);
+
+      // Auto-login the user
+      await login(token, userData);
+
+      console.log('User registered and logged in successfully');
+
       setIsLoading(false);
-      console.log('Registration successful:', { fullName, faculty, matricule, phoneNumber });
-      onRegisterSuccess();
-    }, 1500);
+
+      // Show success toast
+      setToastMessage('Registration successful! Welcome to Lewa!');
+      setToastType('success');
+      setToastVisible(true);
+
+      // Navigate to main app after toast duration
+      setTimeout(() => {
+        onRegisterSuccess();
+      }, 2000);
+
+    } catch (error: any) {
+      setIsLoading(false);
+
+      let errorMsg = error.userMessage || 'Registration failed. Please try again.';
+
+      if (error.code === 'ECONNABORTED') {
+        errorMsg = 'Request timeout. Please check your internet connection and try again.';
+      } else if (error.response) {
+        errorMsg = error.response.data?.message || 'Registration failed. Please try again.';
+      } else if (error.request) {
+        errorMsg = 'Cannot connect to server. Please check if the backend is running.';
+      }
+
+      setErrorMessage(errorMsg);
+
+      // Show error toast
+      setToastMessage(errorMsg);
+      setToastType('error');
+      setToastVisible(true);
+    }
   };
 
 
@@ -162,6 +342,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* Custom Toast */}
+      <CustomToast
+        message={toastMessage}
+        type={toastType}
+        visible={toastVisible}
+        onHide={() => setToastVisible(false)}
+      />
+
       {/* Green header section with logo */}
       <View style={styles.header}>
         <Image
@@ -186,9 +374,30 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
             <Text style={styles.errorMessage}>{errorMessage}</Text>
           ) : null}
 
+
+          {/* Full Name Input */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              style={[styles.input, fieldErrors.has('fullName') && styles.inputError]}
+              placeholder="Enter Full Name"
+              placeholderTextColor="#999"
+              value={fullName}
+              onChangeText={(text) => {
+                setFullName(text);
+                setFieldErrors(prev => {
+                  const newErrors = new Set(prev);
+                  newErrors.delete('fullName');
+                  return newErrors;
+                });
+              }}
+              autoCapitalize="words"
+            />
+          </View>
+
           {/* Faculty Dropdown */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Faculty</Text>
+            <Text style={styles.label}>Faculty or School</Text>
             <TouchableOpacity
               style={[
                 styles.input,
@@ -217,10 +426,12 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
                       style={styles.dropdownItem}
                       onPress={() => {
                         setFaculty(fac);
+                        setDepartment(''); // Reset department when faculty changes
                         setShowFacultyDropdown(false);
                         setFieldErrors(prev => {
                           const newErrors = new Set(prev);
                           newErrors.delete('faculty');
+                          newErrors.delete('department'); // Also clear department error
                           return newErrors;
                         });
                       }}
@@ -233,24 +444,104 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
             )}
           </View>
 
-          {/* Full Name Input */}
+          {/* Department Dropdown */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={[styles.input, fieldErrors.has('fullName') && styles.inputError]}
-              placeholder="Enter Full Name"
-              placeholderTextColor="#999"
-              value={fullName}
-              onChangeText={(text) => {
-                setFullName(text);
-                setFieldErrors(prev => {
-                  const newErrors = new Set(prev);
-                  newErrors.delete('fullName');
-                  return newErrors;
-                });
+            <Text style={styles.label}>Department</Text>
+            <TouchableOpacity
+              style={[
+                styles.input,
+                styles.dropdownInput,
+                fieldErrors.has('department') && styles.inputError,
+                !faculty && styles.inputDisabled, // Disable if no faculty selected
+              ]}
+              onPress={() => {
+                if (faculty) {
+                  setShowDepartmentDropdown(!showDepartmentDropdown);
+                }
               }}
-              autoCapitalize="words"
-            />
+              disabled={!faculty}
+            >
+              <Text style={[styles.inputText, !department && styles.placeholderText]}>
+                {department || (faculty ? 'Select Department' : 'Select Faculty First')}
+              </Text>
+              <Ionicons
+                name={showDepartmentDropdown ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={faculty ? "#999" : "#ccc"}
+              />
+            </TouchableOpacity>
+
+            {/* Dropdown menu */}
+            {showDepartmentDropdown && faculty && (
+              <View style={styles.dropdownMenu}>
+                <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
+                  {FACULTY_DEPARTMENTS[faculty]?.map((dept, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setDepartment(dept);
+                        setShowDepartmentDropdown(false);
+                        setFieldErrors(prev => {
+                          const newErrors = new Set(prev);
+                          newErrors.delete('department');
+                          return newErrors;
+                        });
+                      }}
+                    >
+                      <Text style={styles.dropdownItemText}>{dept}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+
+          {/* Level Dropdown */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Level</Text>
+            <TouchableOpacity
+              style={[
+                styles.input,
+                styles.dropdownInput,
+                fieldErrors.has('level') && styles.inputError,
+              ]}
+              onPress={() => setShowLevelDropdown(!showLevelDropdown)}
+            >
+              <Text style={[styles.inputText, !level && styles.placeholderText]}>
+                {level ? `Level ${level}` : 'Select Level'}
+              </Text>
+              <Ionicons
+                name={showLevelDropdown ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color="#999"
+              />
+            </TouchableOpacity>
+
+            {/* Dropdown menu */}
+            {showLevelDropdown && (
+              <View style={styles.dropdownMenu}>
+                <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
+                  {LEVELS.map((lvl, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setLevel(lvl);
+                        setShowLevelDropdown(false);
+                        setFieldErrors(prev => {
+                          const newErrors = new Set(prev);
+                          newErrors.delete('level');
+                          return newErrors;
+                        });
+                      }}
+                    >
+                      <Text style={styles.dropdownItemText}>Level {lvl}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </View>
 
           {/* Matricule Input */}
@@ -455,6 +746,10 @@ const styles = StyleSheet.create({
     borderColor: '#FF0000',
     borderWidth: 2,
   },
+  inputDisabled: {
+    backgroundColor: '#F5F5F5',
+    opacity: 0.6,
+  },
   dropdownInput: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -533,7 +828,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 35,
     marginBottom: 20,
   },
   signUpButtonText: {
@@ -545,7 +840,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 40,
   },
   loginLinkText: {
     fontSize: 16,
@@ -560,4 +855,3 @@ const styles = StyleSheet.create({
 });
 
 export default RegisterScreen;
-

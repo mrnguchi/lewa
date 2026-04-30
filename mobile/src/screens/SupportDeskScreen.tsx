@@ -4,7 +4,7 @@
  * Screen for displaying FAQs and submitting complaints
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppHeader from '../components/AppHeader';
+import { useAuth } from '../hooks/useAuth';
+import { createComplaintConversation } from '../services/lewaChat';
 
 
 // FAQ data
@@ -78,15 +80,24 @@ const faculties = [
   'Faculty of Agriculture and Veterinary Medicine',
 ];
 
+const normalizeCameroonLocalPhone = (phone?: string | null) => {
+  const digits = (phone ?? '').replace(/\D/g, '');
+  const withoutCountryCode = digits.startsWith('237') ? digits.slice(3) : digits;
+
+  return withoutCountryCode.slice(0, 9);
+};
+
 type RootStackParamList = {
   MainTabs: { screen: string };
   SupportDesk: undefined;
+  SchoolAdminChat: { conversationId?: string } | undefined;
 };
 
 type SupportDeskScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SupportDesk'>;
 
 const SupportDeskScreen: React.FC = () => {
   const navigation = useNavigation<SupportDeskScreenNavigationProp>();
+  const { user } = useAuth();
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -116,6 +127,17 @@ const SupportDeskScreen: React.FC = () => {
     Poppins_700Bold,
   });
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setStudentName((currentValue) => currentValue || user.full_name);
+    setPhoneNumber((currentValue) => currentValue || normalizeCameroonLocalPhone(user.phone_number));
+    setMatricule((currentValue) => currentValue || user.matricule);
+    setFaculty((currentValue) => currentValue || user.faculty);
+  }, [user]);
+
   if (!fontsLoaded) {
     return null;
   }
@@ -143,10 +165,15 @@ const SupportDeskScreen: React.FC = () => {
 
     // Phone number validation (Cameroon format: 9 digits starting with 6 or 7)
     const phoneRegex = /^[6-7]\d{8}$/;
-    if (!phoneNumber.trim()) {
+    const normalizedPhoneNumber = normalizeCameroonLocalPhone(phoneNumber);
+    if (phoneNumber !== normalizedPhoneNumber) {
+      setPhoneNumber(normalizedPhoneNumber);
+    }
+
+    if (!normalizedPhoneNumber) {
       newErrors.phoneNumber = 'Phone number is required';
       isValid = false;
-    } else if (!phoneRegex.test(phoneNumber.trim())) {
+    } else if (!phoneRegex.test(normalizedPhoneNumber)) {
       newErrors.phoneNumber = 'Invalid Cameroon phone number (e.g., 671234567)';
       isValid = false;
     }
@@ -190,9 +217,12 @@ const SupportDeskScreen: React.FC = () => {
 
     setIsSubmitting(true);
 
-    // TODO: Call backend API to submit complaint
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const result = await createComplaintConversation({
+        title: `${faculty} support`,
+        description: description.trim(),
+      });
+
       setIsSubmitting(false);
       setShowComplaintModal(false);
 
@@ -215,8 +245,17 @@ const SupportDeskScreen: React.FC = () => {
       setShowSuccessNotification(true);
       setTimeout(() => {
         setShowSuccessNotification(false);
-      }, 3000);
-    }, 2000);
+        navigation.replace('SchoolAdminChat', {
+          conversationId: result.conversation.id,
+        });
+      }, 800);
+    } catch {
+      setIsSubmitting(false);
+      setErrors((currentErrors) => ({
+        ...currentErrors,
+        description: '',
+      }));
+    }
   };
 
   const handleCloseModal = () => {
@@ -357,9 +396,11 @@ const SupportDeskScreen: React.FC = () => {
                         placeholder="671234567"
                         placeholderTextColor="#9CA3AF"
                         value={phoneNumber}
-                        onChangeText={setPhoneNumber}
+                        onChangeText={(text) => {
+                          setPhoneNumber(normalizeCameroonLocalPhone(text));
+                          setErrors((currentErrors) => ({ ...currentErrors, phoneNumber: '' }));
+                        }}
                         keyboardType="phone-pad"
-                        maxLength={9}
                       />
                       {errors.phoneNumber ? (
                         <Text style={styles.errorText}>{errors.phoneNumber}</Text>
@@ -808,4 +849,3 @@ const styles = StyleSheet.create({
 });
 
 export default SupportDeskScreen;
-

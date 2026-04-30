@@ -4,14 +4,13 @@
  * Screen for selecting fee payment type (Complete or Half)
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
@@ -19,18 +18,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppHeader from '../components/AppHeader';
+import { useAuth } from '../hooks/useAuth';
+import { showErrorToast, showSuccessToast } from '../services/toast';
+import {
+  CURRENT_ACADEMIC_YEAR_LABEL,
+  FULL_FEE_AMOUNT,
+  HALF_FEE_AMOUNT,
+} from '../constants/payment';
 
 
 type RootStackParamList = {
   MainTabs: { screen: string };
   FeeSelection: undefined;
-  PaymentMethod: { feeType: 'complete' | 'half'; amount: number };
+  PaymentMethod: {
+    paymentType: 'fee' | 'subscription';
+    feeInstallment?: 'full' | 'half' | null;
+    amount: number
+  };
 };
 
 type FeeSelectionScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'FeeSelection'>;
 
 const FeeSelectionScreen: React.FC = () => {
   const navigation = useNavigation<FeeSelectionScreenNavigationProp>();
+  const { user } = useAuth();
+  const hasCompletedFees = user?.fee_status === 'PAID';
+  const hasPaidHalf = user?.fee_status === 'PARTIAL';
+  const studentLevel = user?.level ?? 400;
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -39,12 +53,33 @@ const FeeSelectionScreen: React.FC = () => {
     Poppins_700Bold,
   });
 
+  useEffect(() => {
+    if (hasCompletedFees) {
+      showSuccessToast("You've completed fees for this school year.");
+      navigation.goBack();
+    }
+  }, [hasCompletedFees, navigation]);
+
   if (!fontsLoaded) {
     return null;
   }
 
-  const handleFeeSelection = (feeType: 'complete' | 'half', amount: number) => {
-    navigation.navigate('PaymentMethod', { feeType, amount });
+  const handleFeeSelection = (feeInstallment: 'full' | 'half', amount: number) => {
+    if (hasCompletedFees) {
+      showSuccessToast("You've completed fees for this school year.");
+      return;
+    }
+
+    if (hasPaidHalf && feeInstallment === 'full') {
+      showErrorToast("You've already paid half. Please complete the remaining half payment.");
+      return;
+    }
+
+    navigation.navigate('PaymentMethod', {
+      paymentType: 'fee',
+      feeInstallment,
+      amount
+    });
   };
 
   return (
@@ -72,28 +107,33 @@ const FeeSelectionScreen: React.FC = () => {
         {/* Fee Cards */}
         <View style={styles.cardsContainer}>
           {/* Complete Fee Payment Card */}
-          <View style={styles.feeCard}>
+          <TouchableOpacity
+            style={[styles.feeCard, hasPaidHalf && styles.disabledFeeCard]}
+            activeOpacity={0.85}
+            disabled={hasPaidHalf || hasCompletedFees}
+            onPress={() => handleFeeSelection('full', FULL_FEE_AMOUNT)}
+          >
             <View style={styles.cardHeader}>
               <View style={styles.iconContainer}>
                 <Ionicons name="wallet" size={32} color={colors.primary} />
               </View>
               <View style={styles.cardTitleContainer}>
                 <Text style={styles.cardTitle}>Complete Fee Payment</Text>
-                <Text style={styles.cardYear}>2026 / 2027</Text>
+                <Text style={styles.cardYear}>{CURRENT_ACADEMIC_YEAR_LABEL}</Text>
               </View>
             </View>
 
             <View style={styles.cardBody}>
               <View style={styles.amountSection}>
                 <Text style={styles.amountLabel}>Amount</Text>
-                <Text style={styles.amountValue}>50,000 <Text style={styles.currency}>XAF</Text></Text>
+                <Text style={styles.amountValue}>{FULL_FEE_AMOUNT} <Text style={styles.currency}>XAF</Text></Text>
               </View>
 
               <View style={styles.studentLvSection}>
                 <Text style={styles.studentLvLabel}>Student Lv</Text>
                 <View style={styles.studentLvValue}>
                   <Ionicons name="person" size={16} color={colors.gold} />
-                  <Text style={styles.studentLvText}>400</Text>
+                  <Text style={styles.studentLvText}>{studentLevel}</Text>
                 </View>
               </View>
             </View>
@@ -114,37 +154,43 @@ const FeeSelectionScreen: React.FC = () => {
                 </View>
               </View>
               <TouchableOpacity
-                style={styles.arrowButton}
-                onPress={() => handleFeeSelection('complete', 50000)}
+                style={[styles.arrowButton, hasPaidHalf && styles.arrowButtonDisabled]}
+                onPress={() => handleFeeSelection('full', FULL_FEE_AMOUNT)}
+                disabled={hasPaidHalf || hasCompletedFees}
               >
                 <Ionicons name="arrow-forward" size={24} color={colors.white} />
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
 
           {/* Half Fee Payment Card */}
-          <View style={[styles.feeCard, styles.feeCardWhite]}>
+          <TouchableOpacity
+            style={[styles.feeCard, styles.feeCardWhite]}
+            activeOpacity={0.85}
+            disabled={hasCompletedFees}
+            onPress={() => handleFeeSelection('half', HALF_FEE_AMOUNT)}
+          >
             <View style={styles.cardHeader}>
               <View style={styles.iconContainer}>
                 <Ionicons name="card" size={32} color={colors.primary} />
               </View>
               <View style={styles.cardTitleContainer}>
                 <Text style={styles.cardTitleDark}>Half Fee Payment</Text>
-                <Text style={styles.cardYearDark}>2026 / 2027</Text>
+                <Text style={styles.cardYearDark}>{CURRENT_ACADEMIC_YEAR_LABEL}</Text>
               </View>
             </View>
 
             <View style={styles.cardBody}>
               <View style={styles.amountSection}>
                 <Text style={styles.amountLabelDark}>Amount</Text>
-                <Text style={styles.amountValue}>25,000 <Text style={styles.currencyDark}>XAF</Text></Text>
+                <Text style={styles.amountValue}>{HALF_FEE_AMOUNT} <Text style={styles.currencyDark}>XAF</Text></Text>
               </View>
 
               <View style={styles.studentLvSection}>
                 <Text style={styles.studentLvLabelDark}>Student Lv</Text>
                 <View style={styles.studentLvValue}>
                   <Ionicons name="person" size={16} color={colors.gold} />
-                  <Text style={styles.studentLvText}>400</Text>
+                  <Text style={styles.studentLvText}>{studentLevel}</Text>
                 </View>
               </View>
             </View>
@@ -166,12 +212,13 @@ const FeeSelectionScreen: React.FC = () => {
               </View>
               <TouchableOpacity
                 style={styles.arrowButton}
-                onPress={() => handleFeeSelection('half', 25000)}
+                onPress={() => handleFeeSelection('half', HALF_FEE_AMOUNT)}
+                disabled={hasCompletedFees}
               >
                 <Ionicons name="arrow-forward" size={24} color={colors.white} />
               </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Bottom padding */}
@@ -196,6 +243,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 20,
     backgroundColor: colors.white,
+    marginTop: -10,
   },
   headerTop: {
     paddingTop: 60,
@@ -268,6 +316,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textPrimary,
     borderRadius: 16,
     padding: 20,
+  },
+  disabledFeeCard: {
+    opacity: 0.45,
   },
   feeCardWhite: {
     backgroundColor: colors.white,
@@ -394,6 +445,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  arrowButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
   // Dark text styles for white card (bottom card)
   cardTitleDark: {
     fontSize: 18,
@@ -432,4 +486,3 @@ const styles = StyleSheet.create({
 });
 
 export default FeeSelectionScreen;
-

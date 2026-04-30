@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,241 +7,298 @@ import {
   Image,
   TouchableOpacity,
   TextInput,
+  RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
-import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+
 import AppHeader from '../components/AppHeader';
+import CustomToast from '../components/CustomToast';
+import SpinningLoader from '../components/SpinningLoader';
+import { colors } from '../theme/colors';
+import {
+  fetchLatestNewsArticles,
+  formatNewsPublishedDate,
+  formatNewsRelativeTime,
+  NEWS_CATEGORIES,
+  NewsArticle,
+} from '../services/news';
+import {
+  cacheNewsArticles,
+  getCachedNewsArticles,
+} from '../utils/newsSessionStorage';
 
 type RootStackParamList = {
   MainTabs: { screen: string };
-  NewsDetails: { news: any };
+  NewsDetails: { news: NewsArticle };
 };
 
 type UpdatesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+const NEWS_FETCH_LIMIT = 10;
 
-/*
-================================
-MOCK NEWS DATA
-================================
-*/
-const newsData = [
-  {
-    id: 1,
-    title: 'Master AI & Automation in 5 Days',
-    intro: 'Hello techies, tired of repetitive tasks eating up your day? Its time to build systems that work for you.',
-    description:
-      'Hello techies, tired of repetitive tasks eating up your day? Its time to build systems that work for you.Join us for an intensive 5-day workshop where you will learn to automate your workflow, build intelligent systems, and leverage AI tools to boost your productivity. This hands-on program covers everything from basic automation scripts to advanced AI integration.What you will learn• Python automation fundamentals• AI-powered workflow optimization• Building custom automation tools• Integration with popular AI APIs• Real-world project implementationWhether you are a student, developer, or tech enthusiast, this workshop will transform how you work. Limited spots available - register now to secure your place in this game-changing program.',
-    category: 'Tech',
-    date: 'Sunday - Feb 8th',
-    timeAgo: '4 hours ago',
-    image: require('../../assets/update-1.jpg'),
-  },
-  {
-    id: 2,
-    title: 'Students conference 4th edition',
-    intro: 'The 4th edition of the UB students conference brings together innovators, researchers, and students.',
-    description:
-      'The 4th edition of the UB students conference brings together innovators, researchers, and students to present groundbreaking ideas and collaborative projects.This year\'s conference promises to be the biggest yet, featuring keynote speakers from leading tech companies, interactive workshops, and networking sessions with industry professionals. Students from various faculties will showcase their research projects, innovative solutions, and entrepreneurial ventures.Highlights include:• 50+ student presentations• Panel discussions with industry leaders• Startup pitch competition• Networking opportunities• Awards for best projectsThe conference aims to foster innovation, collaboration, and knowledge sharing among the student community. Dont miss this opportunity to connect with like-minded individuals and showcase your work.',
-    category: 'Events',
-    date: 'Sunday - Feb 8th',
-    timeAgo: '5 days ago',
-    image: require('../../assets/update-2.jpg'),
-  },
-  {
-    id: 3,
-    title: 'New AI research lab opens at UB',
-    intro: 'The University of Buea has launched a new artificial intelligence research laboratory.',
-    description:
-      'The University of Buea has launched a new artificial intelligence research laboratory aimed at advancing machine learning innovation and student research opportunities.The state-of-the-art facility is equipped with high-performance computing resources, GPU clusters, and the latest AI development tools. Students and faculty members will have access to cutting-edge technology for conducting research in machine learning, computer vision, natural language processing, and robotics.The lab will focus on:• AI research and development• Student training programs• Industry collaboration projects• Innovation in African contexts• Publishing research papersThis initiative positions UB as a leading institution in AI research in Central Africa and opens up new opportunities for students interested in artificial intelligence and machine learning careers.',
-    category: 'Tech',
-    date: 'Wednesday - Feb 5th',
-    timeAgo: '1 week ago',
-    image: require('../../assets/update-3.jpg'),
-  },
-  {
-    id: 4,
-    title: 'Cameroon innovative health hackathon',
-    intro: 'Students and developers gathered to build innovative health technology solutions.',
-    description:
-      'Students and developers gathered to build innovative health technology solutions addressing real healthcare challenges across Cameroon.The 48-hour hackathon brought together over 100 participants including medical students, software developers, designers, and healthcare professionals. Teams worked around the clock to develop mobile apps, web platforms, and IoT solutions targeting critical health issues.Winning projects included:• Telemedicine platform for rural areas• AI-powered disease diagnosis tool• Maternal health monitoring system• Medicine delivery tracking app• Health records management solutionThe event was sponsored by leading tech companies and healthcare organizations committed to improving healthcare access through technology. Top teams received funding and mentorship to further develop their solutions.',
-    category: 'Events',
-    date: 'Monday - Feb 3rd',
-    timeAgo: '2 weeks ago',
-    image: require('../../assets/update-4.jpg'),
-  },
-  {
-    id: 5,
-    title: 'UB football team qualifies for finals',
-    intro: 'The University of Buea football team secured a dramatic semifinal victory.',
-    description:
-      'The University of Buea football team secured a dramatic semifinal victory to qualify for the national university championship finals.In a thrilling match that went into extra time, UB defeated their rivals 3-2 with a stunning last-minute goal. The team showed exceptional skill, determination, and teamwork throughout the tournament, winning all their group stage matches and knockout rounds.Key highlights:• Unbeaten run in the tournament• Top scorer with 12 goals• Best defensive record• Strong team chemistry• Excellent coaching strategyThe finals will be held next month at the national stadium. The entire UB community is rallying behind the team as they aim to bring home the championship trophy. This would be UB\'s first national title in five years.',
-    category: 'Sports',
-    date: 'Tuesday - Feb 1st',
-    timeAgo: '2 weeks ago',
-    image: require('../../assets/update-5.jpg'),
-  },
-  {
-    id: 6,
-    title: 'Business incubation hub launched',
-    intro: 'A new business incubation hub has been launched at UB to support student entrepreneurs.',
-    description:
-      'A new business incubation hub has been launched at UB to support student entrepreneurs, startups, and innovative business ideas.The hub provides a collaborative workspace, mentorship programs, funding opportunities, and access to business development resources. Student entrepreneurs can receive guidance from experienced business leaders, connect with potential investors, and develop their ventures in a supportive environment.Services offered:• Free co-working space• Business mentorship• Seed funding opportunities• Legal and accounting support• Networking events• Pitch training workshopsThe incubation hub aims to foster an entrepreneurial culture on campus and help students transform their innovative ideas into successful businesses. Applications are now open for the first cohort of startups.',
-    category: 'Business',
-    date: 'Thursday - Jan 28th',
-    timeAgo: '3 weeks ago',
-    image: require('../../assets/update-5.jpg'),
-  },
-];
-
-/*
-================================
-CATEGORIES
-================================
-*/
-const categories = ['All', 'Tech', 'Business', 'Sports', 'Events'];
-
-
-
+/**
+ * Renders the Lewa News feed with live backend data and pull-to-refresh support.
+ */
 export default function UpdatesScreen() {
   const navigation = useNavigation<UpdatesScreenNavigationProp>();
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<(typeof NEWS_CATEGORIES)[number]>('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [visibleNewsCount, setVisibleNewsCount] = useState(4);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('error');
 
+  /**
+   * Displays the shared toast feedback used across the app.
+   */
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  }, []);
 
+  /**
+   * Loads the current session cache so revisits feel immediate.
+   */
+  const loadCachedNews = useCallback(async () => {
+    const cachedArticles = await getCachedNewsArticles();
 
-  /*
-  
-  FILTER NEWS BY CATEGORY
-  
-  */
+    if (cachedArticles.length) {
+      setArticles(cachedArticles);
+      setIsInitialLoading(false);
+    }
 
-  const filteredNews =
-    selectedCategory === 'All'
-      ? newsData
-      : newsData.filter((news) => news.category === selectedCategory);
+    return cachedArticles;
+  }, []);
 
+  /**
+   * Fetches the latest news from the backend and refreshes the session cache.
+   */
+  const fetchAndStoreLatestNews = useCallback(
+    async (options?: { isUserRefresh?: boolean }) => {
+      const latestArticles = await fetchLatestNewsArticles(NEWS_FETCH_LIMIT);
+      setArticles(latestArticles);
+      await cacheNewsArticles(latestArticles);
+      setIsInitialLoading(false);
 
+      if (options?.isUserRefresh) {
+        showToast('News feed updated with the latest articles.', 'success');
+      }
+    },
+    [showToast]
+  );
 
-  const featuredNews = filteredNews[0];
-  const otherNews = filteredNews.slice(1, visibleNewsCount + 1);
+  /**
+   * Loads cached news first, then refreshes from the backend whenever the screen gains focus.
+   */
+  const loadNewsOnFocus = useCallback(async () => {
+    try {
+      await loadCachedNews();
+      await fetchAndStoreLatestNews();
+    } catch (error) {
+      setIsInitialLoading(false);
 
+      const cachedArticles = await getCachedNewsArticles();
 
+      if (!cachedArticles.length) {
+        showToast('Unable to load Lewa News right now. Pull down to try again.', 'error');
+      } else {
+        showToast('Latest news could not be refreshed. Showing cached articles instead.', 'error');
+      }
+    }
+  }, [fetchAndStoreLatestNews, loadCachedNews, showToast]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadNewsOnFocus();
+    }, [loadNewsOnFocus])
+  );
+
+  /**
+   * Refreshes the news feed when the user pulls down on the scrollable content.
+   */
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+
+    try {
+      await fetchAndStoreLatestNews({ isUserRefresh: true });
+    } catch (error) {
+      showToast('Unable to refresh Lewa News right now.', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [fetchAndStoreLatestNews, showToast]);
+
+  /**
+   * Updates the search query and resets the visible list window.
+   */
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setVisibleNewsCount(4);
+  }, []);
+
+  /**
+   * Updates the active category filter and resets the visible list window.
+   */
+  const handleCategoryChange = useCallback((category: (typeof NEWS_CATEGORIES)[number]) => {
+    setSelectedCategory(category);
+    setVisibleNewsCount(4);
+  }, []);
+
+  /**
+   * Loads more filtered articles into the visible news list.
+   */
+  const handleLoadMore = useCallback(() => {
+    setVisibleNewsCount((previousCount) => previousCount + 4);
+  }, []);
+
+  const featuredNews = articles[0] ?? null;
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const otherNews = useMemo(() => {
+    const feedArticles = articles.slice(1);
+
+    return feedArticles.filter((article) => {
+      const matchesCategory =
+        selectedCategory === 'All' || article.category === selectedCategory;
+
+      if (!normalizedQuery) {
+        return matchesCategory;
+      }
+
+      const searchSource = `${article.title} ${article.intro} ${article.description} ${article.category}`.toLowerCase();
+      return matchesCategory && searchSource.includes(normalizedQuery);
+    });
+  }, [articles, normalizedQuery, selectedCategory]);
+
+  const visibleNews = otherNews.slice(0, visibleNewsCount);
+
+  if (isInitialLoading) {
+    return (
+      <View style={styles.container}>
+        <CustomToast
+          message={toastMessage}
+          type={toastType}
+          visible={toastVisible}
+          onHide={() => setToastVisible(false)}
+        />
+        <AppHeader />
+        <View style={styles.loaderContainer}>
+          <SpinningLoader size={88} />
+          <Text style={styles.loaderText}>Loading the latest Lewa updates...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
+      <CustomToast
+        message={toastMessage}
+        type={toastType}
+        visible={toastVisible}
+        onHide={() => setToastVisible(false)}
+      />
 
-      {/* App Header with Profile Modal */}
       <AppHeader />
 
-
-
-      <ScrollView showsVerticalScrollIndicator={false}>
-
-
-
-        {/*SEARCH BAR*/}
-
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
         <View style={styles.searchContainer}>
-
           <Ionicons name="search" size={20} color="#9CA3AF" />
-
           <TextInput
+            value={searchQuery}
+            onChangeText={handleSearchChange}
             placeholder="Search news..."
             placeholderTextColor="#9CA3AF"
             style={styles.searchInput}
           />
-
         </View>
 
-
-
-        {/* 
-        FEATURED NEWS
-         */}
-
-        {featuredNews && (
-
+        {featuredNews ? (
           <TouchableOpacity
             style={styles.featuredCard}
             activeOpacity={0.9}
             onPress={() => navigation.navigate('NewsDetails', { news: featuredNews })}
           >
-
             <Image
-              source={featuredNews.image}
+              source={{ uri: featuredNews.image_url }}
               style={styles.featuredImage}
             />
 
             <LinearGradient
-            colors={[
-              'rgba(0,0,0,0)',
-              'rgba(0,0,0,0.35)',
-              'rgba(0,0,0,0.85)',
-              'rgba(0,0,0,0.95)'
-            ]}
-            locations={[0, 0.4, 0.7, 1]}
-            style={styles.featuredOverlay}
-          >
-
+              colors={[
+                'rgba(0,0,0,0)',
+                'rgba(0,0,0,0.35)',
+                'rgba(0,0,0,0.85)',
+                'rgba(0,0,0,0.95)',
+              ]}
+              locations={[0, 0.4, 0.7, 1]}
+              style={styles.featuredOverlay}
+            >
               <View style={styles.featuredCategory}>
-                <Text style={styles.featuredCategoryText}>
-                  {featuredNews.category}
-                </Text>
+                <Text style={styles.featuredCategoryText}>{featuredNews.category}</Text>
               </View>
 
-              <Text style={styles.featuredTitle}>
-                {featuredNews.title}
-              </Text>
+              <Text style={styles.featuredTitle}>{featuredNews.title}</Text>
 
-              <Text style={styles.featuredDescription}>
+              <Text style={styles.featuredDescription} numberOfLines={3}>
                 {featuredNews.intro}
               </Text>
 
               <View style={styles.featuredFooter}>
                 <View style={styles.featuredSourceContainer}>
-                  <Image source={require('../../assets/featured-logo.png')} style={styles.sourceLogo} />
-                  <Text style={styles.featuredSource}>
-                  Lewa News
-                </Text>
+                  <Image
+                    source={require('../../assets/featured-logo.png')}
+                    style={styles.sourceLogo}
+                  />
+                  <Text style={styles.featuredSource}>Lewa News</Text>
                 </View>
 
                 <Text style={styles.featuredTime}>
-                  {featuredNews.timeAgo}
+                  {formatNewsRelativeTime(featuredNews.published_at)}
                 </Text>
               </View>
-
             </LinearGradient>
-
           </TouchableOpacity>
-
+        ) : (
+          <View style={styles.emptyStateCard}>
+            <Text style={styles.emptyStateTitle}>No published news yet</Text>
+            <Text style={styles.emptyStateText}>
+              Pull down on this feed to check again when new articles are available.
+            </Text>
+          </View>
         )}
-
-
-
-        {/*CATEGORY CHIPS*/}
 
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.categoryContainer}
         >
-
-          {categories.map((category) => (
-
+          {NEWS_CATEGORIES.map((category) => (
             <TouchableOpacity
               key={category}
               style={[
                 styles.categoryChip,
                 selectedCategory === category && styles.categoryChipActive,
               ]}
-              onPress={() => setSelectedCategory(category)}
+              onPress={() => handleCategoryChange(category)}
             >
-
               <Text
                 style={[
                   styles.categoryText,
@@ -250,334 +307,290 @@ export default function UpdatesScreen() {
               >
                 {category}
               </Text>
-
             </TouchableOpacity>
-
           ))}
-
         </ScrollView>
 
-
-
-        {/* 
-        NEWS LIST
-         */}
-
         <View style={styles.newsContainer}>
+          {visibleNews.length ? (
+            visibleNews.map((news) => (
+              <TouchableOpacity
+                key={news.id}
+                style={styles.newsCard}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate('NewsDetails', { news })}
+              >
+                <Image source={{ uri: news.image_url }} style={styles.newsImage} />
 
-          {otherNews.map((news) => (
-
-            <TouchableOpacity
-              key={news.id}
-              style={styles.newsCard}
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate('NewsDetails', { news })}
-            >
-
-              <Image
-                source={news.image}
-                style={styles.newsImage}
-              />
-
-              <View style={styles.newsContent}>
-
-                <Text style={styles.newsDate}>
-                  {news.date}
-                </Text>
-
-                <Text style={styles.newsTitle}>
-                  {news.title}
-                </Text>
-
-                <View style={styles.newsFooter}>
-
-                  <Text style={styles.newsTimeAgo}>
-                    {news.timeAgo}
+                <View style={styles.newsContent}>
+                  <Text style={styles.newsDate}>
+                    {formatNewsPublishedDate(news.published_at)}
                   </Text>
 
-                  <Text style={styles.lewaNews}>
-                    Lewa News
-                  </Text>
+                  <Text style={styles.newsTitle}>{news.title}</Text>
 
+                  <View style={styles.newsFooter}>
+                    <Text style={styles.newsTimeAgo}>
+                      {formatNewsRelativeTime(news.published_at)}
+                    </Text>
+
+                    <Text style={styles.lewaNews}>Lewa News</Text>
+                  </View>
                 </View>
-
-              </View>
-
-            </TouchableOpacity>
-
-          ))}
-
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.filteredEmptyState}>
+              <Text style={styles.filteredEmptyTitle}>No matching articles</Text>
+              <Text style={styles.filteredEmptyText}>
+                Try a different category or clear your search to see more updates.
+              </Text>
+            </View>
+          )}
         </View>
 
-
-
-        {/* 
-        LOAD MORE BUTTON
-         */}
-
-        {visibleNewsCount < filteredNews.length && (
-
-          <TouchableOpacity
-            style={styles.loadMoreButton}
-            onPress={() =>
-              setVisibleNewsCount((prev) => prev + 4)
-            }
-          >
-
-            <Text style={styles.loadMoreText}>
-              Load More
-            </Text>
-
+        {visibleNewsCount < otherNews.length && (
+          <TouchableOpacity style={styles.loadMoreButton} onPress={handleLoadMore}>
+            <Text style={styles.loadMoreText}>Load More</Text>
           </TouchableOpacity>
-
         )}
 
-        <View style={{ height: 120 }} />
-
+        <View style={styles.bottomSpacer} />
       </ScrollView>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-
-container: {
-  flex: 1,
-  backgroundColor: colors.background,
-},
-
-
-
-
-
-
-
-/*
-SEARCH
-*/
-
-searchContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: colors.white,
-  marginHorizontal: 20,
-  marginTop: 15,
-  borderRadius: 30,
-  paddingHorizontal: 16,
-  paddingVertical: 14,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 1 },
-  shadowOpacity: 0.05,
-  shadowRadius: 2,
-  elevation: 2,
-  borderWidth: 1,
-  borderColor: '#E5E7EB',
-  
-},
-
-searchInput: {
-  marginLeft: 10,
-  flex: 1,
-  fontSize: 16,
-},
-
-
-
-/*
-FEATURED NEWS
-*/
-
-featuredCard: {
-  marginTop: 20,
-  marginHorizontal: 20,
-  paddingVertical: 12,
-  borderRadius: 20,
-  overflow: 'hidden',
-},
-
-featuredImage: {
-  width: '100%',
-  height: 350,
-  marginTop: -12,
-},
-
-featuredOverlay: {
-  position: 'absolute',
-  bottom: 0,
-  left: 0,
-  right: 0,
-  height: '100%',
-  justifyContent: 'flex-end',
-  padding: 20,
-},
-
-featuredCategory: {
-  backgroundColor: colors.primary,
-  paddingHorizontal: 12,
-  paddingVertical: 4,
-  borderRadius: 12,
-  alignSelf: 'flex-start',
-  marginBottom: 10,
-},
-
-featuredCategoryText: {
-  color: colors.white,
-  fontSize: 12,
-},
-
-featuredTitle: {
-  fontSize: 20,
-  color: colors.white,
-  fontWeight: '600',
-  marginBottom: 8,
-},
-
-featuredDescription: {
-  fontSize: 14,
-  color: '#eaeced',
-  marginBottom: 12,
-},
-
-featuredFooter: {
-  marginTop: 10,
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-},
-
-featuredSource: {
-  color: colors.white,
-},
-
-featuredTime: {
-  color: '#D1D5DB',
-},
-
-featuredSourceContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 6,
-},
-sourceLogo: {
-  width: 30,
-  height: 30,
-  resizeMode: 'contain',
-  backgroundColor: colors.primary,
-  borderRadius: 15,
-  padding: 0,
-},
-
-
-/*
-CATEGORY CHIPS
-*/
-
-categoryContainer: {
-  marginTop: 20,
-  paddingLeft: 20,
-},
-
-categoryChip: {
-  paddingHorizontal: 18,
-  paddingVertical: 10,
-  borderRadius: 20,
-  backgroundColor: '#E5E7EB',
-  marginRight: 10,
-},
-
-categoryChipActive: {
-  backgroundColor: '#1F2937',
-},
-
-categoryText: {
-  color: '#374151',
-},
-
-categoryTextActive: {
-  color: colors.white,
-},
-
-
-
-/*
-NEWS LIST
-*/
-
-newsContainer: {
-  marginTop: 20,
-  paddingHorizontal: 20,
-},
-
-newsCard: {
-  flexDirection: 'row',
-  backgroundColor: colors.white,
-  borderRadius: 15,
-  paddingHorizontal: 12,
-  paddingVertical: 12,
-  marginBottom: 14,
-},
-
-newsImage: {
-  width: 90,
-  height: 90,
-  borderRadius: 12,
-  marginRight: 12,
-  backgroundColor:colors.background,
-},
-
-newsContent: {
-  flex: 1,
-  paddingVertical: 8,
-},
-
-newsDate: {
-  fontSize: 12,
-  color: '#9CA3AF',
-},
-
-newsTitle: {
-  fontSize: 15,
-  marginTop: 4,
-  marginBottom: 6,
-  fontWeight: '600',
-},
-
-newsFooter: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginTop: 20,
-},
-
-newsTimeAgo: {
-  fontSize: 12,
-  color: '#9CA3AF',
-},
-
-lewaNews: {
-  color: colors.primary,
-  fontSize: 12,
-},
-
-
-
-/*
-LOAD MORE
-*/
-
-loadMoreButton: {
-  alignSelf: 'center',
-  backgroundColor: colors.primary,
-  paddingHorizontal: 26,
-  paddingVertical: 12,
-  borderRadius: 20,
-  marginTop: 10,
-},
-
-loadMoreText: {
-  color: colors.white,
-  fontSize: 14,
-},
-
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  loaderContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  loaderText: {
+    marginTop: 18,
+    fontSize: 15,
+    color: colors.textBody,
+    textAlign: 'center',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    marginHorizontal: 20,
+    marginTop: 15,
+    borderRadius: 30,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  searchInput: {
+    marginLeft: 10,
+    flex: 1,
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  featuredCard: {
+    marginTop: 20,
+    marginHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  featuredImage: {
+    width: '100%',
+    height: 350,
+    marginTop: -12,
+  },
+  featuredOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '100%',
+    justifyContent: 'flex-end',
+    padding: 20,
+  },
+  featuredCategory: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  featuredCategoryText: {
+    color: colors.white,
+    fontSize: 12,
+  },
+  featuredTitle: {
+    fontSize: 20,
+    color: colors.white,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  featuredDescription: {
+    fontSize: 14,
+    color: '#eaeced',
+    marginBottom: 12,
+  },
+  featuredFooter: {
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  featuredSourceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  featuredSource: {
+    color: colors.white,
+  },
+  featuredTime: {
+    color: '#D1D5DB',
+  },
+  sourceLogo: {
+    width: 30,
+    height: 30,
+    resizeMode: 'contain',
+    backgroundColor: colors.primary,
+    borderRadius: 15,
+    padding: 0,
+  },
+  emptyStateCard: {
+    marginTop: 20,
+    marginHorizontal: 20,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  emptyStateText: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.textBody,
+  },
+  categoryContainer: {
+    marginTop: 20,
+    paddingLeft: 20,
+  },
+  categoryChip: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#E5E7EB',
+    marginRight: 10,
+  },
+  categoryChipActive: {
+    backgroundColor: '#1F2937',
+  },
+  categoryText: {
+    color: '#374151',
+  },
+  categoryTextActive: {
+    color: colors.white,
+  },
+  newsContainer: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  newsCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    marginBottom: 14,
+  },
+  newsImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  newsContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  newsDate: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 6,
+    marginTop: 8,
+  },
+  newsTitle: {
+    fontSize: 16,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    lineHeight: 22,
+    marginTop: -28,
+  },
+  newsFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  newsTimeAgo: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  lewaNews: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '400',
+  },
+  filteredEmptyState: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 8,
+  },
+  filteredEmptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  filteredEmptyText: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 21,
+    color: colors.textBody,
+  },
+  loadMoreButton: {
+    backgroundColor: '#1F2937',
+    marginTop: 8,
+    marginHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  loadMoreText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  bottomSpacer: {
+    height: 120,
+  },
 });

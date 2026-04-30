@@ -4,17 +4,16 @@
  * Screen for displaying payment summary before confirmation
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image,
-  TouchableWithoutFeedback,
-  Keyboard,
+  ActivityIndicator,
   Modal,
+  BackHandler,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
@@ -22,33 +21,68 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppHeader from '../components/AppHeader';
+import { api } from '../services/api';
+import { showErrorToast } from '../services/toast';
 
 
 type RootStackParamList = {
   MainTabs: { screen: string };
   FeeSelection: undefined;
-  PaymentMethod: { feeType: 'complete' | 'half'; amount: number };
-  ConfirmNumber: { feeType: 'complete' | 'half'; amount: number; paymentMethod: string };
-  PaymentSummary: { feeType: 'complete' | 'half'; amount: number; paymentMethod: string; phoneNumber: string };
-  PaymentProcessing: { feeType: 'complete' | 'half'; amount: number; paymentMethod: string; phoneNumber: string };
+  PaymentMethod: { feeInstallment: 'full' | 'half'; amount: number };
+  ConfirmNumber: { feeInstallment: 'full' | 'half'; amount: number; paymentMethod: string };
+  PaymentSummary: { reference: string };
+  PaymentProcessing: { reference: string };
 };
 
 type PaymentSummaryScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PaymentSummary'>;
 type PaymentSummaryScreenRouteProp = RouteProp<RootStackParamList, 'PaymentSummary'>;
 
+const formatXafAmount = (value: number | string) => {
+  const numericValue = Number(value);
+
+  if (Number.isNaN(numericValue)) {
+    return String(value);
+  }
+
+  return numericValue.toLocaleString('en-US').replace(/,/g, ' ');
+};
+
+const formatPaymentMethodLabel = (method?: string | null) => {
+  if (method === 'mtn') {
+    return 'MTN Mobile Money';
+  }
+
+  if (method === 'orange') {
+    return 'Orange Money';
+  }
+
+  return method || 'N/A';
+};
+
+const formatCameroonPhone = (phone?: string | null) => {
+  const rawPhone = phone || '';
+  const digits = rawPhone.replace(/\D/g, '');
+  const localNumber = digits.startsWith('237') ? digits.slice(3) : digits;
+
+  if (localNumber.length !== 9) {
+    return rawPhone || 'N/A';
+  }
+
+  return `+237 ${localNumber.slice(0, 3)} ${localNumber.slice(3, 6)} ${localNumber.slice(6)}`;
+};
+
 const PaymentSummaryScreen: React.FC = () => {
   const navigation = useNavigation<PaymentSummaryScreenNavigationProp>();
   const route = useRoute<PaymentSummaryScreenRouteProp>();
-  const { amount, feeType, paymentMethod, phoneNumber } = route.params;
+  const { reference } = route.params;
+  const allowNavigationRef = useRef(false);
 
   // State
   const [showCancelModal, setShowCancelModal] = useState(false);
-
-  // Mock user data
-  const userName = 'Munoh Nguchi';
-  const matricule = 'CT24A456';
-  const paymentReference = `CIFT${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-  const feeTypeText = feeType === 'complete' ? 'Complete Fees' : 'Half Fees';
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
+  const [isCancellingPayment, setIsCancellingPayment] = useState(false);
+  const [paymentData, setPaymentData] = useState<any>(null);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -57,9 +91,70 @@ const PaymentSummaryScreen: React.FC = () => {
     Poppins_700Bold,
   });
 
-  if (!fontsLoaded) {
+  // Fetch payment data from backend
+  useEffect(() => {
+    const fetchPaymentData = async () => {
+      try {
+        const response = await api.get(`/api/payments/reference/${reference}`);
+        setPaymentData(response.data.data);
+        setIsLoading(false);
+      } catch {
+        showErrorToast('Failed to load payment details.');
+        setIsLoading(false);
+        allowNavigationRef.current = true;
+        navigation.goBack();
+      }
+    };
+
+    fetchPaymentData();
+  }, [navigation, reference]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+      if (allowNavigationRef.current) {
+        return;
+      }
+
+      event.preventDefault();
+      setShowCancelModal(true);
+    });
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      setShowCancelModal(true);
+      return true;
+    });
+
+    return () => {
+      unsubscribe();
+      backHandler.remove();
+    };
+  }, [navigation]);
+
+  if (!fontsLoaded || isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: 16, fontFamily: 'Poppins_400Regular', color: colors.textBody }}>
+          Loading payment details...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!paymentData) {
     return null;
   }
+
+  // Extract data from payment response
+  const amount = paymentData.amount;
+  const paymentType = paymentData.paymentType;
+  const feeInstallment = paymentData.feeInstallment;
+  const paymentMethod = paymentData.paymentMethod;
+  const phoneNumber = paymentData.phoneNumber;
+  const userName = paymentData.student?.name || 'Student';
+  const matricule = paymentData.student?.matricule || 'N/A';
+  const feeTypeText = feeInstallment === 'full' ? 'Complete Fees' : 'Half Fees';
+  const isSubscription = paymentType === 'subscription';
 
   // Handler for back button - triggers cancel modal
   const handleBackPress = () => {
@@ -68,41 +163,72 @@ const PaymentSummaryScreen: React.FC = () => {
 
   // Handler for closing modal without canceling
   const handleCloseModal = () => {
+    if (isCancellingPayment) {
+      return;
+    }
+
     setShowCancelModal(false);
   };
 
   // Handler for confirming cancellation
-  const handleConfirmCancel = () => {
-    setShowCancelModal(false);
-    navigation.goBack(); // Navigate back (no DB deletion needed)
+  const handleConfirmCancel = async () => {
+    setIsCancellingPayment(true);
+
+    try {
+      await api.delete(`/api/payments/${reference}`, {
+        suppressErrorToast: true,
+      } as any);
+      setShowCancelModal(false);
+      allowNavigationRef.current = true;
+      navigation.goBack();
+    } catch (error: any) {
+      const message =
+        error.response?.status === 409
+          ? 'This payment has already started. Please check the payment status instead.'
+          : error.userMessage || 'Unable to cancel this payment right now.';
+
+      showErrorToast(message);
+    } finally {
+      setIsCancellingPayment(false);
+    }
   };
 
-  // Handler for confirming payment - creates payment record in DB
+  // Handler for confirming payment - navigate to processing screen
   const handleConfirm = async () => {
-    // TODO: Call backend API to create payment record
-    // const paymentData = {
-    //   feeType,
-    //   amount,
-    //   paymentMethod,
-    //   phoneNumber,
-    //   status: 'initialized',
-    //   createdAt: new Date().toISOString()
-    // };
-    // const response = await api.createPayment(paymentData);
-    // const paymentId = response.paymentId;
+    if (isConfirmingPayment) {
+      return;
+    }
 
-    // Navigate to processing screen
-    // In production, pass the paymentId from the API response
-    navigation.navigate('PaymentProcessing', {
-      feeType,
-      amount,
-      paymentMethod,
-      phoneNumber
-    });
+    setIsConfirmingPayment(true);
+
+    try {
+      await api.get('/health', {
+        timeout: 6000,
+        suppressErrorToast: true,
+      } as any);
+
+      await api.post(`/api/payments/${reference}/trigger`, undefined, {
+        timeout: 20000,
+        suppressErrorToast: true,
+      } as any);
+
+      allowNavigationRef.current = true;
+      navigation.navigate('PaymentProcessing', { reference });
+    } catch (error: any) {
+      const isConnectionProblem =
+        !error.response || error.code === 'ECONNABORTED';
+
+      showErrorToast(
+        isConnectionProblem
+          ? 'Slow or no internet connection. Please check your connection before starting payment.'
+          : error.userMessage || 'Unable to start payment. Please try again.'
+      );
+    } finally {
+      setIsConfirmingPayment(false);
+    }
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         
         <AppHeader />
@@ -123,23 +249,53 @@ const PaymentSummaryScreen: React.FC = () => {
         </View>
 
         {/* Amount and Status */}
-        <View style={styles.amountContainer}>
+        <View style={styles.paymentHeroCard}>
+          <View style={styles.paymentHeroTopRow}>
+            <View style={styles.paymentHeroTitleBlock}>
+              <Text style={styles.paymentHeroEyebrow}>
+                {isSubscription ? 'Subscription checkout' : 'Fee checkout'}
+              </Text>
+            </View>
+            <View style={styles.statusBadge}>
+              <Ionicons name="time-outline" size={14} color="#F59E0B" />
+              <Text style={styles.statusText}>Pending</Text>
+            </View>
+          </View>
+
           <View style={styles.amountSection}>
-            <Text style={styles.amountValue}>{amount.toLocaleString()}</Text>
+            <Text style={styles.amountValue} numberOfLines={1} adjustsFontSizeToFit>
+              {formatXafAmount(amount)}
+            </Text>
             <Text style={styles.currency}>XAF</Text>
           </View>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>Pending</Text>
+
+          <View style={styles.paymentHeroFooter}>
+            <View style={styles.paymentHeroMiniItem}>
+              <Text style={styles.paymentHeroMiniLabel}>Payment type</Text>
+              <Text style={styles.paymentHeroMiniValue} numberOfLines={1}>
+                {isSubscription ? 'Subscription' : 'Fees'}
+              </Text>
+            </View>
+            <View style={styles.paymentHeroMiniDivider} />
+            <View style={styles.paymentHeroMiniItem}>
+              <Text style={styles.paymentHeroMiniLabel}>Status</Text>
+              <Text style={styles.paymentHeroMiniValue} numberOfLines={1}>
+                Awaiting confirmation
+              </Text>
+            </View>
           </View>
         </View>
 
         {/* Payment Summary Card */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
-            <Text style={styles.summaryTitle}>Payment summary</Text>
-            <TouchableOpacity style={styles.copyButton}>
-              <Ionicons name="list" size={20} color={colors.primary} />
-            </TouchableOpacity>
+            <View>
+              <Text style={styles.summaryTitle}>Payment details</Text>
+              <Text style={styles.summarySubtitle}>Confirm every detail carefully</Text>
+            </View>
+            <View style={styles.summaryIcon}>
+              <Ionicons name="receipt-outline" size={20} color={colors.primary} />
+            </View>
           </View>
 
           {/* Summary Items */}
@@ -154,33 +310,49 @@ const PaymentSummaryScreen: React.FC = () => {
               <Text style={styles.summaryValue}>{matricule}</Text>
             </View>
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Fee type</Text>
-              <Text style={styles.summaryValue}>{feeTypeText}</Text>
-            </View>
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Reference</Text>
-              <Text style={styles.summaryValue}>{paymentReference}</Text>
-            </View>
+            {/* Show fee type only for fee payments */}
+            {!isSubscription && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Fee type</Text>
+                <Text style={styles.summaryValue}>{feeTypeText}</Text>
+              </View>
+            )}
 
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Payment method</Text>
-              <Text style={styles.summaryValue}>{paymentMethod}</Text>
+              <Text style={styles.summaryValue}>{formatPaymentMethodLabel(paymentMethod)}</Text>
             </View>
 
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Phone number</Text>
-              <Text style={styles.summaryValue}>{phoneNumber}</Text>
+              <Text style={styles.summaryValue}>{formatCameroonPhone(phoneNumber)}</Text>
+            </View>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Amount</Text>
+              <Text style={styles.summaryValue}>{formatXafAmount(amount)} XAF</Text>
+            </View>
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Reference</Text>
+              <Text style={styles.summaryValue} numberOfLines={1}>{reference}</Text>
             </View>
           </View>
         </View>
 
         {/* Confirm Button */}
-        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+        <TouchableOpacity
+          style={[styles.confirmButton, isConfirmingPayment && styles.confirmButtonDisabled]}
+          onPress={handleConfirm}
+          disabled={isConfirmingPayment}
+        >
           <Text style={styles.confirmButtonText}>Confirm and pay</Text>
           <View style={styles.confirmIconContainer}>
-            <Ionicons name="arrow-forward" size={24} color={colors.white} />
+            {isConfirmingPayment ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Ionicons name="arrow-forward" size={24} color={colors.white} />
+            )}
           </View>
         </TouchableOpacity>
       </ScrollView>
@@ -200,34 +372,39 @@ const PaymentSummaryScreen: React.FC = () => {
             </View>
 
             {/* Title */}
-            <Text style={styles.modalTitle}>Cancel Payment?</Text>
+            <Text style={styles.modalTitle}>Cancel payment?</Text>
 
             {/* Message */}
             <Text style={styles.modalMessage}>
-              Are you sure you want to cancel this payment?
+              This will delete the initialized payment and take you back.
             </Text>
 
             {/* Buttons */}
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={styles.modalButtonNo}
+                style={[styles.modalButtonNo, isCancellingPayment && styles.modalButtonDisabled]}
                 onPress={handleCloseModal}
+                disabled={isCancellingPayment}
               >
                 <Text style={styles.modalButtonNoText}>No, Continue</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.modalButtonYes}
+                style={[styles.modalButtonYes, isCancellingPayment && styles.modalButtonDisabled]}
                 onPress={handleConfirmCancel}
+                disabled={isCancellingPayment}
               >
-                <Text style={styles.modalButtonYesText}>Yes, Cancel</Text>
+                {isCancellingPayment ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.modalButtonYesText}>Yes, Cancel</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
       </View>
-    </TouchableWithoutFeedback>
   );
 };
 
@@ -238,6 +415,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    backgroundColor: colors.white,
   },
   scrollContent: {
     flexGrow: 1,
@@ -245,143 +423,173 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 18,
     backgroundColor: colors.white,
-  },
-  headerTop: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-
-  },
-  translationButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  translationIcon: {
-    width: 28,
-    height: 28,
-    resizeMode: 'contain',
-    tintColor: colors.primary,
-  },
-  profileButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 30,
-    overflow: 'hidden',
-  },
-  profileIcon: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F4F7',
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 15,
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingRight: 16,
   },
   backText: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Poppins_500Medium',
-    color:'#da1a23e8',
+    color: colors.error,
   },
-  amountContainer: {
+  paymentHeroCard: {
     backgroundColor: colors.textPrimary,
     marginHorizontal: 20,
-    marginTop: 30,
-    marginBottom: 30,
-    borderRadius: 16,
-    padding: 24,
+    marginTop: 14,
+    marginBottom: 22,
+    borderRadius: 22,
+    padding: 18,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.14,
+    shadowRadius: 22,
+    elevation: 6,
+  },
+  paymentHeroTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 14,
+    marginBottom: 14,
+  },
+  paymentHeroTitleBlock: {
+    flex: 1,
+  },
+  paymentHeroEyebrow: {
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
+    color: 'rgba(255, 255, 255, 0.58)',
+    marginBottom: 4,
   },
   amountSection: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 8,
+    marginBottom: 14,
   },
   amountValue: {
-    fontSize: 40,
-    fontFamily: 'Poppins_700SemiBold',
+    fontSize: 38,
+    fontFamily: 'Poppins_700Bold',
     color: colors.white,
+    letterSpacing: 0,
   },
   currency: {
-    fontSize: 20,
+    fontSize: 15,
     fontFamily: 'Poppins_600SemiBold',
-    color: '#F59E0B',
+    color: 'rgba(255, 255, 255, 0.72)',
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     backgroundColor: '#FEF3E2',
-    paddingHorizontal: 16,
-    paddingVertical: 5,
-    borderRadius: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
   statusText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
     color: '#F59E0B',
+  },
+  paymentHeroFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  paymentHeroMiniItem: {
+    flex: 1,
+  },
+  paymentHeroMiniDivider: {
+    width: 1,
+    height: 34,
+    marginHorizontal: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  paymentHeroMiniLabel: {
+    fontSize: 11,
+    fontFamily: 'Poppins_500Medium',
+    color: 'rgba(255, 255, 255, 0.52)',
+    marginBottom: 3,
+  },
+  paymentHeroMiniValue: {
+    fontSize: 12,
+    fontFamily: 'Poppins_600SemiBold',
+    color: colors.white,
   },
   summaryCard: {
     backgroundColor: colors.white,
     marginHorizontal: 20,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    borderRadius: 22,
+    padding: 18,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
+    elevation: 4,
   },
   summaryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 16,
+    marginBottom: 18,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border1,
+    borderBottomColor: '#EEF2F6',
   },
   summaryTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
   },
-  copyButton: {
+  summarySubtitle: {
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    color: colors.textBody,
+    marginTop: 2,
+  },
+  summaryIcon: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 18,
     backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   summaryItems: {
-    gap: 16,
+    gap: 14,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 16,
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
+    flexShrink: 0,
   },
   summaryValue: {
-    fontSize: 15,
+    flex: 1,
+    fontSize: 13,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
+    textAlign: 'right',
   },
   confirmButton: {
     backgroundColor: colors.white,
@@ -399,6 +607,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+  },
+  confirmButtonDisabled: {
+    opacity: 0.75,
   },
   confirmButtonText: {
     fontSize: 16,
@@ -488,6 +699,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 52,
   },
+  modalButtonDisabled: {
+    opacity: 0.65,
+  },
   modalButtonYesText: {
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
@@ -496,4 +710,3 @@ const styles = StyleSheet.create({
 });
 
 export default PaymentSummaryScreen;
-

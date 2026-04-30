@@ -1,81 +1,60 @@
-
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Image,
+  ImageBackground,
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  Animated,
 } from 'react-native';
-import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
-import { colors } from '../theme/colors';
+import {
+  useFonts,
+  Poppins_400Regular,
+  Poppins_500Medium,
+  Poppins_600SemiBold,
+  Poppins_700Bold,
+} from '@expo-google-fonts/poppins';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 import AppHeader from '../components/AppHeader';
+import { useAuth } from '../hooks/useAuth';
+import {
+  fetchLatestNewsArticles,
+  formatNewsPublishedDate,
+  formatNewsRelativeTime,
+  NewsArticle,
+} from '../services/news';
+import { showSuccessToast } from '../services/toast';
+import { colors } from '../theme/colors';
+import { getCachedNewsArticles } from '../utils/newsSessionStorage';
 
 type RootStackParamList = {
-  MainTabs: { screen: string };
+  MainTabs: { screen?: string };
   FeeSelection: undefined;
+  PaymentMethod: { paymentType: string; amount: number };
   Receipts: undefined;
   SupportDesk: undefined;
+  NewsDetails: { news: NewsArticle };
 };
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Mock data for Latest News (will later come from API)
+const HOME_NEWS_LIMIT = 4;
 
-const newsData = [
-  {
-    id: 1,
-    title: 'Students conference 4th edition',
-    category: 'Events',
-    date: 'Sunday - Feb 8th',
-    timeAgo: '5 days ago',
-    image: require('../../assets/update-2.jpg'),
-    lewaLogo: require('../../assets/icon-1.png'),
-  },
-  {
-    id: 2,
-    title: 'New AI research lab opens at UB',
-    category: 'Tech',
-    date: 'Wednesday - Feb 5th',
-    timeAgo: '1 week ago',
-    image: require('../../assets/update-3.jpg'),
-    lewaLogo: require('../../assets/icon-1.png'),
-  },
-  {
-    id: 3,
-    title: 'Cameroon innovative health hackathon',
-    category: 'Sports',
-    date: 'Monday - Feb 3rd',
-    timeAgo: '2 weeks ago',
-    image: require('../../assets/update-4.jpg'),
-    lewaLogo: require('../../assets/icon-1.png'),
-  },
-];
-
-
-
-// Mock user data (will be replaced with actual user data from backend)
-const userData = {
-  name: 'MUNOH NGUCHI',
-  level: 'Lv 400',
-  matricule: 'CT24A456',
-  faculty: 'COLLEGE OF TECHNOLOGY',
-  department: 'Computer Engineering',
-  feeStatus: 'Not Paid', // 'Paid' or 'Not Paid'
-  registered: true,
-  profileImage: require('../../assets/my-profile-ph.jpg'), // Placeholder profile image
-};
-
+/**
+ * Renders the authenticated home dashboard and latest news summary section.
+ */
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -84,7 +63,16 @@ export default function HomeScreen() {
     Poppins_700Bold,
   });
 
-  // Get time-based greeting
+  const [latestNewsArticles, setLatestNewsArticles] = useState<NewsArticle[]>([]);
+  const [isNewsLoading, setIsNewsLoading] = useState(true);
+
+  // Toast state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastOpacity] = useState(new Animated.Value(0));
+
+  /**
+   * Gets the appropriate greeting for the current time of day.
+   */
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -92,7 +80,114 @@ export default function HomeScreen() {
     return 'Good evening';
   };
 
-  if (!fontsLoaded) {
+  /**
+   * Extracts the student's first name for a friendlier greeting.
+   */
+  const getFirstName = () => {
+    if (!user?.full_name) return 'Student';
+    return user.full_name.split(' ')[0];
+  };
+
+  /**
+   * Formats the student's fee status into a user-facing label.
+   */
+  const getFeeStatusDisplay = () => {
+    if (!user?.fee_status) return 'Not Paid';
+    if (user.fee_status === 'PAID') return 'Paid';
+    if (user.fee_status === 'PARTIAL') return 'Partial';
+    return 'Not Paid';
+  };
+
+  /**
+   * Displays the existing subscription warning toast.
+   */
+  const showToast = () => {
+    setToastVisible(true);
+    Animated.timing(toastOpacity, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    setTimeout(() => {
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setToastVisible(false);
+      });
+    }, 2000);
+  };
+
+  /**
+   * Loads cached latest news first so the home feed feels responsive on revisit.
+   */
+  const loadCachedLatestNews = useCallback(async () => {
+    const cachedArticles = await getCachedNewsArticles();
+
+    if (cachedArticles.length) {
+      setLatestNewsArticles(cachedArticles.slice(0, HOME_NEWS_LIMIT));
+      setIsNewsLoading(false);
+    }
+  }, []);
+
+  /**
+   * Refreshes the home news preview from the backend and limits it to four articles.
+   */
+  const refreshLatestNews = useCallback(async () => {
+    try {
+      const latestArticles = await fetchLatestNewsArticles(HOME_NEWS_LIMIT);
+      setLatestNewsArticles(latestArticles.slice(0, HOME_NEWS_LIMIT));
+    } finally {
+      setIsNewsLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadCachedLatestNews().catch(() => undefined);
+      refreshLatestNews().catch(() => undefined);
+    }, [loadCachedLatestNews, refreshLatestNews])
+  );
+
+  /**
+   * Handles navigation into the fee payment flow.
+   */
+  const handlePayFeesPress = () => {
+    if (user?.fee_status === 'PAID') {
+      showSuccessToast("You've completed fees for this school year.");
+      return;
+    }
+
+    if (!user?.subscribed) {
+      showToast();
+      setTimeout(() => {
+        navigation.navigate('PaymentMethod', {
+          paymentType: 'subscription',
+          amount: 10,
+        });
+      }, 2000);
+    } else {
+      navigation.navigate('FeeSelection');
+    }
+  };
+
+  /**
+   * Opens the full Lewa News tab when the user asks to view all articles.
+   */
+  const handleViewAllPress = () => {
+    navigation.navigate('MainTabs', { screen: 'Lewa News' });
+  };
+
+  /**
+   * Opens a single news article from the home dashboard preview.
+   */
+  const handleOpenNews = (news: NewsArticle) => {
+    navigation.navigate('NewsDetails', { news });
+  };
+
+  if (!fontsLoaded || authLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -100,186 +195,219 @@ export default function HomeScreen() {
     );
   }
 
-  return (
-    <View style={{ flex: 1 }}>
-
-    {/* App Header with Profile Modal */}
-    <AppHeader />
-
-    <ScrollView
-      style={styles.scrollView}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header Section */}
-      <View style={styles.header}>
-
-
-        <View style={styles.greetingSection}>
-          <Text style={styles.greeting}>Hello, Munoh!</Text>
-          <Text style={styles.subGreeting}>{getGreeting()} !</Text>
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search updates, UB calendar, resources..."
-            placeholderTextColor="#9CA3AF"
-          />
-        </View>
+  if (!user) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ fontFamily: 'Poppins_400Regular', color: colors.textPrimary }}>
+          No user data available
+        </Text>
       </View>
+    );
+  }
 
-        {/* User Profile Card */}
-        <View style={styles.profileCard}>
+  return (
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ImageBackground
+          source={require('../../assets/upper-section-bg1.jpg')}
+          style={styles.heroSection}
+          imageStyle={styles.heroImage}
+          resizeMode="cover"
+        >
           <LinearGradient
-            colors={['#1F2933', '#2D3748']}
-            style={styles.gradientOverlay}
+            colors={['rgba(11, 22, 38, 0.88)', 'rgba(12, 45, 68, 0.78)', 'rgba(12, 45, 68, 0.1)']}
+            style={styles.heroOverlay}
           >
-            {/* Student Name */}
-            <Text style={styles.studentName}>{userData.name}</Text>
+            <AppHeader variant="hero" />
 
-            {/* Level Badge */}
-            <View style={styles.levelBadge}>
-              <Ionicons name="trending-up" size={12} color={colors.success} />
-              <Text style={styles.levelBadgeText}>{userData.level}</Text>
-            </View>
-
-            {/* Matricule Number (Large) */}
-            <Text style={styles.matriculeNumber}>{userData.matricule}</Text>
-
-            {/* Faculty and Fee Status Row */}
-            <View style={styles.facultyFeeRow}>
-              <View style={styles.facultyContainer}>
-                <Ionicons name="school" size={14} color={colors.success} />
-                <Text style={styles.facultyText}>{userData.faculty}</Text>
+            <View style={styles.header}>
+              <View style={styles.greetingSection}>
+                <Text style={styles.subGreeting}>{getGreeting()}</Text>
+                <Text style={styles.greeting}>{getFirstName()}</Text>
               </View>
-              <View style={[styles.feeStatusBadge, userData.feeStatus === 'Paid' ? styles.feeStatusPaid : styles.feeStatusNotPaid]}>
-                <Text style={[styles.feeStatusText, userData.feeStatus !== 'Paid' && styles.feeStatusTextNotPaid]}>{userData.feeStatus}</Text>
+
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search updates, UB calendar, resources..."
+                  placeholderTextColor="#9CA3AF"
+                />
               </View>
-            </View>
-
-            {/* Divider */}
-            <View style={styles.cardDivider} />
-
-            {/* Quick Action Buttons */}
-            <View style={styles.cardActions}>
-              <TouchableOpacity
-                style={styles.cardActionButton}
-                onPress={() => navigation.navigate('FeeSelection' as never)}
-              >
-                <Image
-                  source={require('../../assets/pay-fees.png')}
-                  style={styles.cardActionIcon}
-                />
-                <Text style={styles.cardActionText}>Pay Fees</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.cardActionButton}
-                onPress={() => navigation.navigate('Receipts')}
-              >
-                <Image
-                  source={require('../../assets/my-receipts.png')}
-                  style={styles.cardActionIcon}
-                />
-                <Text style={styles.cardActionText}>My Receipts</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.cardActionButton}
-                onPress={() => navigation.navigate('SupportDesk')}
-              >
-                <Image
-                  source={require('../../assets/helpdesk.png')}
-                  style={styles.cardActionIcon}
-                />
-                <Text style={styles.cardActionText}>Help Desk</Text>
-              </TouchableOpacity>
             </View>
           </LinearGradient>
-        </View>
+        </ImageBackground>
 
-        {/* UB Calendar Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <View style={styles.sectionIconContainer}>
-                <MaterialCommunityIcons name="bullhorn" size={20} color={colors.primary} />
-              </View>
-              <Text style={styles.sectionTitle}>Latest News</Text>
-            </View>
-            <TouchableOpacity>
-              <Text style={styles.viewAllText}>View all</Text>
-            </TouchableOpacity>
+        <View style={styles.bodyContent}>
+          <View style={styles.profileCard}>
+            <ImageBackground
+              source={require('../../assets/profile-card-bg.jpg')}
+              style={styles.profileCardImage}
+              imageStyle={styles.profileCardImageStyle}
+              resizeMode="cover"
+            >
+              <LinearGradient
+                colors={[
+                  'rgba(12, 27, 38, 0.78)',
+                  'rgba(19, 18, 18, 0.58)',
+                  'rgba(10, 18, 26, 0.84)',
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.gradientOverlay}
+              >
+                <Text style={styles.studentName} numberOfLines={1}>
+                  {user.full_name.toUpperCase()}
+                </Text>
+
+                <View style={styles.levelBadge}>
+                  <Ionicons name="trending-up" size={12} color={colors.success} />
+                  <Text style={styles.levelBadgeText}>Lv {user.level}</Text>
+                </View>
+
+                <Text style={styles.matriculeNumber} numberOfLines={1} adjustsFontSizeToFit>
+                  {user.matricule}
+                </Text>
+
+                <View style={styles.facultyFeeRow}>
+                  <View style={styles.facultyContainer}>
+                    <Ionicons name="school" size={14} color={colors.success} />
+                    <Text style={styles.facultyText} numberOfLines={1}>
+                      {user.faculty}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.feeStatusBadge,
+                      user.fee_status === 'PAID' ? styles.feeStatusPaid : styles.feeStatusNotPaid,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.feeStatusText,
+                        user.fee_status !== 'PAID' && styles.feeStatusTextNotPaid,
+                      ]}
+                    >
+                      {getFeeStatusDisplay()}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.cardDivider} />
+
+                <View style={styles.cardActions}>
+                  <TouchableOpacity style={styles.cardActionButton} onPress={handlePayFeesPress}>
+                    <Image
+                      source={require('../../assets/pay-fees.png')}
+                      style={styles.cardActionIcon}
+                    />
+                    <Text style={styles.cardActionText}>Pay Fees</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.cardActionButton}
+                    onPress={() => navigation.navigate('Receipts')}
+                  >
+                    <Image
+                      source={require('../../assets/my-receipts.png')}
+                      style={styles.cardActionIcon}
+                    />
+                    <Text style={styles.cardActionText}>My Receipts</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.cardActionButton}
+                    onPress={() => navigation.navigate('SupportDesk')}
+                  >
+                    <Image
+                      source={require('../../assets/helpdesk.png')}
+                      style={styles.cardActionIcon}
+                    />
+                    <Text style={styles.cardActionText}>Help Desk</Text>
+                  </TouchableOpacity>
+                </View>
+              </LinearGradient>
+            </ImageBackground>
           </View>
 
-          {/* News Cards */}
-          
-          {newsData.map((news) => (
-          <TouchableOpacity
-            key={news.id}
-            style={styles.newsCard}
-            activeOpacity={0.5}
-            onPress={() => {
-              console.log('Open news:', news.title);
-              // later you will navigate here
-              // navigation.navigate('NewsDetails', { news })
-            }}
-          >
-
-            {/* Left Image */}
-            <Image
-              source={news.image}
-              style={styles.newsImage}
-              resizeMode="cover"
-            />
-
-            {/* Content */}
-            <View style={styles.newsContent}>
-
-              <Text style={styles.newsDate}>
-                {news.date}
-              </Text>
-
-              <Text style={styles.newsTitle}>
-                {news.title}
-              </Text>
-
-              {/* Footer */}
-              <View style={styles.newsFooter}>
-
-                <Text style={styles.newsTimeAgo}>
-                  {news.timeAgo}
-                </Text>
-
-                {/* Category Icon */}
-                <Text style={styles.lewaNews}>
-                  Lewa News
-                </Text>
-
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleContainer}>
+                <View style={styles.sectionIconContainer}>
+                  <MaterialCommunityIcons name="bullhorn" size={20} color={colors.primary} />
+                </View>
+                <Text style={styles.sectionTitle}>Latest News</Text>
               </View>
-
+              <TouchableOpacity onPress={handleViewAllPress}>
+                <Text style={styles.viewAllText}>View all</Text>
+              </TouchableOpacity>
             </View>
 
-          </TouchableOpacity>
-        ))}
+          {isNewsLoading ? (
+            <View style={styles.newsStateContainer}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : latestNewsArticles.length ? (
+            latestNewsArticles.map((news) => (
+              <TouchableOpacity
+                key={news.id}
+                style={styles.newsCard}
+                activeOpacity={0.5}
+                onPress={() => handleOpenNews(news)}
+              >
+                <Image source={{ uri: news.image_url }} style={styles.newsImage} resizeMode="cover" />
+
+                <View style={styles.newsContent}>
+                  <Text style={styles.newsDate}>{formatNewsPublishedDate(news.published_at)}</Text>
+
+                  <Text style={styles.newsTitle}>{news.title}</Text>
+
+                  <View style={styles.newsFooter}>
+                    <Text style={styles.newsTimeAgo}>
+                      {formatNewsRelativeTime(news.published_at)}
+                    </Text>
+
+                    <Text style={styles.lewaNews}>Lewa News</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.newsStateContainer}>
+              <Text style={styles.newsStateText}>No news articles available right now.</Text>
+            </View>
+          )}
+          </View>
+
+          <View style={{ height: 100 }} />
         </View>
-
-
-        {/* Bottom padding for AppBar */}
-        <View style={{ height: 100 }} />
       </ScrollView>
 
+      {toastVisible && (
+        <Animated.View
+          style={[
+            styles.toastContainer,
+            {
+              opacity: toastOpacity,
+            },
+          ]}
+        >
+          <View style={styles.toastContent}>
+            <Ionicons name="alert-circle" size={20} color={colors.white} />
+            <Text style={styles.toastText}>
+              You haven't subscribed yet. Please subscribe to pay fees.
+            </Text>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }
 
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
   },
   loadingContainer: {
     flex: 1,
@@ -288,31 +416,50 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollView: {
+    backgroundColor: '#0B1626',
     flex: 1,
+  },
+  heroSection: {
+    overflow: 'hidden',
+  },
+  heroImage: {},
+  heroOverlay: {
+    paddingBottom: 132,
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingTop: 4,
+    paddingBottom: 0,
   },
   greetingSection: {
-    marginBottom: 25,
+    marginBottom: 0,
   },
   greeting: {
-    fontSize: 28,
+    fontSize: 26,
     fontFamily: 'Poppins_700Bold',
-    color: colors.textPrimary,
+    color: colors.white,
+    lineHeight: 34,
   },
   subGreeting: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Poppins_400Regular',
-    color: '#9CA3AF',
+    color: 'rgba(255, 255, 255, 0.72)',
+    marginBottom: 2,
+  },
+  bodyContent: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
+    marginTop: -36,
+    overflow: 'visible',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
     borderRadius: 30,
+    marginTop: 16,
+    paddingBottom: 10,
     paddingHorizontal: 16,
     paddingVertical: 15,
     shadowColor: '#000',
@@ -334,14 +481,21 @@ const styles = StyleSheet.create({
   },
   profileCard: {
     marginHorizontal: 20,
-    marginTop: 20,
+    marginTop: -70,
     borderRadius: 20,
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 6,
+    zIndex: 2,
+  },
+  profileCardImage: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  profileCardImageStyle: {
+    borderRadius: 20,
   },
   gradientOverlay: {
     borderRadius: 20,
@@ -350,8 +504,9 @@ const styles = StyleSheet.create({
   studentName: {
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
-    color: '#9CA3AF',
+    color: 'rgba(255, 255, 255, 0.68)',
     marginBottom: 8,
+    paddingRight: 82,
     textTransform: 'capitalize',
   },
   levelBadge: {
@@ -385,16 +540,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   facultyContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginRight: 10,
   },
   facultyText: {
+    flexShrink: 1,
     fontSize: 13,
     fontFamily: 'Poppins_500Medium',
-    color: '#9CA3AF',
+    color: 'rgba(255, 255, 255, 0.72)',
   },
   feeStatusBadge: {
+    flexShrink: 0,
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 5,
@@ -447,7 +606,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingHorizontal: 20,
   },
-  
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -477,175 +635,96 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
     color: colors.primary,
   },
-  calendarItem: {
+  newsStateContainer: {
+    minHeight: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 15,
+    marginBottom: 14,
+  },
+  newsStateText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    color: '#9CA3AF',
+  },
+  newsCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 14,
+    marginBottom: 14,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  calendarDate: {
-    width: 75,
-    height: 80,
+  newsImage: {
+    width: 90,
+    height: 95,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
+    marginRight: 14,
+    backgroundColor: colors.background,
   },
-  calendarDateToday: {
-    backgroundColor: colors.primary,
-  },
-  calendarDay: {
-    fontSize: 12,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#6B7280',
-  },
-  calendarDayToday: {
-    color: colors.white,
-  },
-  calendarDateNumber: {
-    fontSize: 24,
-    fontFamily: 'Poppins_700Bold',
-    color: colors.textPrimary,
-  },
-  calendarDateNumberToday: {
-    color: colors.white,
-  },
-  calendarContent: {
+  newsContent: {
     flex: 1,
   },
-  calendarTitle: {
-    fontSize: 14,
-    fontFamily: 'Poppins_500Medium',
-    color: colors.textPrimary,
-    marginBottom: 8,
+  newsDate: {
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    color: '#9CA3AF',
+    marginBottom: 4,
   },
-  calendarFooter: {
+  newsTitle: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  newsTimeAgo: {
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    color: '#9CA3AF',
+  },
+  newsFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 18,
   },
-  calendarMonth: {
-    fontSize: 12,
-    fontFamily: 'Poppins_400Regular',
-    color: '#9CA3AF',
-  },
-  viewMoreText: {
+  lewaNews: {
+    color: colors.primary,
     fontSize: 12,
     fontFamily: 'Poppins_500Medium',
-    color: colors.primary,
   },
-  newsItem: {
+  toastContainer: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
+    zIndex: 1000,
+  },
+  toastContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderRadius: 10,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    gap: 12,
   },
-  newsIndicator: {
-    width: 4,
-    height: 40,
-    backgroundColor: colors.border1,
-    borderRadius: 2,
-    marginRight: 12,
+  toastText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: colors.white,
+    lineHeight: 20,
   },
-  newsIndicatorFirst: {
-    backgroundColor: colors.primary,
-  },
-  // newsContent: {
-  //   flex: 1,
-  // },
-  // newsTitle: {
-  //   fontSize: 14,
-  //   fontFamily: 'Poppins_600SemiBold',
-  //   color: colors.textPrimary,
-  //   marginBottom: 4,
-  // },
-  newsTimestamp: {
-    fontSize: 12,
-    fontFamily: 'Poppins_400Regular',
-    color: '#9CA3AF',
-  },
-
-
-  newsCard: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: colors.white,
-  borderRadius: 15,
-  paddingHorizontal: 10,
-  paddingVertical: 14,
-  marginBottom: 14,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.05,
-  shadowRadius: 4,
-  elevation: 4,
-},
-
-newsImage: {
-  width: 90,
-  height: 95,
-  borderRadius: 12,
-  marginRight: 14,
-  backgroundColor: colors.background,
-},
-
-newsContent: {
-  flex: 1,
-},
-
-newsDate: {
-  fontSize: 12,
-  fontFamily: 'Poppins_400Regular',
-  color: '#9CA3AF',
-  marginBottom: 4,
-},
-
-newsTitle: {
-  fontSize: 15,
-  fontFamily: 'Poppins_600SemiBold',
-  color: colors.textPrimary,
-  marginBottom: 6,
-},
-
-newsTimeAgo: {
-  fontSize: 12,
-  fontFamily: 'Poppins_400Regular',
-  color: '#9CA3AF',
-},
-
-newsCategoryCircle: {
-  width: 40,
-  height: 40,
-  borderRadius: 20,
-  backgroundColor: colors.white,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-newsFooter: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginTop: 18,
-},
-
-lewaNews: {
-  color: colors.primary,
-  fontSize: 12,
-  fontFamily: 'Poppins_500Medium',
-},
 });

@@ -5,7 +5,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,7 +16,7 @@ import {
 } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
@@ -31,49 +30,25 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../theme/colors';
-import { useAuth } from '../hooks/useAuth';
 import { showErrorToast, showSuccessToast } from '../services/toast';
 import {
   ChatMessage,
-  deleteChatConversation,
   formatMessageTimestamp,
-  getAiThreadById,
-  sendAiMessage,
+  getSchoolAdminThreadById,
+  sendSchoolAdminMessage,
 } from '../services/lewaChat';
 
 type RootStackParamList = {
   MainTabs: {
     screen: string;
   };
-  LewaAIChat: {
+  SchoolAdminChat: {
     conversationId?: string;
   } | undefined;
 };
 
-type LewaAIChatNavigationProp = NativeStackNavigationProp<RootStackParamList, 'LewaAIChat'>;
-type LewaAIChatRouteProp = RouteProp<RootStackParamList, 'LewaAIChat'>;
-
-// Mirrors the compact suggestion pills shown in the empty-state mock.
-const QUICK_ACTIONS = [
-  {
-    id: '1',
-    icon: 'calendar-outline',
-    label: 'Exam date',
-    prompt: 'When is the next exam date?',
-  },
-  {
-    id: '2',
-    icon: 'cash-outline',
-    label: 'Fee deadline',
-    prompt: 'What is the next fee deadline?',
-  },
-  {
-    id: '3',
-    icon: 'document-text-outline',
-    label: 'Exam results',
-    prompt: 'When are exam results released?',
-  },
-];
+type SchoolAdminChatNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SchoolAdminChat'>;
+type SchoolAdminChatRouteProp = RouteProp<RootStackParamList, 'SchoolAdminChat'>;
 
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
@@ -118,32 +93,17 @@ const getAttachmentSize = async (uri: string, providedSize?: number) => {
   }
 };
 
-// Personalizes the top greeting based on the local time of day.
-const getGreeting = () => {
-  const currentHour = new Date().getHours();
-
-  if (currentHour < 12) {
-    return 'Good morning';
-  }
-
-  if (currentHour < 18) {
-    return 'Good afternoon';
-  }
-
-  return 'Good evening';
-};
-
-// Renders a single chat bubble for either the student or the assistant.
+// Renders a message bubble for either the student or the school admin.
 const ChatBubble = ({ item }: { item: ChatMessage }) => {
   const isUser = item.sender === 'user';
 
   return (
-    <View style={[styles.messageRow, isUser ? styles.userRow : styles.assistantRow]}>
-      <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.assistantBubble]}>
-        <Text style={[styles.messageText, isUser ? styles.userMessageText : styles.assistantMessageText]}>
+    <View style={[styles.messageRow, isUser ? styles.userRow : styles.adminRow]}>
+      <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.adminBubble]}>
+        <Text style={[styles.messageText, isUser ? styles.userMessageText : styles.adminMessageText]}>
           {item.text}
         </Text>
-        <Text style={[styles.messageTime, isUser ? styles.userMessageTime : styles.assistantMessageTime]}>
+        <Text style={[styles.messageTime, isUser ? styles.userMessageTime : styles.adminMessageTime]}>
           {formatMessageTimestamp(item.createdAt)}
         </Text>
       </View>
@@ -151,34 +111,23 @@ const ChatBubble = ({ item }: { item: ChatMessage }) => {
   );
 };
 
-// Shows a lightweight typing state while the assistant reply is being simulated.
-const TypingBubble = () => (
-  <View style={[styles.messageRow, styles.assistantRow]}>
-    <View style={[styles.messageBubble, styles.assistantBubble, styles.typingBubble]}>
-      <ActivityIndicator size="small" color={colors.primary} />
-    </View>
-  </View>
-);
-
-// Hosts the AI conversation UI, including draft-mode chats that only persist after the first message.
-const LewaAIChatScreen: React.FC = () => {
-  const navigation = useNavigation<LewaAIChatNavigationProp>();
-  const route = useRoute<LewaAIChatRouteProp>();
+// Hosts the School Admin thread so students can follow up on support conversations.
+const SchoolAdminChatScreen: React.FC = () => {
+  const navigation = useNavigation<SchoolAdminChatNavigationProp>();
+  const route = useRoute<SchoolAdminChatRouteProp>();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const { user } = useAuth();
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const inputRef = useRef<TextInput>(null);
 
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [threadTitle, setThreadTitle] = useState('New chat');
-  const [isReplying, setIsReplying] = useState(false);
-  const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [threadTitle, setThreadTitle] = useState('School Admin');
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [isAttachmentMenuVisible, setIsAttachmentMenuVisible] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
   const [composerInputHeight, setComposerInputHeight] = useState(MIN_COMPOSER_INPUT_HEIGHT);
-  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [, setConversationError] = useState<string | null>(null);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(
     route.params?.conversationId ?? null
@@ -192,8 +141,6 @@ const LewaAIChatScreen: React.FC = () => {
   });
 
   const routeConversationId = route.params?.conversationId ?? null;
-  const displayName = user?.full_name ?? 'Student';
-  const greeting = useMemo(() => getGreeting(), []);
   const estimatedCharactersPerLine = Math.max(
     18,
     Math.floor((screenWidth - COMPOSER_HORIZONTAL_CHROME) / ESTIMATED_CHARACTER_WIDTH)
@@ -243,7 +190,7 @@ const LewaAIChatScreen: React.FC = () => {
   };
 
   const handleComposerTextChange = (nextMessage: string) => {
-    closeAttachmentMenu();
+    setIsAttachmentMenuVisible(false);
     setMessage(nextMessage);
     setComposerInputHeight(getEstimatedInputHeight(nextMessage));
   };
@@ -254,10 +201,10 @@ const LewaAIChatScreen: React.FC = () => {
     }
   }, [message]);
 
-  // Loads either a saved thread or an empty draft chat into the screen state.
+  // Loads the selected School Admin conversation into the screen state.
   const syncConversation = useCallback(async (conversationId: string | null) => {
     if (!conversationId) {
-      setThreadTitle('New chat');
+      setThreadTitle('School Admin');
       setMessages([]);
       setConversationError(null);
       return;
@@ -267,11 +214,11 @@ const LewaAIChatScreen: React.FC = () => {
     setConversationError(null);
 
     try {
-      const thread = await getAiThreadById(conversationId);
+      const thread = await getSchoolAdminThreadById(conversationId);
       setThreadTitle(thread.title);
       setMessages(thread.messages);
     } catch {
-      setThreadTitle('New chat');
+      setThreadTitle('School Admin');
       setMessages([]);
       setConversationError(null);
     } finally {
@@ -279,40 +226,32 @@ const LewaAIChatScreen: React.FC = () => {
     }
   }, []);
 
-  // Reconciles the screen state whenever navigation points to a different thread or draft.
+  // Reconciles the screen state whenever navigation points to a different support thread.
   useEffect(() => {
-    setIsReplying(false);
     setActiveConversationId(routeConversationId);
     void syncConversation(routeConversationId);
   }, [routeConversationId, syncConversation]);
 
-  // Keeps the latest message in view while new messages or typing states arrive.
+  // Keeps the latest message in view as the conversation updates.
   useEffect(() => {
-    if (!messages.length && !isReplying) {
+    if (!messages.length) {
       return;
     }
 
     requestAnimationFrame(() => {
       listRef.current?.scrollToEnd({ animated: true });
     });
-  }, [isReplying, messages]);
+  }, [messages]);
+
+  const headerSubtitle = useMemo(() => 'Support follow-up', []);
 
   if (!fontsLoaded) {
     return null;
   }
 
-  // Hides the overflow menu before other chat actions continue.
-  const closeMenu = () => {
-    setIsMenuVisible(false);
-  };
-
-  const closeAttachmentMenu = () => {
+  // Returns the user back to the chat hub.
+  const handleBack = () => {
     setIsAttachmentMenuVisible(false);
-  };
-
-  // Returns the user to the hub screen from an AI conversation or draft chat.
-  const handleBackToChats = () => {
-    closeMenu();
 
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -322,63 +261,11 @@ const LewaAIChatScreen: React.FC = () => {
     navigation.navigate('MainTabs', { screen: 'LewaChat' });
   };
 
-  // Resets the screen into a fresh draft chat without creating a saved thread yet.
-  const handleCreateNewChat = () => {
-    closeMenu();
-    closeAttachmentMenu();
-    setMessage('');
-    setPendingAttachment(null);
-    setIsReplying(false);
-    setConversationError(null);
-    setActiveConversationId(null);
-    setThreadTitle('New chat');
-    setMessages([]);
-    navigation.replace('LewaAIChat');
-  };
+  // Sends a follow-up student message into the School Admin thread.
+  const handleSendMessage = async () => {
+    const trimmedMessage = message.trim();
 
-  // Clears the current chat body, whether the user is in a saved thread or a draft chat.
-  const handleClearChat = async () => {
-    setIsReplying(false);
-    closeMenu();
-
-    if (!activeConversationId) {
-      setMessage('');
-      setPendingAttachment(null);
-      setMessages([]);
-      setThreadTitle('New chat');
-      setConversationError(null);
-      return;
-    }
-
-    try {
-      await deleteChatConversation(activeConversationId);
-      setMessage('');
-      setPendingAttachment(null);
-      setMessages([]);
-      setThreadTitle('New chat');
-      setConversationError(null);
-      setActiveConversationId(null);
-      navigation.replace('LewaAIChat');
-    } catch {
-      setConversationError(null);
-    }
-  };
-
-  // Reuses the main action button for sending text or focusing the input when empty.
-  const handlePrimaryAction = () => {
-    if (message.trim()) {
-      void handleSendMessage(message);
-      return;
-    }
-
-    inputRef.current?.focus();
-  };
-
-  // Creates a thread only when the first real message is sent from a draft chat.
-  const handleSendMessage = async (outgoingText: string) => {
-    const trimmedMessage = outgoingText.trim();
-
-    if (!trimmedMessage || isReplying) {
+    if (!trimmedMessage || isSendingMessage) {
       return;
     }
 
@@ -397,10 +284,11 @@ const LewaAIChatScreen: React.FC = () => {
     setConversationError(null);
     setMessages((currentMessages) => [...currentMessages, optimisticMessage]);
     setMessage('');
-    setIsReplying(true);
+    setPendingAttachment(null);
+    setIsSendingMessage(true);
 
     try {
-      const result = await sendAiMessage({
+      const result = await sendSchoolAdminMessage({
         conversationId: activeConversationId,
         text: trimmedMessage,
       });
@@ -415,18 +303,12 @@ const LewaAIChatScreen: React.FC = () => {
       setConversationError(null);
       setMessage(trimmedMessage);
     } finally {
-      setIsReplying(false);
+      setIsSendingMessage(false);
     }
-  };
-
-  // Converts a quick suggestion tap into the same send flow as typed messages.
-  const handleSuggestionPress = (suggestionText: string) => {
-    void handleSendMessage(suggestionText);
   };
 
   // Opens the compact attachment menu from the composer.
   const handleAttachmentPress = () => {
-    closeMenu();
     setIsAttachmentMenuVisible((currentValue) => !currentValue);
   };
 
@@ -439,7 +321,7 @@ const LewaAIChatScreen: React.FC = () => {
     }
 
     setPendingAttachment({ ...attachment, size });
-    closeAttachmentMenu();
+    setIsAttachmentMenuVisible(false);
     showSuccessToast('Attachment added.');
   };
 
@@ -530,7 +412,7 @@ const LewaAIChatScreen: React.FC = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 6 : 0}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} activeOpacity={0.86} onPress={handleBackToChats}>
+          <TouchableOpacity style={styles.backButton} activeOpacity={0.86} onPress={handleBack}>
             <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
 
@@ -540,16 +422,12 @@ const LewaAIChatScreen: React.FC = () => {
             </View>
 
             <View style={styles.nameBlock}>
-              <Text style={styles.greetingText}>{greeting}</Text>
+              <Text style={styles.greetingText}>{headerSubtitle}</Text>
               <Text style={styles.userName} numberOfLines={1}>
-                {displayName}
+                {threadTitle}
               </Text>
             </View>
           </View>
-
-          <TouchableOpacity style={styles.menuButton} activeOpacity={0.86} onPress={() => setIsMenuVisible(true)}>
-            <Ionicons name="menu" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.headerDivider} />
@@ -558,41 +436,17 @@ const LewaAIChatScreen: React.FC = () => {
           {isLoadingConversation ? (
             <View style={styles.loadingState}>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.loadingStateText}>Loading chat...</Text>
+              <Text style={styles.loadingStateText}>Loading conversation...</Text>
             </View>
           ) : messages.length === 0 ? (
             <View style={styles.emptyConversation}>
-              <Text style={styles.emptyTitle}>Need anything ?</Text>
+              <View style={styles.emptyStateArtwork}>
+                <Image source={require('../../assets/bot-small-1.png')} style={styles.emptyBot} />
+              </View>
+              <Text style={styles.emptyTitle}>No messages yet</Text>
               <Text style={styles.emptyDescription}>
-                Lewa&apos;s smart AI assistant helps you find what you need faster and easier.
+                Send a follow-up message and the School Admin team will respond here.
               </Text>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.quickActionRow}
-                style={styles.quickActionScroller}
-              >
-                {QUICK_ACTIONS.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.suggestionChip}
-                    activeOpacity={0.9}
-                    onPress={() => handleSuggestionPress(item.prompt)}
-                  >
-                    <View style={styles.suggestionIconShell}>
-                      <Ionicons
-                        name={item.icon as keyof typeof Ionicons.glyphMap}
-                        size={14}
-                        color="#31445F"
-                      />
-                    </View>
-                    <Text style={styles.suggestionText} numberOfLines={1}>
-                      {item.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
             </View>
           ) : (
             <FlatList
@@ -603,12 +457,6 @@ const LewaAIChatScreen: React.FC = () => {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.messagesContent}
               onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-              ListHeaderComponent={
-                <View style={styles.dayBadge}>
-                  <Text style={styles.dayBadgeText}>Today</Text>
-                </View>
-              }
-              ListFooterComponent={isReplying ? <TypingBubble /> : null}
             />
           )}
         </View>
@@ -682,14 +530,11 @@ const LewaAIChatScreen: React.FC = () => {
             <TextInput
               ref={inputRef}
               style={[styles.input, { height: composerInputHeight }]}
-              placeholder="Ask anything within UB..."
+              placeholder="Reply to School Admin..."
               placeholderTextColor="#98A2B3"
               value={message}
               onChangeText={handleComposerTextChange}
-              onFocus={() => {
-                closeMenu();
-                closeAttachmentMenu();
-              }}
+              onFocus={() => setIsAttachmentMenuVisible(false)}
               multiline
               scrollEnabled={composerInputHeight >= MAX_COMPOSER_INPUT_HEIGHT}
               onContentSizeChange={handleComposerContentSizeChange}
@@ -704,39 +549,16 @@ const LewaAIChatScreen: React.FC = () => {
             <TouchableOpacity
               style={[styles.sendButton, !message.trim() && styles.sendButtonIdle]}
               activeOpacity={0.9}
-              onPress={handlePrimaryAction}
+              onPress={() => void handleSendMessage()}
             >
-              {message.trim() ? (
-                <Ionicons name="arrow-up" size={20} color={colors.white} />
+              {isSendingMessage ? (
+                <ActivityIndicator size="small" color={colors.white} />
               ) : (
-                <MaterialCommunityIcons name="equalizer" size={20} color={colors.white} />
+                <Ionicons name="arrow-up" size={20} color={colors.white} />
               )}
             </TouchableOpacity>
           </View>
         </View>
-
-        {isMenuVisible ? (
-          <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={closeMenu}>
-            <View style={[styles.menuCard, { top: insets.top + 60 }]}>
-              <Text style={styles.menuLabel}>{threadTitle}</Text>
-
-              <TouchableOpacity style={styles.menuItem} onPress={handleCreateNewChat}>
-                <Ionicons name="add-circle-outline" size={18} color={colors.textPrimary} />
-                <Text style={styles.menuItemText}>New chat</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem} onPress={handleClearChat}>
-                <Ionicons name="refresh-outline" size={18} color={colors.textPrimary} />
-                <Text style={styles.menuItemText}>Clear chat</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.menuItem} onPress={handleBackToChats}>
-                <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.textPrimary} />
-                <Text style={styles.menuItemText}>Back to chats</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -754,7 +576,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingTop: 6,
     paddingBottom: 14,
@@ -771,7 +592,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 12,
   },
   avatarShell: {
     width: 40,
@@ -801,13 +621,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
   },
-  menuButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   headerDivider: {
     height: 1,
     marginHorizontal: 20,
@@ -834,15 +647,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingBottom: 70,
   },
+  emptyStateArtwork: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#EFF2F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  emptyBot: {
+    width: 42,
+    height: 42,
+    resizeMode: 'contain',
+  },
   emptyTitle: {
-    fontSize: 38,
-    lineHeight: 44,
+    fontSize: 28,
+    lineHeight: 34,
     fontFamily: 'Poppins_700Bold',
     color: '#1F2937',
     textAlign: 'center',
   },
   emptyDescription: {
-    width: '78%',
+    width: '82%',
     marginTop: 10,
     fontSize: 13.5,
     lineHeight: 21,
@@ -859,56 +686,16 @@ const styles = StyleSheet.create({
     color: '#B42318',
     textAlign: 'center',
   },
-  quickActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 2,
-  },
-  quickActionScroller: {
-    marginTop: 24,
-    maxHeight: 40,
-  },
-  suggestionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    minHeight: 34,
-    borderRadius: 10,
-    backgroundColor: '#EEF1F4',
-    paddingLeft: 8,
-    paddingRight: 12,
-    paddingVertical: 8,
-  },
-  suggestionIconShell: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#DCE4ED',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  suggestionText: {
-    fontSize: 12,
+  inlineErrorText: {
+    marginBottom: 10,
+    fontSize: 12.5,
     fontFamily: 'Poppins_500Medium',
-    color: '#344054',
+    color: '#B42318',
+    textAlign: 'center',
   },
   messagesContent: {
     paddingTop: 18,
     paddingBottom: 24,
-  },
-  dayBadge: {
-    alignSelf: 'center',
-    backgroundColor: '#EEF0F2',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 16,
-  },
-  dayBadgeText: {
-    fontSize: 11,
-    fontFamily: 'Poppins_500Medium',
-    color: colors.textBody,
   },
   messageRow: {
     flexDirection: 'row',
@@ -917,7 +704,7 @@ const styles = StyleSheet.create({
   userRow: {
     justifyContent: 'flex-end',
   },
-  assistantRow: {
+  adminRow: {
     justifyContent: 'flex-start',
   },
   messageBubble: {
@@ -930,7 +717,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderBottomRightRadius: 8,
   },
-  assistantBubble: {
+  adminBubble: {
     backgroundColor: colors.white,
     borderBottomLeftRadius: 8,
     borderWidth: 1,
@@ -941,10 +728,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
-  typingBubble: {
-    minWidth: 74,
-    alignItems: 'flex-start',
-  },
   messageText: {
     fontSize: 14,
     lineHeight: 21,
@@ -953,7 +736,7 @@ const styles = StyleSheet.create({
   userMessageText: {
     color: colors.white,
   },
-  assistantMessageText: {
+  adminMessageText: {
     color: colors.textPrimary,
   },
   messageTime: {
@@ -965,7 +748,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.82)',
     textAlign: 'right',
   },
-  assistantMessageTime: {
+  adminMessageTime: {
     color: colors.textBody,
   },
   inputDock: {
@@ -1100,43 +883,6 @@ const styles = StyleSheet.create({
   sendButtonIdle: {
     backgroundColor: colors.primary,
   },
-  menuOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.08)',
-  },
-  menuCard: {
-    position: 'absolute',
-    right: 20,
-    width: 196,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    padding: 12,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  menuLabel: {
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    color: colors.textBody,
-    marginBottom: 8,
-    paddingHorizontal: 6,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-  },
-  menuItemText: {
-    fontSize: 13,
-    fontFamily: 'Poppins_500Medium',
-    color: colors.textPrimary,
-  },
 });
 
-export default LewaAIChatScreen;
+export default SchoolAdminChatScreen;

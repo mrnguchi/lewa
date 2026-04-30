@@ -1,240 +1,284 @@
 /**
  * ResourcesScreen Component
  *
- * Resources tab screen with handouts and past questions
+ * Displays handouts and past questions with embedded viewing and download actions.
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Image,
   Modal,
+  RefreshControl,
+  Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
-import { colors } from '../theme/colors';
-import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+
 import AppHeader from '../components/AppHeader';
+import CustomToast from '../components/CustomToast';
+import SpinningLoader from '../components/SpinningLoader';
+import { colors } from '../theme/colors';
+import { downloadResourceFile, getResources } from '../services/resources';
+import { ResourceItem, ResourceType } from '../types/resources';
 
-
-// Navigation types
 type RootStackParamList = {
-  ResourceDetails: {
-    resource: {
-      id: string;
-      code: string;
-      title: string;
-      price?: string;
-      faculty: string;
-      level: number;
-      isUBRequirement: boolean;
-    };
-    type: 'handout' | 'pastQuestion';
+  ResourceViewer: {
+    resource: ResourceItem;
   };
+  AddResource: undefined;
 };
 
-type ResourcesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ResourceDetails'>;
+type ResourcesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ResourceViewer'>;
 
-// Resource type
-interface Resource {
-  id: string;
-  code: string;
-  title: string;
-  price?: string;
-  faculty: string;
-  level: number;
-  isUBRequirement: boolean;
-}
+const EMPTY_FACULTY = 'All';
+const EMPTY_LEVEL = 'All';
 
-// Mock data for handouts (all have prices)
-const handoutsData: Resource[] = [
-  { id: '1', code: 'ENG101', title: 'Use of English I', price: '1000 XAF', faculty: 'UB Requirement', level: 100, isUBRequirement: true },
-  { id: '2', code: 'ENG102', title: 'Use of English II', price: '1000 XAF', faculty: 'UB Requirement', level: 100, isUBRequirement: true },
-  { id: '3', code: 'CO321', title: 'Programming with UML', price: '1250 XAF', faculty: 'College of Technology', level: 300, isUBRequirement: false },
-  { id: '4', code: 'CO322', title: 'Data Structures', price: '1250 XAF', faculty: 'College of Technology', level: 300, isUBRequirement: false },
-  { id: '5', code: 'FRE101', title: 'French Language I', price: '1000 XAF', faculty: 'UB Requirement', level: 100, isUBRequirement: true },
-  { id: '6', code: 'LAW100', title: 'Introduction to Law', price: '1000 XAF', faculty: 'UB Requirement', level: 100, isUBRequirement: true },
-  { id: '7', code: 'EN421', title: 'Engineering Design', price: '1500 XAF', faculty: 'Engineering', level: 400, isUBRequirement: false },
-  { id: '8', code: 'EN422', title: 'Project Management', price: '1500 XAF', faculty: 'Engineering', level: 400, isUBRequirement: false },
-];
-
-// Mock data for past questions (no prices)
-const pastQuestionsData: Resource[] = [
-  { id: '1', code: 'ENG100', title: 'Use of English', faculty: 'UB Requirement', level: 100, isUBRequirement: true },
-  { id: '2', code: 'ENT100', title: 'Entrepreneurship', faculty: 'UB Requirement', level: 100, isUBRequirement: true },
-  { id: '3', code: 'CO221', title: 'Database Systems', faculty: 'College of Technology', level: 200, isUBRequirement: false },
-  { id: '4', code: 'CO222', title: 'Web Development', faculty: 'College of Technology', level: 200, isUBRequirement: false },
-  { id: '5', code: 'EN321', title: 'Thermodynamics', faculty: 'Engineering', level: 300, isUBRequirement: false },
-  { id: '6', code: 'EN322', title: 'Fluid Mechanics', faculty: 'Engineering', level: 300, isUBRequirement: false },
-  { id: '7', code: 'SC241', title: 'Organic Chemistry', faculty: 'Science', level: 200, isUBRequirement: false },
-  { id: '8', code: 'SC242', title: 'Physics Lab', faculty: 'Science', level: 200, isUBRequirement: false },
-];
-
+/**
+ * Renders the resources catalogue with search, filters, PDF viewing, and downloads.
+ */
 const ResourcesScreen: React.FC = () => {
   const navigation = useNavigation<ResourcesScreenNavigationProp>();
-  const [activeTab, setActiveTab] = useState<'handouts' | 'pastQuestions'>('handouts');
+  const [activeTab, setActiveTab] = useState<ResourceType>('handout');
+  const [resources, setResources] = useState<ResourceItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [selectedFaculty, setSelectedFaculty] = useState<string>('All');
-  const [selectedLevel, setSelectedLevel] = useState<string>('All');
-  const [selectedUBRequirement, setSelectedUBRequirement] = useState<string>('All');
+  const [selectedFaculty, setSelectedFaculty] = useState<string>(EMPTY_FACULTY);
+  const [selectedLevel, setSelectedLevel] = useState<string>(EMPTY_LEVEL);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
-  const [fontsLoaded] = useFonts({
-    Poppins_400Regular,
-    Poppins_500Medium,
-    Poppins_600SemiBold,
-    Poppins_700Bold,
-  });
+  const currentData = useMemo(() => {
+    return resources.filter((resource) => resource.type === activeTab);
+  }, [activeTab, resources]);
 
-  if (!fontsLoaded) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
+  const filteredData = useMemo(() => {
+    return currentData.filter((resource) => {
+      const searchValue = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        !searchValue ||
+        resource.code.toLowerCase().includes(searchValue) ||
+        resource.title.toLowerCase().includes(searchValue) ||
+        (resource.description?.toLowerCase().includes(searchValue) ?? false);
+      const matchesFaculty =
+        selectedFaculty === EMPTY_FACULTY || resource.faculty === selectedFaculty;
+      const matchesLevel =
+        selectedLevel === EMPTY_LEVEL || `${resource.level}` === selectedLevel;
 
-  // Get current data based on active tab
-  const currentData = activeTab === 'handouts' ? handoutsData : pastQuestionsData;
-
-  // Filter data based on search and filters
-  const filteredData = currentData.filter((resource) => {
-    const matchesSearch = resource.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         resource.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFaculty = selectedFaculty === 'All' || resource.faculty === selectedFaculty;
-    const matchesLevel = selectedLevel === 'All' || resource.level.toString() === selectedLevel;
-    const matchesUBRequirement = selectedUBRequirement === 'All' ||
-                                (selectedUBRequirement === 'Yes' && resource.isUBRequirement) ||
-                                (selectedUBRequirement === 'No' && !resource.isUBRequirement);
-
-    return matchesSearch && matchesFaculty && matchesLevel && matchesUBRequirement;
-  });
-
-  // Get unique faculties for filter
-  const faculties = ['All', ...Array.from(new Set(currentData.map(r => r.faculty)))];
-  const levels = ['All', '100', '200', '300', '400'];
-  const ubRequirements = ['All', 'Yes', 'No'];
-
-  const handleResetFilters = () => {
-    setSelectedFaculty('All');
-    setSelectedLevel('All');
-    setSelectedUBRequirement('All');
-  };
-
-  const handleApplyFilters = () => {
-    setShowFilterModal(false);
-  };
-
-  const handleOpenResource = (resource: Resource) => {
-    navigation.navigate('ResourceDetails', {
-      resource,
-      type: activeTab === 'handouts' ? 'handout' : 'pastQuestion',
+      return matchesSearch && matchesFaculty && matchesLevel;
     });
+  }, [currentData, searchQuery, selectedFaculty, selectedLevel]);
+
+  const faculties = useMemo(() => {
+    const values = currentData
+      .map((resource) => resource.faculty)
+      .filter((faculty): faculty is string => Boolean(faculty));
+
+    return [EMPTY_FACULTY, ...Array.from(new Set(values))];
+  }, [currentData]);
+
+  const levels = useMemo(() => {
+    const values = Array.from(new Set(currentData.map((resource) => `${resource.level}`))).sort();
+    return [EMPTY_LEVEL, ...values];
+  }, [currentData]);
+
+  /**
+   * Displays the shared in-app toast used for resource feedback.
+   */
+  const showToast = (message: string, typeValue: 'success' | 'error') => {
+    setToastMessage(message);
+    setToastType(typeValue);
+    setToastVisible(true);
+  };
+
+  /**
+   * Fetches the latest resource list from the backend.
+   */
+  const loadResources = useCallback(async (isPullRefresh = false) => {
+    try {
+      if (isPullRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+
+      const payload = await getResources();
+      setResources(payload);
+    } catch (error) {
+      showToast('Unable to load resources right now.', 'error');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadResources();
+    }, [loadResources])
+  );
+
+  /**
+   * Refreshes the catalogue when the user pulls the scrollable content down.
+   */
+  const handleRefresh = async () => {
+    await loadResources(true);
+  };
+
+  /**
+   * Resets the active resource filters back to their default values.
+   */
+  const handleResetFilters = () => {
+    setSelectedFaculty(EMPTY_FACULTY);
+    setSelectedLevel(EMPTY_LEVEL);
+  };
+
+  /**
+   * Opens the selected PDF inside the embedded resource viewer.
+   */
+  const handleOpenResource = (resource: ResourceItem) => {
+    navigation.navigate('ResourceViewer', { resource });
+  };
+
+  /**
+   * Downloads the selected resource file and opens the share sheet when possible.
+   */
+  const handleDownloadPress = async (resource: ResourceItem) => {
+    try {
+      await downloadResourceFile(resource);
+      showToast('Resource ready to save or share.', 'success');
+    } catch (error) {
+      showToast('Unable to download this resource right now.', 'error');
+    }
+  };
+
+  /**
+   * Returns the resource subtitle displayed on each card.
+   */
+  const getResourceMeta = (resource: ResourceItem) => {
+    const facultyLabel = resource.faculty?.trim() || 'Faculty not specified';
+    return `${facultyLabel} • Level ${resource.level}`;
   };
 
   return (
     <View style={styles.container}>
+      <CustomToast
+        message={toastMessage}
+        type={toastType}
+        visible={toastVisible}
+        onHide={() => setToastVisible(false)}
+      />
+
       <AppHeader />
-      {/* Header */}
-      <View style={styles.header}>
 
-        <Text style={styles.title}>Handouts{'\n'}& past questions</Text>
-
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Resources"
-            placeholderTextColor="#9CA3AF"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setShowFilterModal(true)}
-          >
-            <MaterialCommunityIcons name="filter-variant" size={28} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'handouts' && styles.tabActive]}
-          onPress={() => setActiveTab('handouts')}
-        >
-          <Text style={[styles.tabText, activeTab === 'handouts' && styles.tabTextActive]}>
-            Handouts
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'pastQuestions' && styles.tabActive]}
-          onPress={() => setActiveTab('pastQuestions')}
-        >
-          <Text style={[styles.tabText, activeTab === 'pastQuestions' && styles.tabTextActive]}>
-            Past questions
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Scrollable Cards Section */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+        }
       >
-        <View style={styles.cardsGrid}>
-          {filteredData.map((resource) => (
-            <View key={resource.id} style={styles.card}>
-              <Image
-                source={require('../../assets/pdf-icon.png')}
-                style={styles.pdfIcon}
-              />
+        <View style={styles.header}>
+          <Text style={styles.title}>Handouts{'\n'}& past questions</Text>
 
-              {/* Course code with price (for handouts) */}
-              {activeTab === 'handouts' ? (
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardCode}>{resource.code}</Text>
-                  <Text style={styles.cardCodeDot}> • </Text>
-                  <Text style={styles.cardPrice}>{resource.price}</Text>
-                </View>
-              ) : (
-                <Text style={styles.cardCode}>{resource.code}</Text>
-              )}
-
-              <Text style={styles.cardTitle}>{resource.title}</Text>
-
-              {/* Footer with buttons - same layout for both tabs */}
-              <View style={styles.cardFooter}>
-                <TouchableOpacity style={styles.downloadButton}>
-                  <MaterialCommunityIcons name="download-network" size={18} color={colors.textPrimary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.openButton}
-                  onPress={() => handleOpenResource(resource)}
-                >
-                  <Text style={styles.openButtonText}>Open</Text>
-                  <MaterialIcons name="open-in-new" size={14} color={colors.white} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Resources"
+              placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            <TouchableOpacity
+              style={styles.filterButton}
+              onPress={() => setShowFilterModal(true)}
+            >
+              <MaterialCommunityIcons name="filter-variant" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
+
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'handout' && styles.tabActive]}
+            onPress={() => setActiveTab('handout')}
+          >
+            <Text style={[styles.tabText, activeTab === 'handout' && styles.tabTextActive]}>
+              Handouts
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'pastQuestion' && styles.tabActive]}
+            onPress={() => setActiveTab('pastQuestion')}
+          >
+            <Text style={[styles.tabText, activeTab === 'pastQuestion' && styles.tabTextActive]}>
+              Past questions
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {isLoading ? (
+          <View style={styles.loaderSection}>
+            <SpinningLoader size={76} />
+            <Text style={styles.loaderText}>Loading your resources...</Text>
+          </View>
+        ) : filteredData.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="document-text-outline" size={42} color={colors.primary} />
+            <Text style={styles.emptyTitle}>No resources found</Text>
+            <Text style={styles.emptyText}>
+              Try a different search term or reset the current filters.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.cardsGrid}>
+            {filteredData.map((resource) => (
+              <TouchableOpacity
+                key={resource.id}
+                style={styles.card}
+                activeOpacity={0.92}
+                onPress={() => handleOpenResource(resource)}
+              >
+                <Image
+                  source={require('../../assets/pdf-icon.png')}
+                  style={styles.pdfIcon}
+                />
+
+                <Text style={styles.cardCode}>{resource.code}</Text>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  {resource.title}
+                </Text>
+                <Text style={styles.cardMeta} numberOfLines={1}>
+                  {getResourceMeta(resource)}
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.downloadButton}
+                  activeOpacity={0.92}
+                  onPress={() => handleDownloadPress(resource)}
+                >
+                  <Text style={styles.downloadButtonText}>Download</Text>
+                  <MaterialCommunityIcons name="download-network" size={18} color={colors.white} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
-      {/* Filter Modal */}
       <Modal
         visible={showFilterModal}
-        transparent={true}
+        transparent
         animationType="fade"
         onRequestClose={() => setShowFilterModal(false)}
       >
@@ -243,110 +287,76 @@ const ResourcesScreen: React.FC = () => {
           activeOpacity={1}
           onPress={() => setShowFilterModal(false)}
         >
-          <View style={styles.filterModal}>
-            <TouchableOpacity activeOpacity={1}>
-              <View style={styles.filterHeader}>
-                <Text style={styles.filterTitle}>Filters</Text>
-                <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                  <Ionicons name="close" size={24} color={colors.textPrimary} />
-                </TouchableOpacity>
-              </View>
+          <TouchableOpacity activeOpacity={1} style={styles.filterModal}>
+            <View style={styles.filterHeader}>
+              <Text style={styles.filterTitle}>Filters</Text>
+              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
 
-              {/* Faculty Filter */}
-              <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>Faculty</Text>
-                <View style={styles.filterOptions}>
-                  {faculties.map((faculty) => (
-                    <TouchableOpacity
-                      key={faculty}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Faculty</Text>
+              <View style={styles.filterOptions}>
+                {faculties.map((faculty) => (
+                  <TouchableOpacity
+                    key={faculty}
+                    style={[
+                      styles.filterChip,
+                      selectedFaculty === faculty && styles.filterChipActive,
+                    ]}
+                    onPress={() => setSelectedFaculty(faculty)}
+                  >
+                    <Text
                       style={[
-                        styles.filterOption,
-                        selectedFaculty === faculty && styles.filterOptionActive,
+                        styles.filterChipText,
+                        selectedFaculty === faculty && styles.filterChipTextActive,
                       ]}
-                      onPress={() => setSelectedFaculty(faculty)}
                     >
-                      <Text
-                        style={[
-                          styles.filterOptionText,
-                          selectedFaculty === faculty && styles.filterOptionTextActive,
-                        ]}
-                      >
-                        {faculty}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      {faculty}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
+            </View>
 
-              {/* Level Filter */}
-              <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>Level</Text>
-                <View style={styles.filterOptions}>
-                  {levels.map((level) => (
-                    <TouchableOpacity
-                      key={level}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Level</Text>
+              <View style={styles.filterOptions}>
+                {levels.map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[
+                      styles.filterChip,
+                      selectedLevel === level && styles.filterChipActive,
+                    ]}
+                    onPress={() => setSelectedLevel(level)}
+                  >
+                    <Text
                       style={[
-                        styles.filterOption,
-                        selectedLevel === level && styles.filterOptionActive,
+                        styles.filterChipText,
+                        selectedLevel === level && styles.filterChipTextActive,
                       ]}
-                      onPress={() => setSelectedLevel(level)}
                     >
-                      <Text
-                        style={[
-                          styles.filterOptionText,
-                          selectedLevel === level && styles.filterOptionTextActive,
-                        ]}
-                      >
-                        {level}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      {level}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
+            </View>
 
-              {/* UB Requirement Filter */}
-              <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>UB Requirement</Text>
-                <View style={styles.filterOptions}>
-                  {ubRequirements.map((req) => (
-                    <TouchableOpacity
-                      key={req}
-                      style={[
-                        styles.filterOption,
-                        selectedUBRequirement === req && styles.filterOptionActive,
-                      ]}
-                      onPress={() => setSelectedUBRequirement(req)}
-                    >
-                      <Text
-                        style={[
-                          styles.filterOptionText,
-                          selectedUBRequirement === req && styles.filterOptionTextActive,
-                        ]}
-                      >
-                        {req}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {/* Filter Actions */}
-              <View style={styles.filterActions}>
-                <TouchableOpacity
-                  style={styles.resetButton}
-                  onPress={handleResetFilters}
-                >
-                  <Text style={styles.resetButtonText}>Reset</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.applyButton}
-                  onPress={handleApplyFilters}
-                >
-                  <Text style={styles.applyButtonText}>Apply Filters</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.filterActions}>
+              <TouchableOpacity style={styles.secondaryButton} onPress={handleResetFilters}>
+                <Text style={styles.secondaryButtonText}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => setShowFilterModal(false)}
+              >
+                <Text style={styles.primaryButtonText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -356,79 +366,25 @@ const ResourcesScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
   },
-  loadingContainer: {
+  scrollView: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    paddingBottom: 36,
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 20,
-    backgroundColor: colors.background,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  translationButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  translationIcon: {
-    width: 28,
-    height: 28,
-    resizeMode: 'contain',
-    tintColor: colors.primary,
-  },
-  headerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  cartButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cartIcon: {
-    width: 24,
-    height: 24,
-    resizeMode: 'contain',
-    tintColor: colors.textPrimary,
-  },
-  profileButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileIcon: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   title: {
     fontSize: 28,
+    lineHeight: 36,
     fontFamily: 'Poppins_700Bold',
     color: colors.textPrimary,
     marginBottom: 20,
-    lineHeight: 36,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -456,17 +412,12 @@ const styles = StyleSheet.create({
   filterButton: {
     padding: 4,
   },
-  filterIcon: {
-    width: 25,
-    height: 25,
-    resizeMode: 'contain',
-    tintColor: colors.primary,
-  },
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 12,
     marginBottom: 20,
+    marginTop: -10,
   },
   tab: {
     paddingHorizontal: 24,
@@ -485,14 +436,36 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: colors.white,
   },
-  scrollView: {
-    flex: 1,
+  loaderSection: {
+    paddingTop: 80,
+    alignItems: 'center',
+    gap: 18,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
+  loaderText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6B7280',
+  },
+  emptyState: {
+    paddingHorizontal: 32,
+    paddingTop: 56,
+    alignItems: 'center',
+    gap: 10,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: 'Poppins_700Bold',
+    color: colors.textPrimary,
+  },
+  emptyText: {
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6B7280',
+    textAlign: 'center',
   },
   cardsGrid: {
+    paddingHorizontal: 20,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
@@ -516,159 +489,120 @@ const styles = StyleSheet.create({
     marginBottom: 1,
     alignSelf: 'center',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
   cardCode: {
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
-    color: colors.textPrimary,
-  },
-  cardCodeDot: {
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
-    color: '#9CA3AF',
+    color: colors.primary,
   },
   cardTitle: {
     fontSize: 11,
     fontFamily: 'Poppins_400Regular',
     color: '#6B7280',
-    marginBottom: 12,
+    marginTop: 8,
+    marginBottom: 8,
     lineHeight: 16,
   },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-  },
-  cardPrice: {
+  cardMeta: {
     fontSize: 12,
-    fontFamily: 'Poppins_600SemiBold',
-    color: colors.gold,
+    fontFamily: 'Poppins_500Medium',
+    color: '#6B7280',
+    marginBottom: 12,
   },
   downloadButton: {
-    width: 72,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  downloadIcon: {
-    width: 16,
-    height: 16,
-    resizeMode: 'contain',
-    tintColor: colors.textPrimary,
-  },
-  openButton: {
+    minHeight: 38,
+    borderRadius: 8,
+    backgroundColor: colors.textPrimary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.textPrimary,
-    borderRadius: 5,
-    paddingVertical: 6,
-    paddingHorizontal: 13,
-    gap: 4,
+    gap: 8,
   },
-  openButtonText: {
-    fontSize: 11,
+  downloadButtonText: {
+    fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.white,
   },
-  externalLinkIcon: {
-    width: 12,
-    height: 12,
-    resizeMode: 'contain',
-    tintColor: colors.white,
-  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 23, 42, 0.24)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   filterModal: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-    maxHeight: '80%',
+    borderRadius: 24,
+    padding: 20,
   },
   filterHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   filterTitle: {
-    fontSize: 20,
-    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 18,
+    fontFamily: 'Poppins_700Bold',
     color: colors.textPrimary,
   },
   filterSection: {
-    marginBottom: 24,
+    marginBottom: 18,
   },
   filterLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Poppins_600SemiBold',
-    color: colors.textPrimary,
-    marginBottom: 12,
+    color: '#374151',
+    marginBottom: 10,
   },
   filterOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
-  filterOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
     backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
-  filterOptionActive: {
+  filterChipActive: {
     backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
-  filterOptionText: {
-    fontSize: 14,
+  filterChipText: {
+    fontSize: 13,
     fontFamily: 'Poppins_500Medium',
-    color: '#6B7280',
+    color: '#4B5563',
   },
-  filterOptionTextActive: {
+  filterChipTextActive: {
     color: colors.white,
   },
   filterActions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 24,
+    marginTop: 8,
   },
-  resetButton: {
+  secondaryButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    minHeight: 50,
+    borderRadius: 16,
     backgroundColor: '#F3F4F6',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  resetButtonText: {
-    fontSize: 16,
+  secondaryButtonText: {
+    fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
-    color: colors.textPrimary,
+    color: '#374151',
   },
-  applyButton: {
+  primaryButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    minHeight: 50,
+    borderRadius: 16,
     backgroundColor: colors.primary,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  applyButtonText: {
-    fontSize: 16,
+  primaryButtonText: {
+    fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.white,
   },

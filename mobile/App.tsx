@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import * as ExpoSplashScreen from "expo-splash-screen";
+import * as Notifications from 'expo-notifications';
 import RootNavigator from "./src/navigation";
 import SplashScreen from "./src/screens/SplashScreen";
 import OnboardingScreen from "./src/screens/OnboardingScreen";
@@ -10,11 +11,24 @@ import LoginScreen from "./src/screens/LoginScreen";
 import VerifyPhoneScreen from "./src/screens/VerifyPhoneScreen";
 import VerifyOTPScreen from "./src/screens/VerifyOTPScreen";
 import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
+import { AuthProvider } from "./src/contexts/AuthContext";
+import { ToastProvider } from "./src/contexts/ToastContext";
+import { useAuth } from "./src/hooks/useAuth";
+import {
+  consumePendingNotificationTarget,
+  handleNotificationResponseRouting,
+  navigateToNotificationTarget,
+  processLastNotificationResponse,
+  syncStudentPushToken,
+} from "./src/services/notifications";
+import { clearNewsSessionCache } from "./src/utils/newsSessionStorage";
+import { navigationRef } from "./src/navigation/navigationRef";
 
 // Keep the native splash screen visible while we fetch resources
 ExpoSplashScreen.preventAutoHideAsync();
 
-export default function App() {
+function AppContent() {
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
@@ -23,6 +37,8 @@ export default function App() {
   const [showVerifyPhone, setShowVerifyPhone] = useState(false);
   const [showVerifyOTP, setShowVerifyOTP] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
+  const lastHandledNotificationRef = useRef<string | null>(null);
 
   // Persistent state for forms
   const [userPhoneNumber, setUserPhoneNumber] = useState('');
@@ -33,6 +49,76 @@ export default function App() {
     // Hide the native splash screen immediately when app loads
     ExpoSplashScreen.hideAsync();
   }, []);
+
+  useEffect(() => {
+    // Reset session-scoped news cache when a new app launch begins.
+    clearNewsSessionCache().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    // Sync the latest push token once the user is authenticated.
+    if (!isAuthenticated || !user?.id) {
+      return;
+    }
+
+    syncStudentPushToken(user.id).catch(() => undefined);
+  }, [isAuthenticated, user?.id]);
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const notificationIdentifier = response.notification.request.identifier;
+
+      if (lastHandledNotificationRef.current === notificationIdentifier) {
+        return;
+      }
+
+      lastHandledNotificationRef.current = notificationIdentifier;
+      handleNotificationResponseRouting({
+        data: response.notification.request.content.data,
+        isAuthenticated,
+      }).catch(() => undefined);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isNavigationReady) {
+      return;
+    }
+
+    consumePendingNotificationTarget()
+      .then((target) => {
+        if (target) {
+          navigateToNotificationTarget(target);
+        }
+      })
+      .catch(() => undefined);
+  }, [isAuthenticated, isNavigationReady]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isNavigationReady) {
+      return;
+    }
+
+    processLastNotificationResponse(isAuthenticated).catch(() => undefined);
+  }, [isAuthenticated, isNavigationReady]);
+
+  useEffect(() => {
+    // Return logged-out users to the welcome screen once startup flows are finished.
+    if (authLoading || showSplash || showOnboarding || isAuthenticated) {
+      return;
+    }
+
+    setShowRegister(false);
+    setShowLogin(false);
+    setShowVerifyPhone(false);
+    setShowVerifyOTP(false);
+    setShowResetPassword(false);
+    setShowWelcome(true);
+  }, [authLoading, isAuthenticated, showOnboarding, showSplash]);
 
   const handleSplashFinish = useCallback(() => {
     setShowSplash(false);
@@ -67,13 +153,11 @@ export default function App() {
   const handleRegisterSuccess = useCallback(() => {
     // After successful registration, navigate to main app
     setShowRegister(false);
-    console.log("Registration successful - navigating to main app");
   }, []);
 
   const handleLoginSuccess = useCallback(() => {
     // After successful login, navigate to main app
     setShowLogin(false);
-    console.log("Login successful - navigating to main app");
   }, []);
 
   // Password reset flow handlers
@@ -112,7 +196,6 @@ export default function App() {
   const handleResetSuccess = useCallback(() => {
     setShowResetPassword(false);
     setShowLogin(true);
-    console.log("Password reset successful - returning to login");
   }, []);
 
   if (showSplash) {
@@ -163,8 +246,18 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} onReady={() => setIsNavigationReady(true)}>
       <RootNavigator />
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ToastProvider>
   );
 }

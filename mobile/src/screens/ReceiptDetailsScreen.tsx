@@ -21,19 +21,23 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 interface Receipt {
   id: string;
-  studentId: string;
-  paymentType: 'fee_payment' | 'resource';
-  amount: number;
-  referenceId: string;
-  studentName: string;
-  level: string;
-  dateOfPayment: string;
-  faculty: string;
-  paymentMethod: 'mtn' | 'orange' | 'bank';
-  feeType?: 'complete Fee Payment' | 'half Fee Payment';
-  feeDescription?: string;
-  resourceName?: string;
-  resourceDescription?: string;
+  receiptNumber: string;
+  amount: string;
+  receiptType: 'school_fee' | 'subscription';
+  paymentType: 'fee' | 'subscription';
+  academicYear: string;
+  issuedAt: string;
+  paymentReference: string;
+  paymentMethod: 'mtn' | 'orange';
+  phoneNumber: string;
+  feeInstallment: 'full' | 'half' | null;
+  paidAt: string;
+  student: {
+    name: string;
+    matricule: string;
+    faculty: string;
+    level: string;
+  };
 }
 
 type RootStackParamList = {
@@ -73,12 +77,23 @@ const ReceiptDetailsScreen: React.FC = () => {
   };
 
   // Get payment type label
-  const paymentTypeLabel = receipt.paymentType === 'fee_payment' ? 'Fee Payment' : 'Resources';
-  
+  const paymentTypeLabel = receipt.receiptType === 'school_fee' ? 'Fee Payment' : 'Subscription';
+
   // Get payment type value
-  const paymentTypeValue = receipt.paymentType === 'fee_payment'
-    ? receipt.feeType === 'complete Fee Payment' ? 'Complete Fee Payment' : 'Half Fee Payment'
-    : receipt.resourceName;
+  const paymentTypeValue = receipt.receiptType === 'school_fee'
+    ? receipt.feeInstallment === 'full' ? 'Complete Fee Payment' : 'Half Fee Payment'
+    : 'Annual Subscription';
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${day}/${month}/${year}; ${hours}:${minutes}`;
+  };
 
   const handleDownloadReceipt = () => {
     // TODO: Implement download receipt functionality
@@ -108,9 +123,9 @@ const ReceiptDetailsScreen: React.FC = () => {
         {/* Title */}
         <Text style={styles.title}>Payment receipt</Text>
         <Text style={styles.subtitle}>
-          {receipt.paymentType === 'fee_payment' 
-            ? 'Your fee status will be updated' 
-            : 'Your resource is now available'}
+          {receipt.receiptType === 'school_fee'
+            ? 'Your fee status has been updated'
+            : 'Your subscription is now active'}
         </Text>
 
         {/* Payment Info Card */}
@@ -134,54 +149,61 @@ const ReceiptDetailsScreen: React.FC = () => {
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Student name</Text>
-            <Text style={styles.summaryValue}>{receipt.studentName}</Text>
+            <Text style={styles.summaryValue}>{receipt.student.name}</Text>
           </View>
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Matricule</Text>
-            <Text style={styles.summaryValue}>{receipt.studentId}</Text>
+            <Text style={styles.summaryValue}>{receipt.student.matricule}</Text>
           </View>
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Level</Text>
-            <Text style={styles.summaryValue}>{receipt.level}</Text>
+            <Text style={styles.summaryValue}>{receipt.student.level}</Text>
           </View>
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Faculty</Text>
-            <Text style={styles.summaryValue}>{receipt.faculty}</Text>
+            <Text style={styles.summaryValue}>{receipt.student.faculty}</Text>
           </View>
 
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Academic Year</Text>
+            <Text style={styles.summaryValue}>{receipt.academicYear}</Text>
+          </View>
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Amount Paid</Text>
-            <Text style={styles.summaryValue}>{receipt.amount.toLocaleString()} FCFA</Text>
+            <Text style={styles.summaryValue}>{parseFloat(receipt.amount).toLocaleString()} FCFA</Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Receipt Number</Text>
+            <Text style={styles.summaryValue}>{receipt.receiptNumber}</Text>
           </View>
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Reference ID</Text>
-            <Text style={styles.summaryValue}>{receipt.referenceId}</Text>
+            <Text style={styles.summaryValue}>{receipt.paymentReference}</Text>
           </View>
-
-  
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Date of Payment</Text>
-            <Text style={styles.summaryValue}>{receipt.dateOfPayment}</Text>
+            <Text style={styles.summaryValue}>{formatDate(receipt.paidAt)}</Text>
           </View>
 
           {/* Conditional row based on payment type */}
-          {receipt.paymentType === 'fee_payment' ? (
+          {receipt.receiptType === 'school_fee' ? (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Fee Type</Text>
               <Text style={styles.summaryValue}>
-                {receipt.feeType === 'complete Fee Payment' ? 'Complete Fees Paid' : 'Half Fees Paid'}
+                {receipt.feeInstallment === 'full' ? 'Complete Fees Paid' : 'Half Fees Paid'}
               </Text>
             </View>
           ) : (
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Resource</Text>
-              <Text style={styles.summaryValue}>{receipt.resourceName}</Text>
+              <Text style={styles.summaryLabel}>Subscription Type</Text>
+              <Text style={styles.summaryValue}>Annual Subscription</Text>
             </View>
           )}
 

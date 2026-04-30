@@ -4,11 +4,15 @@ import HomeScreen from "../screens/HomeScreen";
 import CalendarScreen from "../screens/CalendarScreen";
 import UpdatesScreen from "../screens/UpdatesScreen";
 import ResourcesScreen from "../screens/ResourcesScreen";
+import LewaChatScreen from "../screens/LewaChatScreen";
 import LewaAIScreen from "../screens/LewaAIScreen";
 import LewaAIChatScreen from "../screens/LewaAIChatScreen";
+import SchoolAdminChatScreen from "../screens/SchoolAdminChatScreen";
 import EventDetailsScreen from "../screens/EventDetailsScreen";
-import ResourceDetailsScreen from "../screens/ResourceDetailsScreen";
+import ResourceViewerScreen from "../screens/ResourceViewerScreen";
 import NewsDetailsScreen from "../screens/NewsDetailsScreen";
+import AddNewsScreen from "../screens/AddNewsScreen";
+import AddResourceScreen from "../screens/AddResourceScreen";
 import ConfirmNumberScreen from "../screens/ConfirmNumberScreen";
 import FeeSelectionScreen from "../screens/FeeSelectionScreen";
 import PaymentMethodScreen from "../screens/PaymentMethodScreen";
@@ -21,7 +25,6 @@ import SupportDeskScreen from "../screens/SupportDeskScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import LoginScreen from "../screens/LoginScreen";
 import WelcomeScreen from "../screens/WelcomeScreen";
-import VerifyPhoneScreen from "../screens/VerifyPhoneScreen";
 import VerifyOTPScreen from "../screens/VerifyOTPScreen";
 import AppBar from "../components/AppBar";
 import { View } from "react-native";
@@ -43,7 +46,7 @@ function MainTabs() {
         <Tab.Screen name="Calendar" component={CalendarScreen} />
         <Tab.Screen name="Lewa News" component={UpdatesScreen} />
         <Tab.Screen name="Resources" component={ResourcesScreen} />
-        <Tab.Screen name="LewaAI" component={LewaAIScreen} />
+        <Tab.Screen name="LewaChat" component={LewaChatScreen} />
       </Tab.Navigator>
     </View>
   );
@@ -61,7 +64,10 @@ export default function RootNavigator() {
       <Stack.Screen
         name="MainTabs"
         component={MainTabs}
-        options={{ headerShown: false }}
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+        }}
       />
 
       {/* Full-screen flows (NO AppBar) */}
@@ -96,7 +102,7 @@ export default function RootNavigator() {
         component={PaymentSummaryScreen}
         options={{
           headerShown: false,
-          gestureEnabled: true,
+          gestureEnabled: false,
         }}
       />
       <Stack.Screen
@@ -154,8 +160,8 @@ export default function RootNavigator() {
         }}
       />
       <Stack.Screen
-        name="ResourceDetails"
-        component={ResourceDetailsScreen}
+        name="ResourceViewer"
+        component={ResourceViewerScreen}
         options={{
           headerShown: false,
           gestureEnabled: true,
@@ -170,18 +176,40 @@ export default function RootNavigator() {
         }}
       />
       <Stack.Screen
+        name="AddNews"
+        component={AddNewsScreen}
+        options={{
+          headerShown: false,
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
+        name="AddResource"
+        component={AddResourceScreen}
+        options={{
+          headerShown: false,
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
+        name="LewaAIWelcome"
+        component={LewaAIScreen}
+        options={{
+          headerShown: false,
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
         name="LewaAIChat"
         component={LewaAIChatScreen}
         options={{
           headerShown: false,
-          gestureEnabled: false,
+          gestureEnabled: true,
         }}
       />
-
-      {/* Authentication Screens */}
       <Stack.Screen
-        name="VerifyPhone"
-        component={LewaAIChatScreen}
+        name="SchoolAdminChat"
+        component={SchoolAdminChatScreen}
         options={{
           headerShown: false,
           gestureEnabled: true,

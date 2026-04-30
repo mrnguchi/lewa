@@ -1,197 +1,258 @@
-/**
- * LewaAIScreen Component
- *
- * Welcome screen for Lewa AI Chatbot
- */
-
 import React, { useEffect, useRef } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
+  ActivityIndicator,
   Animated,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useFonts, Poppins_400Regular, Poppins_700Bold } from '@expo-google-fonts/poppins';
-import { colors } from '../theme/colors';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import { useFonts, Poppins_400Regular, Poppins_700Bold } from '@expo-google-fonts/poppins';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { colors } from '../theme/colors';
+import { markAiWelcomeSeen } from '../services/lewaChat';
+
+type RootStackParamList = {
+  LewaAIWelcome: undefined;
+  LewaAIChat: {
+    conversationId?: string;
+  } | undefined;
+};
+
+type LewaAIWelcomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'LewaAIWelcome'>;
+
+// Presents the first-time welcome experience before a user starts using Lewa AI.
 const LewaAIScreen: React.FC = () => {
-  const navigation = useNavigation();
-  const arrowAnimation = useRef(new Animated.Value(0)).current;
+  const navigation = useNavigation<LewaAIWelcomeNavigationProp>();
+  const robotFloat = useRef(new Animated.Value(0)).current;
+  const arrowShift = useRef(new Animated.Value(0)).current;
+  const [isStarting, setIsStarting] = React.useState(false);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_700Bold,
   });
 
-  // Animate arrow left-right continuously
+  // Adds subtle motion so the hero robot and CTA feel alive without overwhelming the screen.
   useEffect(() => {
-    const animate = () => {
+    Animated.loop(
       Animated.sequence([
-        Animated.timing(arrowAnimation, {
-          toValue: 1,
-          duration: 600,
+        Animated.timing(robotFloat, {
+          toValue: -10,
+          duration: 1800,
           useNativeDriver: true,
         }),
-        Animated.timing(arrowAnimation, {
+        Animated.timing(robotFloat, {
           toValue: 0,
-          duration: 600,
+          duration: 1800,
           useNativeDriver: true,
         }),
-      ]).start(() => animate());
-    };
+      ])
+    ).start();
 
-    animate();
-  }, [arrowAnimation]);
-
-  const arrowTranslateX = arrowAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 6],
-  });
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(arrowShift, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(arrowShift, {
+          toValue: 0,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [arrowShift, robotFloat]);
 
   if (!fontsLoaded) {
     return null;
   }
 
-  const handleGetStarted = () => {
-    navigation.navigate('LewaAIChat' as never);
+  // Marks the welcome flow as seen, then opens a draft AI chat without creating a thread yet.
+  const handleGetStarted = async () => {
+    if (isStarting) {
+      return;
+    }
+
+    setIsStarting(true);
+    await markAiWelcomeSeen();
+    navigation.replace('LewaAIChat');
   };
 
   return (
-    <View style={styles.container}>
-      {/* Logo at top left */}
-      <Image
-        source={require('../../assets/logo-3.png')}
-        style={styles.logo}
-      />
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <View style={styles.container}>
+        <View style={styles.artworkSection}>
+          <Image source={require('../../assets/logo-3.png')} style={styles.logo} />
 
-      {/* Large robot on the right */}
-      <Image
-        source={require('../../assets/bot-big-1.png')}
-        style={styles.bigRobot}
-      />
+          <View style={styles.robotStage}>
+            <View style={styles.robotGlow} />
 
-      {/* Small robot on the left */}
-      <Image
-        source={require('../../assets/bot-small-1.png')}
-        style={styles.smallRobot}
-      />
-
-      {/* Content at bottom */}
-      <View style={styles.content}>
-        <Text style={styles.welcomeText}>Welcome to</Text>
-
-        {/* Lewa styled text image */}
-        <Image
-          source={require('../../assets/lewa-t.png')}
-          style={styles.lewaText}
-        />
-
-        <Text style={styles.chatbotText}>Chatbot</Text>
-
-        {/* Get started button with animated arrow */}
-        <TouchableOpacity style={styles.getStartedButton} onPress={handleGetStarted}>
-          <Text style={styles.getStartedText}>Get started</Text>
-          <View style={styles.arrowCircle}>
-            <Animated.View style={{ transform: [{ translateX: arrowTranslateX }] }}>
-              <Ionicons name="arrow-forward" size={24} color={colors.white} />
-            </Animated.View>
+            <Animated.Image
+              source={require('../../assets/bot-big-1.png')}
+              style={[
+                styles.heroRobot,
+                {
+                  transform: [{ translateY: robotFloat }],
+                },
+              ]}
+            />
           </View>
-        </TouchableOpacity>
+
+          <View style={styles.miniBotShell}>
+            <Image source={require('../../assets/bot-small-1.png')} style={styles.miniBot} />
+          </View>
+        </View>
+
+        <View style={styles.copySection}>
+          <Text style={styles.eyebrow}>Welcome to</Text>
+          <Text style={styles.lewaText}>Lewa</Text>
+          <Text style={styles.chatbotText}>Chatbot</Text>
+
+          <TouchableOpacity style={styles.ctaButton} activeOpacity={0.9} onPress={() => void handleGetStarted()}>
+            <Text style={styles.ctaLabel}>Get started</Text>
+            <View style={styles.ctaIconShell}>
+              {isStarting ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        translateX: arrowShift.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, 4],
+                        }),
+                      },
+                    ],
+                  }}
+                >
+                  <Ionicons name="arrow-forward" size={20} color={colors.white} />
+                </Animated.View>
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: colors.white,
   },
+  container: {
+    flex: 1,
+    backgroundColor: colors.white,
+    paddingHorizontal: 22,
+    paddingTop: 10,
+    paddingBottom: 18,
+  },
+  artworkSection: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
   logo: {
-    width: 80,
-    height: 80,
+    width: 50,
+    height: 50,
     resizeMode: 'contain',
-    position: 'absolute',
-    top: 70,
-    left: 20,
-    zIndex: 10,
+    marginTop: 6,
   },
-  bigRobot: {
-    width: 400,
-    height: 600,
+  robotStage: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  robotGlow: {
+    position: 'absolute',
+    width: 282,
+    height: 282,
+    borderRadius: 141,
+    backgroundColor: '#EFF2F3',
+    top: '20%',
+    right: -68,
+  },
+  heroRobot: {
+    width: 360,
+    height: 420,
     resizeMode: 'contain',
-    position: 'absolute',
-    top: 120,
-    right: -60,
+    right: -100,
   },
-  smallRobot: {
-    width: 100,
-    height: 120,
+  miniBotShell: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    marginLeft: 10,
+  },
+  miniBot: {
+    width: 42,
+    height: 42,
     resizeMode: 'contain',
-    position: 'absolute',
-    top: 390,
-    left: 40,
   },
-  content: {
-    position: 'relative',
-    bottom: 0,
-    left: 0,
-    // right: 0,
-    paddingHorizontal: 20,
-    // zIndex: 20,
-    marginTop: '140%',
+  copySection: {
+    paddingTop: 14,
   },
-  welcomeText: {
-    fontSize: 19,
+  eyebrow: {
+    fontSize: 15,
     fontFamily: 'Poppins_400Regular',
     color: colors.textPrimary,
-    marginBottom: 1,
   },
   lewaText: {
-    width: 130,
-    height: 70,
-    resizeMode: 'contain',
-    marginBottom: -12,
+    fontSize: 46,
+    lineHeight: 50,
+    fontFamily: 'Poppins_700Bold',
+    color: colors.primary,
+    marginTop: 4,
   },
   chatbotText: {
-    fontSize: 48,
+    fontSize: 46,
+    lineHeight: 50,
     fontFamily: 'Poppins_700Bold',
-    color: '#1F2937',
-    marginBottom: 32,
+    color: '#233048',
+    marginBottom: 26,
   },
-  getStartedButton: {
+  ctaButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 56,
+    borderRadius: 999,
     backgroundColor: colors.white,
-    borderRadius: 50,
-    paddingVertical: 12,
-    paddingLeft: 24,
-    paddingRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    paddingLeft: 18,
+    paddingRight: 8,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
-    shadowRadius: 12,
+    shadowRadius: 18,
     elevation: 8,
   },
-  getStartedText: {
-    fontSize: 16,
+  ctaLabel: {
+    fontSize: 17,
     fontFamily: 'Poppins_400Regular',
-    color: colors.textPrimary,
+    color: '#475467',
   },
-  arrowCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  ctaIconShell: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: colors.primary,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
 export default LewaAIScreen;
-
