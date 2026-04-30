@@ -5,10 +5,10 @@ import compression from "compression";
 import morgan from "morgan";
 
 import { env } from "./config/env";
-import { prisma } from "./database/prisma";
 import { ApiError } from "./utils/api-error";
 import { errorMiddleware } from "./middlewares/error.middleware";
 import { asyncHandler } from "./utils/async-handler";
+import routes from "./routes"
 
 export const app = express();
 
@@ -54,17 +54,9 @@ app.get("/health", (_req, res) => {
    ROUTES
 ----------------------------------------------------- */
 
-// Example: Students route
-app.get(
-  "/students",
-  asyncHandler(async (_req, res) => {
-    const students = await prisma.student.findMany();
-    res.json({
-      success: true,
-      data: students,
-    });
-  })
-);
+app.use("/api", routes)
+
+
 
 /* -----------------------------------------------------
    404 HANDLER

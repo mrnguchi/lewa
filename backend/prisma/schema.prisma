@@ -1,30 +1,255 @@
 generator client {
   provider = "prisma-client-js"
-  
 }
 
 datasource db {
   provider = "postgresql"
-  url = "postgresql://nguchi_dev:munoh000dev@localhost:5432/lewa_db"
+  url      = "postgresql://nguchi_dev:munoh000dev@localhost:5432/lewa_db"
 }
 
-model student {
-  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  matricule     String          @unique @db.VarChar(50)
-  email         String          @unique @db.VarChar(255)
-  phone         String?         @db.VarChar(30)
-  password_hash String?
-  full_name     String          @db.VarChar(255)
-  faculty       String?         @db.VarChar(150)
-  department    String?         @db.VarChar(150)
-  level         String?         @db.VarChar(50)
-  fee_status    fee_status_enum @default(NOT_PAID)
-  is_active     Boolean         @default(true)
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model complaints {
+  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  student_id    String          @db.Uuid
+  description   String
+  status        String          @default("pending") @db.VarChar(20)
   created_at    DateTime        @default(now()) @db.Timestamptz(6)
   updated_at    DateTime        @default(now()) @db.Timestamptz(6)
+  title         String?         @db.VarChar(255)
+  students      students        @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_complaint_student")
+  conversations conversations[]
 
-  @@index([email], map: "idx_student_email")
-  @@index([matricule], map: "idx_student_matricule")
+  @@index([status], map: "idx_complaints_status")
+  @@index([student_id], map: "idx_complaints_student")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model conversations {
+  id                String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  student_id        String      @db.Uuid
+  conversation_type String      @db.VarChar(20)
+  complaint_id      String?     @db.Uuid
+  created_at        DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime    @default(now()) @db.Timestamptz(6)
+  title             String?     @db.VarChar(255)
+  status            String      @default("open") @db.VarChar(20)
+  source            String      @default("manual") @db.VarChar(30)
+  assigned_admin_id String?     @db.Uuid
+  last_message_at   DateTime    @default(now()) @db.Timestamptz(6)
+  admins            admins?     @relation(fields: [assigned_admin_id], references: [id], onUpdate: NoAction, map: "fk_conversation_assigned_admin")
+  complaints        complaints? @relation(fields: [complaint_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_conversation_complaint")
+  students          students    @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_conversation_student")
+  messages          messages[]
+
+  @@index([student_id], map: "idx_conversations_student")
+  @@index([conversation_type], map: "idx_conversations_type")
+  @@index([assigned_admin_id], map: "idx_conversations_assigned_admin")
+  @@index([last_message_at(sort: Desc)], map: "idx_conversations_last_message_at")
+  @@index([source], map: "idx_conversations_source")
+  @@index([status], map: "idx_conversations_status")
+  @@index([student_id, conversation_type, last_message_at(sort: Desc)], map: "idx_conversations_student_type_last_message")
+}
+
+model faqs {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  question      String
+  answer        String
+  display_order Int?     @default(0)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model messages {
+  id                String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  conversation_id   String        @db.Uuid
+  sender_type       String        @db.VarChar(20)
+  message_text      String?
+  file_url          String?
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  sender_student_id String?       @db.Uuid
+  sender_admin_id   String?       @db.Uuid
+  message_type      String        @default("text") @db.VarChar(20)
+  metadata          Json?
+  conversations     conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_message_conversation")
+  admins            admins?       @relation(fields: [sender_admin_id], references: [id], onUpdate: NoAction, map: "fk_message_sender_admin")
+  students          students?     @relation(fields: [sender_student_id], references: [id], onUpdate: NoAction, map: "fk_message_sender_student")
+
+  @@index([conversation_id], map: "idx_messages_conversation")
+  @@index([created_at(sort: Desc)], map: "idx_messages_created_at")
+  @@index([message_type], map: "idx_messages_message_type")
+  @@index([sender_admin_id], map: "idx_messages_sender_admin")
+  @@index([sender_student_id], map: "idx_messages_sender_student")
+}
+
+model news {
+  id                            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                         String    @db.VarChar(255)
+  intro                         String
+  description                   String
+  category                      String    @db.VarChar(100)
+  image_url                     String
+  lewa_logo_url                 String?
+  published_at                  DateTime  @db.Timestamptz(6)
+  created_at                    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime  @default(now()) @db.Timestamptz(6)
+  notification_sent_at          DateTime? @db.Timestamptz(6)
+  notification_dispatch_started_at DateTime? @db.Timestamptz(6)
+  author_student_id             String?   @db.Uuid
+
+  @@index([author_student_id], map: "idx_news_author")
+  @@index([notification_dispatch_started_at], map: "idx_news_dispatch_started")
+  @@index([published_at, notification_sent_at], map: "idx_news_publish_notification")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payments {
+  id                 String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  student_id         String         @db.Uuid
+  payment_type       String         @db.VarChar(30)
+  amount             Decimal        @db.Decimal(12, 2)
+  reference_id       String         @unique @db.VarChar(50)
+  provider_reference String?        @db.VarChar(100)
+  payment_method     String         @db.VarChar(20)
+  fee_installment    String?        @db.VarChar(10)
+  academic_year      String         @db.VarChar(20)
+  status             String         @db.VarChar(20)
+  paid_at            DateTime?      @db.Timestamptz(6)
+  created_at         DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime       @default(now()) @db.Timestamptz(6)
+  phone_number       String         @db.VarChar(15)
+  students           students       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_payment_student")
+  receipts           receipts[]
+  subscriptions      subscriptions?
+
+  @@index([academic_year], map: "idx_payments_academic_year")
+  @@index([reference_id], map: "idx_payments_reference")
+  @@index([student_id], map: "idx_payments_student")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model receipts {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  payment_id     String   @db.Uuid
+  student_id     String   @db.Uuid
+  receipt_number String   @unique @db.VarChar(100)
+  receipt_type   String   @db.VarChar(30)
+  amount         Decimal  @db.Decimal(12, 2)
+  academic_year  String   @db.VarChar(20)
+  issued_at      DateTime @default(now()) @db.Timestamptz(6)
+  file_url       String?
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @default(now()) @db.Timestamptz(6)
+  payments       payments @relation(fields: [payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_receipt_payment")
+  students       students @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_receipt_student")
+
+  @@index([receipt_number], map: "idx_receipts_number")
+  @@index([payment_id], map: "idx_receipts_payment")
+  @@index([student_id], map: "idx_receipts_student")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model resources {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String   @db.VarChar(20)
+  title       String   @db.VarChar(255)
+  level       Int
+  faculty     String?  @db.VarChar(150)
+  type        String   @db.VarChar(30)
+  file_url    String
+  description String?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([faculty], map: "idx_resources_faculty")
+  @@index([level], map: "idx_resources_level")
+}
+
+model students {
+  id                    String          @id @db.Uuid
+  matricule             String          @unique @db.VarChar(20)
+  full_name             String          @db.VarChar(255)
+  phone_number          String          @unique @db.VarChar(15)
+  password_hash         String
+  faculty               String          @db.VarChar(150)
+  department            String          @db.VarChar(150)
+  level                 Int
+  profile_image_url     String?
+  notifications_enabled Boolean         @default(true)
+  is_active             Boolean         @default(true)
+  created_at            DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime        @default(now()) @db.Timestamptz(6)
+  fee_status            String          @default("NOT_PAID") @db.VarChar(20)
+  subscribed            Boolean         @default(false)
+  role                  String          @default("student") @db.VarChar(20)
+  expo_push_token       String?         @db.VarChar(255)
+  complaints            complaints[]
+  conversations         conversations[]
+  messages              messages[]
+  payments              payments[]
+  receipts              receipts[]
+  subscriptions         subscriptions[]
+
+  @@index([matricule], map: "idx_students_matricule")
+  @@index([phone_number], map: "idx_students_phone")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model subscriptions {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  student_id  String   @db.Uuid
+  payment_id  String   @unique(map: "uq_subscription_payment") @db.Uuid
+  start_date  DateTime @db.Timestamptz(6)
+  expiry_date DateTime @db.Timestamptz(6)
+  status      String   @db.VarChar(20)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  payments    payments @relation(fields: [payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_subscription_payment")
+  students    students @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_subscription_student")
+
+  @@index([expiry_date], map: "idx_subscriptions_expiry_date")
+  @@index([status], map: "idx_subscriptions_status")
+  @@index([student_id], map: "idx_subscriptions_student")
+}
+
+model calendar_entries {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  academic_year String    @db.VarChar(20)
+  entry_type    String    @db.VarChar(20)
+  title         String    @db.VarChar(255)
+  summary       String
+  full_text     String?
+  start_date    DateTime  @db.Date
+  end_date      DateTime? @db.Date
+  event_time    String?   @db.VarChar(100)
+  status        String    @default("published") @db.VarChar(20)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([academic_year], map: "idx_calendar_entries_academic_year")
+  @@index([entry_type], map: "idx_calendar_entries_entry_type")
+  @@index([start_date], map: "idx_calendar_entries_start_date")
+  @@index([status], map: "idx_calendar_entries_status")
+}
+
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model admins {
+  id            String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  full_name     String          @db.VarChar(255)
+  email         String          @db.VarChar(255)
+  phone_number  String?         @db.VarChar(15)
+  password_hash String
+  faculty       String?         @db.VarChar(150)
+  admin_role    String          @db.VarChar(50)
+  is_active     Boolean         @default(true)
+  last_login_at DateTime?       @db.Timestamptz(6)
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @db.Timestamptz(6)
+  conversations conversations[]
+  messages      messages[]
+
+  @@index([faculty], map: "idx_admins_faculty")
+  @@index([admin_role], map: "idx_admins_role")
 }
 
 enum fee_status_enum {

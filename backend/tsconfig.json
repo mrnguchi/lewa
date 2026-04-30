@@ -8,5 +8,7 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
-  }
+  },
+  "include": ["src"], //ensures that only type script fiiles inside src are treated app source code. so that prisma.config.ts will no longer be compiled by my backend
+  "exclude": ["node_modules", "dist"]
 }
