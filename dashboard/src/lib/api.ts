@@ -12,7 +12,7 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
-    body: body ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -20,11 +20,21 @@ export async function apiRequest<T>(
     },
   });
 
+  const contentType = response.headers.get("content-type");
+  const responseBody = contentType?.includes("application/json")
+    ? await response.json()
+    : null;
+
   if (!response.ok) {
-    throw new Error(`Backend request failed with status ${response.status}`);
+    const message =
+      responseBody?.message ??
+      responseBody?.error ??
+      `Backend request failed with status ${response.status}`;
+
+    throw new Error(message);
   }
 
-  return response.json() as Promise<T>;
+  return responseBody as T;
 }
 
 export { API_BASE_URL };
