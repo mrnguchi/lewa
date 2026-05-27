@@ -4,7 +4,7 @@ import { dispatchDueNewsNotifications } from "./news.service";
 let schedulerStarted = false;
 let schedulerBusy = false;
 
-// Polls for news that has reached its publish time and still needs a push notification.
+// Polls for news that has reached its publish time and still needs an app notification.
 export function startNewsNotificationScheduler() {
   if (schedulerStarted) {
     return;

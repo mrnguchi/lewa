@@ -8,6 +8,8 @@ import calendarRoutes from "../modules/calendar/calender.routes"
 import resourceRoutes from "../modules/resource/resource.routes"
 import uploadRoutes from "../modules/upload/upload.routes"
 import chatRoutes from "../modules/chat/chat.routes"
+import adminRoutes from "../modules/admin/admin.routes"
+import notificationRoutes from "../modules/notification/notification.routes"
 
 const router = Router();
 
@@ -20,4 +22,6 @@ router.use("/calendar", calendarRoutes);
 router.use("/resources", resourceRoutes);
 router.use("/uploads", uploadRoutes);
 router.use("/chat", chatRoutes);
+router.use("/admin", adminRoutes);
+router.use("/notifications", notificationRoutes);
 export default router

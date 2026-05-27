@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { ApiError } from "../../utils/api-error";
 import axios from "axios";
 import { env } from "../../config/env";
+import { createStudentNotification } from "../notification/notification.service";
 
 interface InitiatePaymentInput {
   studentId: string;
@@ -27,11 +28,35 @@ interface PaymentStatusOptions {
   forceProviderCheck?: boolean;
 }
 
+interface TriggerPaymentOptions {
+  signal?: AbortSignal;
+  isClientConnected?: () => boolean;
+}
+
+const CAMPAY_COLLECT_TIMEOUT_MS = 18_000;
+const PAYMENT_TRIGGER_CLIENT_CLOSED_STATUS = 499;
+const PAYMENT_TRIGGER_CLIENT_CLOSED_MESSAGE =
+  "Payment start cancelled because the app connection was interrupted. Please check your internet connection and try again.";
+const DEFAULT_PAYMENT_FAILURE_REASON =
+  "The payment provider marked this transaction as failed. No money was received.";
+
 const studentReceiptSelect = {
   full_name: true,
   matricule: true,
   faculty: true,
   level: true,
+};
+
+const adminPaymentStudentSelect = {
+  id: true,
+  full_name: true,
+  matricule: true,
+  phone_number: true,
+  faculty: true,
+  department: true,
+  level: true,
+  fee_status: true,
+  is_active: true,
 };
 
 const shouldCheckProviderStatus = (reference: string, force = false) => {
@@ -63,6 +88,100 @@ const toPaymentStatus = (providerStatus?: string) => {
   return "pending";
 };
 
+const extractPaymentFailureReason = (source: any) => {
+  const candidates = [
+    source?.failure_reason,
+    source?.reason,
+    source?.message,
+    source?.status_reason,
+    source?.status_description,
+    source?.operator_message,
+    source?.error_message,
+    source?.error,
+  ];
+
+  const reason = candidates.find(
+    (candidate) =>
+      typeof candidate === "string" &&
+      candidate.trim() &&
+      candidate.trim().toUpperCase() !== "FAILED"
+  );
+
+  return reason ? reason.trim() : DEFAULT_PAYMENT_FAILURE_REASON;
+};
+
+const getPaymentTitle = (payment: {
+  payment_type: string;
+  fee_installment?: string | null;
+}) => {
+  if (payment.payment_type === "subscription") {
+    return "Subscription";
+  }
+
+  if (payment.fee_installment === "half") {
+    return "Half fees";
+  }
+
+  if (payment.fee_installment === "full") {
+    return "Complete fees";
+  }
+
+  return "School fees";
+};
+
+const formatPaymentAmount = (amount: any) =>
+  `${Number(amount).toLocaleString("en-US").replace(/,/g, " ")} XAF`;
+
+// I notify after the receipt exists so tapping the alert always lands somewhere useful.
+const notifyPaymentSucceeded = async (payment: any, receipt: any) => {
+  await createStudentNotification({
+    studentId: payment.student_id,
+    type: "payment_success",
+    title: "Payment successful",
+    body: `${getPaymentTitle(payment)} confirmed for ${formatPaymentAmount(payment.amount)}.`,
+    targetType: "payment",
+    targetId: payment.id,
+    metadata: {
+      paymentId: payment.id,
+      paymentReference: payment.reference_id,
+      receiptId: receipt.id,
+      receiptNumber: receipt.receipt_number,
+      paymentType: payment.payment_type,
+      feeInstallment: payment.fee_installment,
+      amount: String(payment.amount),
+    },
+  });
+};
+
+// I keep failed payments around long enough for the student to read the reason in the app.
+const notifyPaymentFailed = async (payment: any, reason: string) => {
+  await createStudentNotification({
+    studentId: payment.student_id,
+    type: "payment_failed",
+    title: "Payment failed",
+    body: reason,
+    targetType: "payment",
+    targetId: payment.id,
+    metadata: {
+      paymentId: payment.id,
+      paymentReference: payment.reference_id,
+      paymentType: payment.payment_type,
+      feeInstallment: payment.fee_installment,
+      amount: String(payment.amount),
+      reason,
+    },
+  });
+};
+
+const assertCanStartProviderPayment = (options: TriggerPaymentOptions = {}) => {
+  if (options.signal?.aborted || options.isClientConnected?.() === false) {
+    throw new ApiError(
+      PAYMENT_TRIGGER_CLIENT_CLOSED_STATUS,
+      PAYMENT_TRIGGER_CLIENT_CLOSED_MESSAGE
+    );
+  }
+};
+
 /**
  * Generate human readable payment reference
  * Example: LEWA-26-A9F3D
@@ -81,11 +200,14 @@ const requestCampayPayment = async (
   amount: number,
   phoneNumber: string,
   referenceId: string,
-  description: string
+  description: string,
+  options: TriggerPaymentOptions = {}
 ) => {
+  assertCanStartProviderPayment(options);
+
   try {
     const response = await axios.post(
-      `${process.env.CAMPAY_BASE_URL}/collect/`,
+      `${env.campayBaseUrl}/collect/`,
       {
         amount: amount,
         from: phoneNumber,
@@ -93,8 +215,9 @@ const requestCampayPayment = async (
         external_reference: referenceId,
       },
       {
+        timeout: CAMPAY_COLLECT_TIMEOUT_MS,
         headers: {
-          Authorization: `Token ${process.env.CAMPAY_ACCESS_TOKEN}`,
+          Authorization: `Token ${env.campayToken}`,
           "Content-Type": "application/json",
         },
       }
@@ -102,10 +225,10 @@ const requestCampayPayment = async (
 
     return response.data;
   } catch (error: any) {
-    console.error("Campay error:", error.response?.data);
+    console.error("Campay error:", error.response?.data ?? error.message);
 
     throw new ApiError(
-      500,
+      error.code === "ECONNABORTED" ? 504 : 500,
       error.response?.data?.message || "Campay payment request failed"
     );
   }
@@ -250,60 +373,76 @@ export const initiatePayment = async (data: InitiatePaymentInput) => {
 /**
  * Trigger payment with Campay (called when user clicks "Confirm and pay")
  */
-export const triggerPayment = async (reference: string) => {
-  const payment = await prisma.payments.findUnique({
-    where: { reference_id: reference },
-  });
+export const triggerPayment = async (
+  reference: string,
+  options: TriggerPaymentOptions = {}
+) => {
+  return prisma.$transaction(
+    async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id"
+        FROM "public"."payments"
+        WHERE "reference_id" = ${reference}
+        FOR UPDATE
+      `;
 
-  if (!payment) {
-    throw new ApiError(404, "Payment not found");
-  }
+      const payment = await tx.payments.findUnique({
+        where: { reference_id: reference },
+      });
 
-  if (payment.status !== "pending") {
-    throw new ApiError(400, `Payment already ${payment.status}`);
-  }
+      if (!payment) {
+        throw new ApiError(404, "Payment not found");
+      }
 
-  if (payment.provider_reference) {
-    console.log(`Payment ${reference} was already triggered: ${payment.provider_reference}`);
+      if (payment.status !== "pending") {
+        throw new ApiError(400, `Payment already ${payment.status}`);
+      }
 
-    return {
-      reference: payment.reference_id,
-      status: payment.status,
-      providerReference: payment.provider_reference,
-      alreadyTriggered: true,
-    };
-  }
+      if (payment.provider_reference) {
+        console.log(`Payment ${reference} was already triggered: ${payment.provider_reference}`);
 
-  console.log(`Triggering Campay payment for reference: ${reference}`);
+        return {
+          reference: payment.reference_id,
+          status: payment.status,
+          providerReference: payment.provider_reference,
+          alreadyTriggered: true,
+        };
+      }
 
-  /**
-   * Trigger Campay MoMo request
-   */
-  const campayResponse = await requestCampayPayment(
-    Number(payment.amount),
-    payment.phone_number,
-    reference,
-    payment.payment_type
-  );
+      assertCanStartProviderPayment(options);
 
-  /**
-   * Save Campay provider reference
-   */
-  await prisma.payments.update({
-    where: { id: payment.id },
-    data: {
-      provider_reference: campayResponse.reference,
+      console.log(`Triggering Campay payment for reference: ${reference}`);
+
+      // Once this provider request starts, I finish saving its reference even if the app disconnects.
+      const campayResponse = await requestCampayPayment(
+        Number(payment.amount),
+        payment.phone_number,
+        reference,
+        payment.payment_type,
+        options
+      );
+
+      await tx.payments.update({
+        where: { id: payment.id },
+        data: {
+          provider_reference: campayResponse.reference,
+        },
+      });
+
+      console.log(`Campay payment triggered successfully: ${campayResponse.reference}`);
+
+      return {
+        reference: payment.reference_id,
+        status: payment.status,
+        providerReference: campayResponse.reference,
+        alreadyTriggered: false,
+      };
     },
-  });
-
-  console.log(`Campay payment triggered successfully: ${campayResponse.reference}`);
-
-  return {
-    reference: payment.reference_id,
-    status: payment.status,
-    providerReference: campayResponse.reference,
-    alreadyTriggered: false,
-  };
+    {
+      maxWait: 10_000,
+      timeout: 30_000,
+    }
+  );
 };
 
 export const deleteDisposablePayment = async (reference: string, studentId: string) => {
@@ -342,6 +481,45 @@ export const deleteDisposablePayment = async (reference: string, studentId: stri
 
   return {
     reference,
+    deleted: true,
+  };
+};
+
+export const deleteAdminSchoolFeePayment = async (paymentId: string) => {
+  const payment = await prisma.payments.findFirst({
+    where: {
+      id: paymentId,
+      payment_type: "fee",
+    },
+    include: {
+      receipts: true,
+    },
+  });
+
+  if (!payment) {
+    throw new ApiError(404, "School fee payment not found");
+  }
+
+  const isUntriggeredPending =
+    payment.status === "pending" && !payment.provider_reference;
+  const isFailed = payment.status === "failed";
+
+  if ((!isUntriggeredPending && !isFailed) || payment.receipts.length > 0) {
+    throw new ApiError(
+      409,
+      "Only failed or untriggered pending fee payments without receipts can be deleted."
+    );
+  }
+
+  await prisma.payments.delete({
+    where: {
+      id: payment.id,
+    },
+  });
+
+  return {
+    id: payment.id,
+    reference: payment.reference_id,
     deleted: true,
   };
 };
@@ -394,6 +572,8 @@ export const handleCampayWebhook = async (payload: any) => {
   }
 
   console.log(`Updating payment ${reference} to status: ${paymentStatus}`);
+  const failureReason =
+    paymentStatus === "failed" ? extractPaymentFailureReason(payload) : null;
 
   const payment = await prisma.payments.update({
     where: { reference_id: reference },
@@ -401,6 +581,8 @@ export const handleCampayWebhook = async (payload: any) => {
       status: paymentStatus,
       provider_reference: operatorReference ?? undefined,
       paid_at: status === "SUCCESSFUL" ? new Date() : null,
+      failure_reason: failureReason,
+      failed_at: paymentStatus === "failed" ? new Date() : null,
     },
   });
 
@@ -409,10 +591,12 @@ export const handleCampayWebhook = async (payload: any) => {
   if (paymentStatus === "successful") {
     providerStatusCheckCache.delete(reference);
     console.log("Payment successful - generating receipt...");
-    await generateReceipt(payment);
+    const receipt = await generateReceipt(payment);
     await updateStudentFeeStatus(payment);
+    await notifyPaymentSucceeded(payment, receipt);
   } else if (paymentStatus === "failed") {
     providerStatusCheckCache.delete(reference);
+    await notifyPaymentFailed(payment, failureReason || DEFAULT_PAYMENT_FAILURE_REASON);
   } else {
     console.log("Payment not successful - skipping receipt generation");
   }
@@ -466,6 +650,8 @@ export const getPaymentByReference = async (
     feeInstallment: currentPayment.fee_installment,
     academicYear: currentPayment.academic_year,
     providerReference: currentPayment.provider_reference,
+    failureReason: currentPayment.failure_reason,
+    failedAt: currentPayment.failed_at,
     paidAt: currentPayment.paid_at,
     createdAt: currentPayment.created_at,
     student: {
@@ -563,12 +749,16 @@ const syncPaymentWithProvider = async (
   }
 
   providerStatusCheckCache.delete(payment.reference_id);
+  const failureReason =
+    updatedStatus === "failed" ? extractPaymentFailureReason(campayStatus) : null;
 
   const updatedPayment = await prisma.payments.update({
     where: { reference_id: payment.reference_id },
     data: {
       status: updatedStatus,
       paid_at: updatedStatus === "successful" ? new Date() : null,
+      failure_reason: failureReason,
+      failed_at: updatedStatus === "failed" ? new Date() : null,
     },
     ...(options.includeStudent
       ? {
@@ -583,11 +773,52 @@ const syncPaymentWithProvider = async (
 
   if (updatedStatus === "successful") {
     console.log("Payment successful - generating receipt and updating student status...");
-    await generateReceipt(updatedPayment);
+    const receipt = await generateReceipt(updatedPayment);
     await updateStudentFeeStatus(updatedPayment);
+    await notifyPaymentSucceeded(updatedPayment, receipt);
+  } else if (updatedStatus === "failed") {
+    await notifyPaymentFailed(
+      updatedPayment,
+      failureReason || DEFAULT_PAYMENT_FAILURE_REASON
+    );
   }
 
   return updatedPayment;
+};
+
+const getSchoolFeePaymentForAdmin = async (paymentId: string) => {
+  const payment = await prisma.payments.findFirst({
+    where: {
+      id: paymentId,
+      payment_type: "fee",
+    },
+    include: {
+      students: {
+        select: adminPaymentStudentSelect,
+      },
+      receipts: true,
+    },
+  });
+
+  if (!payment) {
+    throw new ApiError(404, "School fee payment not found");
+  }
+
+  return payment;
+};
+
+export const syncSchoolFeePaymentWithProvider = async (paymentId: string) => {
+  const payment = await getSchoolFeePaymentForAdmin(paymentId);
+
+  if (payment.status !== "pending") {
+    return payment;
+  }
+
+  await syncPaymentWithProvider(payment, {
+    forceProviderCheck: true,
+  });
+
+  return getSchoolFeePaymentForAdmin(paymentId);
 };
 
 
@@ -605,7 +836,7 @@ const generateReceipt = async (payment: any) => {
 
     if (existingReceipt) {
       console.log("Receipt already exists for payment:", payment.id);
-      return;
+      return existingReceipt;
     }
 
     const receiptNumber = `LEWA-RCPT-${Date.now()}`;
@@ -639,6 +870,7 @@ const generateReceipt = async (payment: any) => {
     });
 
     console.log("Receipt created successfully:", receipt.receipt_number);
+    return receipt;
 
   } catch (error: any) {
     console.error("Error generating receipt:", error);
@@ -651,6 +883,24 @@ const generateReceipt = async (payment: any) => {
     }
     throw error;
   }
+};
+
+export const generateSchoolFeeReceiptForPayment = async (paymentId: string) => {
+  const payment = await getSchoolFeePaymentForAdmin(paymentId);
+
+  if (payment.status !== "successful") {
+    throw new ApiError(400, "Receipts can only be generated for successful fee payments");
+  }
+
+  const receipt = await generateReceipt(payment);
+  await updateStudentFeeStatus(payment);
+  await notifyPaymentSucceeded(payment, receipt);
+  const updatedPayment = await getSchoolFeePaymentForAdmin(paymentId);
+
+  return {
+    payment: updatedPayment,
+    receipt,
+  };
 };
 
 /**

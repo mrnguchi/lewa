@@ -1,14 +1,15 @@
 import { Prisma } from "@prisma/client";
-import axios from "axios";
+import { env } from "../../config/env";
 import { prisma } from "../../database/prisma";
+import { createNewsNotifications } from "../notification/notification.service";
 import { ApiError } from "../../utils/api-error";
-import { CreateNewsInput } from "./news.schema";
-
-const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+import { CreateNewsInput, NEWS_CATEGORIES } from "./news.schema";
 
 type CreateNewsOptions = {
   authorStudentId?: string;
 };
+
+type NewsCategory = (typeof NEWS_CATEGORIES)[number];
 
 const NEWS_NOTIFICATION_PREVIEW_LIMIT = 260;
 const NEWS_NOTIFICATION_BATCH_LIMIT = 25;
@@ -82,15 +83,21 @@ function toPublicNewsItem<
 /**
  * Returns the latest published news items, newest first.
  */
-export const getNews = async (limit?: number) => {
+export const getNews = async (
+  limit?: number,
+  offset = 0,
+  category?: NewsCategory
+) => {
   return prisma.news.findMany({
     select: newsPublicSelect,
     where: {
       published_at: {
         lte: new Date(),
       },
+      ...(category ? { category } : {}),
     },
     orderBy: [{ published_at: "desc" }, { created_at: "desc" }],
+    skip: offset,
     take: limit,
   });
 };
@@ -153,9 +160,7 @@ export const createNews = async (
   return toPublicNewsItem(newsItem);
 };
 
-/**
- * Sends Expo push notifications to all opted-in students except the author.
- */
+// I save news into the app notification center, then push only if news pushes are enabled.
 async function notifyStudentsAboutNews(
   newsItem: {
     id: string;
@@ -167,53 +172,14 @@ async function notifyStudentsAboutNews(
   },
   authorStudentId?: string
 ) {
-  const recipients = await prisma.students.findMany({
-    where: {
-      is_active: true,
-      notifications_enabled: true,
-      expo_push_token: {
-        not: null,
-      },
-      ...(authorStudentId
-        ? {
-            id: {
-              not: authorStudentId,
-            },
-          }
-        : {}),
-    },
-    select: {
-      expo_push_token: true,
-    },
-  });
-
-  const messages = recipients
-    .map((recipient) => recipient.expo_push_token)
-    .filter((token): token is string => Boolean(token))
-    .map((token) => ({
-      to: token,
-      title: "Lewa News",
-      subtitle: newsItem.category,
-      body: buildNewsNotificationPreview(newsItem),
-      data: {
-        type: "news_article",
-        newsId: newsItem.id,
-        intro: newsItem.intro,
-      },
-      richContent: {
-        image: newsItem.image_url,
-      },
-      sound: "default",
-    }));
-
-  if (!messages.length) {
-    return;
-  }
-
-  await axios.post(EXPO_PUSH_URL, messages, {
-    headers: {
-      "Content-Type": "application/json",
-    },
+  await createNewsNotifications({
+    newsId: newsItem.id,
+    title: newsItem.title,
+    body: buildNewsNotificationPreview(newsItem),
+    category: newsItem.category,
+    imageUrl: newsItem.image_url,
+    authorStudentId,
+    sendPush: env.newsNotificationsEnabled,
   });
 }
 
@@ -228,11 +194,11 @@ async function claimDueNewsNotifications(options?: { newsIds?: string[] }) {
       : Prisma.empty;
 
   return prisma.$queryRaw<DueNewsNotificationRecord[]>(Prisma.sql`
-    UPDATE "news"
+    UPDATE "public"."news"
     SET "notification_dispatch_started_at" = NOW()
     WHERE "id" IN (
       SELECT "id"
-      FROM "news"
+      FROM "public"."news"
       WHERE "notification_sent_at" IS NULL
         AND "published_at" <= NOW()
         AND (
@@ -261,6 +227,28 @@ async function claimDueNewsNotifications(options?: { newsIds?: string[] }) {
   `);
 }
 
+async function markNewsNotificationSent(newsId: string) {
+  await prisma.$executeRaw(
+    Prisma.sql`
+      UPDATE "public"."news"
+      SET
+        "notification_sent_at" = NOW(),
+        "notification_dispatch_started_at" = NULL
+      WHERE "id" = ${newsId}
+    `
+  );
+}
+
+async function releaseNewsNotificationClaim(newsId: string) {
+  await prisma.$executeRaw(
+    Prisma.sql`
+      UPDATE "public"."news"
+      SET "notification_dispatch_started_at" = NULL
+      WHERE "id" = ${newsId}
+    `
+  );
+}
+
 /**
  * Dispatches notifications for published news articles that have not been sent yet.
  */
@@ -270,28 +258,26 @@ export async function dispatchDueNewsNotifications(options?: { newsIds?: string[
   let sentCount = 0;
 
   for (const newsItem of dueNewsItems) {
+    let pushRequestCompleted = false;
+
     try {
       await notifyStudentsAboutNews(newsItem, newsItem.author_student_id ?? undefined);
+      pushRequestCompleted = true;
 
-      await prisma.$executeRaw(
-        Prisma.sql`
-          UPDATE "news"
-          SET
-            "notification_sent_at" = NOW(),
-            "notification_dispatch_started_at" = NULL
-          WHERE "id" = ${newsItem.id}
-        `
-      );
+      await markNewsNotificationSent(newsItem.id);
 
       sentCount += 1;
     } catch (error) {
-      await prisma.$executeRaw(
-        Prisma.sql`
-          UPDATE "news"
-          SET "notification_dispatch_started_at" = NULL
-          WHERE "id" = ${newsItem.id}
-        `
-      );
+      if (!pushRequestCompleted) {
+        try {
+          await releaseNewsNotificationClaim(newsItem.id);
+        } catch (releaseError) {
+          console.error(
+            `Failed to release news notification claim for article ${newsItem.id}`,
+            releaseError
+          );
+        }
+      }
 
       console.error(`Failed to dispatch news notification for article ${newsItem.id}`, error);
     }

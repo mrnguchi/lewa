@@ -24,6 +24,18 @@ export const listConversations = async (req: Request, res: Response) => {
   });
 };
 
+export const getUnreadChatCount = async (req: Request, res: Response) => {
+  const studentId = (req as any).student?.studentId as string;
+  const count = await chatService.getStudentUnreadChatCount(studentId);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      count,
+    },
+  });
+};
+
 // Returns one conversation plus its message history for the authenticated student.
 export const getConversation = async (req: Request, res: Response) => {
   const studentId = (req as any).student?.studentId as string;

@@ -7,7 +7,11 @@ import { createNewsSchema, getNewsQuerySchema } from "./news.schema";
  */
 export const getNews = async (_req: Request, res: Response) => {
   const query = getNewsQuerySchema.parse(_req.query);
-  const newsItems = await newsService.getNews(query.limit);
+  const newsItems = await newsService.getNews(
+    query.limit,
+    query.offset,
+    query.category
+  );
 
   res.status(200).json({
     success: true,

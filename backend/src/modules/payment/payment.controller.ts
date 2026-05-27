@@ -1,6 +1,29 @@
 import { Request, Response } from "express";
 import * as paymentService from "./payment.service";
 
+const createPaymentRequestGuard = (req: Request, res: Response) => {
+  const abortController = new AbortController();
+
+  const abortIfResponseIsStillPending = () => {
+    if (!res.writableEnded) {
+      abortController.abort();
+    }
+  };
+
+  req.on("aborted", abortIfResponseIsStillPending);
+  res.on("close", abortIfResponseIsStillPending);
+
+  return {
+    signal: abortController.signal,
+    isClientConnected: () =>
+      !abortController.signal.aborted && !req.destroyed && !res.destroyed,
+    cleanup: () => {
+      req.off("aborted", abortIfResponseIsStillPending);
+      res.off("close", abortIfResponseIsStillPending);
+    },
+  };
+};
+
 /**
  * Get all payments
  */
@@ -30,13 +53,25 @@ export const initiatePayment = async (req: Request, res: Response) => {
  */
 export const triggerPayment = async (req: Request, res: Response) => {
   const reference = req.params.reference as string;
+  const requestGuard = createPaymentRequestGuard(req, res);
 
-  const result = await paymentService.triggerPayment(reference);
+  try {
+    const result = await paymentService.triggerPayment(reference, {
+      signal: requestGuard.signal,
+      isClientConnected: requestGuard.isClientConnected,
+    });
 
-  res.status(200).json({
-    success: true,
-    data: result,
-  });
+    if (!requestGuard.isClientConnected()) {
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } finally {
+    requestGuard.cleanup();
+  }
 };
 
 /**

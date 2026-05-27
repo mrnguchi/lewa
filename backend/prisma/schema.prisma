@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://nguchi_dev:munoh000dev@localhost:5432/lewa_db"
+  url      = env("DATABASE_URL")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -25,21 +25,23 @@ model complaints {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model conversations {
-  id                String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  student_id        String      @db.Uuid
-  conversation_type String      @db.VarChar(20)
-  complaint_id      String?     @db.Uuid
-  created_at        DateTime    @default(now()) @db.Timestamptz(6)
-  updated_at        DateTime    @default(now()) @db.Timestamptz(6)
-  title             String?     @db.VarChar(255)
-  status            String      @default("open") @db.VarChar(20)
-  source            String      @default("manual") @db.VarChar(30)
-  assigned_admin_id String?     @db.Uuid
-  last_message_at   DateTime    @default(now()) @db.Timestamptz(6)
-  admins            admins?     @relation(fields: [assigned_admin_id], references: [id], onUpdate: NoAction, map: "fk_conversation_assigned_admin")
-  complaints        complaints? @relation(fields: [complaint_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_conversation_complaint")
-  students          students    @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_conversation_student")
-  messages          messages[]
+  id                   String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  student_id           String      @db.Uuid
+  conversation_type    String      @db.VarChar(20)
+  complaint_id         String?     @db.Uuid
+  created_at           DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime    @default(now()) @db.Timestamptz(6)
+  title                String?     @db.VarChar(255)
+  status               String      @default("open") @db.VarChar(20)
+  source               String      @default("manual") @db.VarChar(30)
+  assigned_admin_id    String?     @db.Uuid
+  last_message_at      DateTime    @default(now()) @db.Timestamptz(6)
+  admin_last_read_at   DateTime?   @db.Timestamptz(6)
+  student_last_read_at DateTime?   @db.Timestamptz(6)
+  admins               admins?     @relation(fields: [assigned_admin_id], references: [id], onUpdate: NoAction, map: "fk_conversation_assigned_admin")
+  complaints           complaints? @relation(fields: [complaint_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_conversation_complaint")
+  students             students    @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_conversation_student")
+  messages             messages[]
 
   @@index([student_id], map: "idx_conversations_student")
   @@index([conversation_type], map: "idx_conversations_type")
@@ -83,19 +85,19 @@ model messages {
 }
 
 model news {
-  id                            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  title                         String    @db.VarChar(255)
-  intro                         String
-  description                   String
-  category                      String    @db.VarChar(100)
-  image_url                     String
-  lewa_logo_url                 String?
-  published_at                  DateTime  @db.Timestamptz(6)
-  created_at                    DateTime  @default(now()) @db.Timestamptz(6)
-  updated_at                    DateTime  @default(now()) @db.Timestamptz(6)
-  notification_sent_at          DateTime? @db.Timestamptz(6)
+  id                               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title                            String    @db.VarChar(255)
+  intro                            String
+  description                      String
+  category                         String    @db.VarChar(100)
+  image_url                        String
+  lewa_logo_url                    String?
+  published_at                     DateTime  @db.Timestamptz(6)
+  created_at                       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                       DateTime  @default(now()) @db.Timestamptz(6)
+  notification_sent_at             DateTime? @db.Timestamptz(6)
   notification_dispatch_started_at DateTime? @db.Timestamptz(6)
-  author_student_id             String?   @db.Uuid
+  author_student_id                String?   @db.Uuid
 
   @@index([author_student_id], map: "idx_news_author")
   @@index([notification_dispatch_started_at], map: "idx_news_dispatch_started")
@@ -114,6 +116,8 @@ model payments {
   fee_installment    String?        @db.VarChar(10)
   academic_year      String         @db.VarChar(20)
   status             String         @db.VarChar(20)
+  failure_reason     String?        @db.VarChar(255)
+  failed_at          DateTime?      @db.Timestamptz(6)
   paid_at            DateTime?      @db.Timestamptz(6)
   created_at         DateTime       @default(now()) @db.Timestamptz(6)
   updated_at         DateTime       @default(now()) @db.Timestamptz(6)
@@ -165,6 +169,25 @@ model resources {
   @@index([level], map: "idx_resources_level")
 }
 
+model notifications {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  student_id  String    @db.Uuid
+  type        String    @db.VarChar(40)
+  title       String    @db.VarChar(160)
+  body        String
+  target_type String?   @db.VarChar(40)
+  target_id   String?   @db.VarChar(100)
+  metadata    Json?
+  read_at     DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  students    students  @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_notification_student")
+
+  @@unique([student_id, type, target_id], map: "uq_notifications_student_type_target")
+  @@index([student_id, read_at, created_at(sort: Desc)], map: "idx_notifications_student_read_created")
+  @@index([type], map: "idx_notifications_type")
+  @@index([target_type, target_id], map: "idx_notifications_target")
+}
+
 model students {
   id                    String          @id @db.Uuid
   matricule             String          @unique @db.VarChar(20)
@@ -189,6 +212,7 @@ model students {
   payments              payments[]
   receipts              receipts[]
   subscriptions         subscriptions[]
+  notifications         notifications[]
 
   @@index([matricule], map: "idx_students_matricule")
   @@index([phone_number], map: "idx_students_phone")
@@ -245,10 +269,13 @@ model admins {
   last_login_at DateTime?       @db.Timestamptz(6)
   created_at    DateTime        @default(now()) @db.Timestamptz(6)
   updated_at    DateTime        @default(now()) @db.Timestamptz(6)
+  department    String?         @db.VarChar(150)
   conversations conversations[]
   messages      messages[]
 
   @@index([faculty], map: "idx_admins_faculty")
+  @@index([department], map: "idx_admins_department")
+  @@index([faculty, department], map: "idx_admins_faculty_department")
   @@index([admin_role], map: "idx_admins_role")
 }
 

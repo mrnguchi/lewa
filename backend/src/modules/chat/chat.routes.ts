@@ -8,6 +8,7 @@ import {
   createComplaintConversation,
   deleteConversation,
   getConversation,
+  getUnreadChatCount,
   listConversations,
   sendAdminReply,
   sendMessage,
@@ -17,6 +18,7 @@ const router = Router();
 
 router.use(authenticateStudent);
 
+router.get("/unread-count", getUnreadChatCount);
 router.get("/conversations", listConversations);
 router.get("/conversations/:id", getConversation);
 router.post("/messages", sendMessage);

@@ -1,7 +1,14 @@
 import { z } from "zod";
 
 const isoDateTimeMessage = "published_at must be a valid ISO datetime";
-export const NEWS_CATEGORIES = ["Tech", "Business", "Sports", "Events"] as const;
+export const NEWS_CATEGORIES = [
+  "Tech",
+  "Business",
+  "Sports",
+  "Events",
+  "Announcement",
+  "Lost & Found",
+] as const;
 
 export const createNewsSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(255, "Title is too long"),
@@ -15,6 +22,8 @@ export const createNewsSchema = z.object({
 
 export const getNewsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+  category: z.enum(NEWS_CATEGORIES).optional(),
 });
 
 export type CreateNewsInput = z.infer<typeof createNewsSchema>;

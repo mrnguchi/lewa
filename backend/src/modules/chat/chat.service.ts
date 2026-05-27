@@ -4,6 +4,8 @@ import { randomUUID } from "crypto";
 
 import { env } from "../../config/env";
 import { prisma } from "../../database/prisma";
+import { createStudentNotification } from "../notification/notification.service";
+import { emitSupportConversationChanged } from "../../realtime/socket.service";
 import { ApiError } from "../../utils/api-error";
 import {
   AdminReplyInput,
@@ -20,7 +22,12 @@ type ConversationSummaryRecord = {
   source: string;
   updated_at: Date;
   last_message_at: Date;
+  student_last_read_at: Date | null;
   messages: MessageRecord[];
+  students?: {
+    department: string;
+  };
+  unreadCount?: number;
 };
 
 type ConversationDetailRecord = {
@@ -31,7 +38,12 @@ type ConversationDetailRecord = {
   source: string;
   updated_at: Date;
   last_message_at: Date;
+  student_last_read_at: Date | null;
   messages: MessageRecord[];
+  students?: {
+    department: string;
+  };
+  unreadCount?: number;
 };
 
 type MessageRecord = {
@@ -50,7 +62,6 @@ type AiReplyResult = {
 const DEFAULT_AI_PREVIEW = "Ask anything within UB and get guided help right away.";
 const DEFAULT_SUPPORT_PREVIEW = "Open a conversation and we will help you follow it up.";
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const DB_AI_CONVERSATION_TYPE = "ai";
 const DB_SUPPORT_CONVERSATION_TYPE = "complaint";
 const LEGACY_AI_CONVERSATION_TYPE = "ai_chat";
@@ -96,6 +107,8 @@ const messageSelect = {
   metadata: true,
 } as const;
 
+const SUPPORT_TITLE_STOP_WORDS = new Set(["department", "of", "and", "&"]);
+
 // Converts DB sender labels into the mobile-friendly sender values already used by the UI.
 const mapSenderType = (senderType: string): "user" | "assistant" | "admin" => {
   if (senderType === "assistant" || senderType === "ai") {
@@ -124,6 +137,41 @@ const createConversationTitle = (text: string) => {
   return `${trimmedText.slice(0, 25).trimEnd()}...`;
 };
 
+// I show support threads by department so students can immediately tell which office owns the chat.
+const getDepartmentSupportTitle = (department?: string | null) => {
+  const normalizedDepartment = department?.trim();
+
+  if (!normalizedDepartment) {
+    return "Support";
+  }
+
+  const abbreviation = normalizedDepartment
+    .replace(/[()]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word && !SUPPORT_TITLE_STOP_WORDS.has(word.toLowerCase()))
+    .map((word) => word[0]?.toUpperCase())
+    .join("");
+
+  return `${abbreviation || normalizedDepartment} - Support`;
+};
+
+const getStudentSupportTitle = async (studentId: string) => {
+  const student = await prisma.students.findUnique({
+    where: {
+      id: studentId,
+    },
+    select: {
+      department: true,
+    },
+  });
+
+  if (!student) {
+    throw new ApiError(404, "Student not found");
+  }
+
+  return getDepartmentSupportTitle(student.department);
+};
+
 // Normalizes a stored message row into the shape expected by the mobile chat UI.
 const mapMessage = (message: MessageRecord) => ({
   id: message.id,
@@ -135,26 +183,55 @@ const mapMessage = (message: MessageRecord) => ({
 
 // Builds a clean conversation summary from the latest message and conversation metadata.
 const mapConversationSummary = (conversation: ConversationSummaryRecord) => {
-  const latestMessage = conversation.messages[0];
+  const latestMessage = conversation.messages.at(-1) ?? conversation.messages[0];
+  const isAiConversation = isAiConversationType(conversation.conversation_type);
+  const isSupportConversation = isSupportConversationType(conversation.conversation_type);
   const preview =
     latestMessage?.message_text?.trim() ||
-    (isAiConversationType(conversation.conversation_type)
-      ? DEFAULT_AI_PREVIEW
-      : DEFAULT_SUPPORT_PREVIEW);
+    (isAiConversation ? DEFAULT_AI_PREVIEW : DEFAULT_SUPPORT_PREVIEW);
 
   return {
     id: conversation.id,
     type: toApiConversationType(conversation.conversation_type),
     title:
-      conversation.title?.trim() ||
-      (isAiConversationType(conversation.conversation_type) ? "New chat" : "School Admin"),
+      isSupportConversation
+        ? getDepartmentSupportTitle(conversation.students?.department)
+        : conversation.title?.trim() || "New chat",
     preview,
     updatedAt: conversation.last_message_at.toISOString(),
-    unreadCount: 0,
+    unreadCount: conversation.unreadCount ?? 0,
     status: conversation.status,
     source: conversation.source,
     messages: conversation.messages.map(mapMessage),
   };
+};
+
+const getStudentUnreadCount = async (
+  conversation: {
+    id: string;
+    conversation_type: string;
+    student_last_read_at: Date | null;
+  }
+) => {
+  const incomingSenderTypes = isAiConversationType(conversation.conversation_type)
+    ? ["ai", "assistant"]
+    : ["admin", "hod"];
+
+  return prisma.messages.count({
+    where: {
+      conversation_id: conversation.id,
+      sender_type: {
+        in: incomingSenderTypes,
+      },
+      ...(conversation.student_last_read_at
+        ? {
+            created_at: {
+              gt: conversation.student_last_read_at,
+            },
+          }
+        : {}),
+    },
+  });
 };
 
 // Loads a conversation owned by the authenticated student or throws a 404.
@@ -366,50 +443,27 @@ function createFallbackAiReply(question: string) {
   return `I can help you with UB-related guidance on "${question.trim()}". If you want a more accurate answer, add your faculty, department, or the exact process you are asking about.`;
 }
 
-// Sends Expo push notifications to a single student recipient when a new admin reply arrives.
+// I save admin replies as app notifications so the bell has the same story as push.
 async function notifyStudentAboutAdminReply(params: {
   studentId: string;
   conversationId: string;
+  messageId: string;
   conversationTitle: string;
   messageText: string;
 }) {
-  const student = await prisma.students.findUnique({
-    where: {
-      id: params.studentId,
-    },
-    select: {
-      expo_push_token: true,
-      notifications_enabled: true,
+  await createStudentNotification({
+    studentId: params.studentId,
+    type: "chat_message",
+    title: "School Admin",
+    body: params.messageText,
+    targetType: "chat_message",
+    targetId: params.messageId,
+    metadata: {
+      conversationId: params.conversationId,
+      conversationType: "school_admin",
+      threadTitle: params.conversationTitle,
     },
   });
-
-  if (!student?.notifications_enabled || !student.expo_push_token) {
-    return;
-  }
-
-  await axios.post(
-    EXPO_PUSH_URL,
-    [
-      {
-        to: student.expo_push_token,
-        title: "School Admin",
-        body: params.messageText,
-        data: {
-          type: "chat_message",
-          conversationId: params.conversationId,
-          conversationType: "school_admin",
-          threadTitle: params.conversationTitle,
-        },
-        sound: "default",
-      },
-    ],
-    {
-      headers: {
-        "Content-Type": "application/json",
-      },
-      timeout: 15000,
-    }
-  );
 }
 
 // Calls OpenAI through the Responses API when configured, with file search support when available.
@@ -517,6 +571,12 @@ export async function listStudentConversations(
       source: true,
       updated_at: true,
       last_message_at: true,
+      student_last_read_at: true,
+      students: {
+        select: {
+          department: true,
+        },
+      },
       messages: {
         orderBy: [{ created_at: "desc" }],
         take: 1,
@@ -525,9 +585,34 @@ export async function listStudentConversations(
     },
   });
 
-  return conversations.map((conversation) =>
-    mapConversationSummary(conversation as ConversationSummaryRecord)
+  return Promise.all(
+    conversations.map(async (conversation) =>
+      mapConversationSummary({
+        ...(conversation as ConversationSummaryRecord),
+        unreadCount: await getStudentUnreadCount(conversation),
+      })
+    )
   );
+}
+
+// I expose one small aggregate for badges and background sync instead of polling full threads.
+export async function getStudentUnreadChatCount(studentId: string) {
+  const conversations = await prisma.conversations.findMany({
+    where: {
+      student_id: studentId,
+    },
+    select: {
+      id: true,
+      conversation_type: true,
+      student_last_read_at: true,
+    },
+  });
+
+  const counts = await Promise.all(
+    conversations.map((conversation) => getStudentUnreadCount(conversation))
+  );
+
+  return counts.reduce((total, count) => total + count, 0);
 }
 
 // Returns one conversation plus the full ascending message history.
@@ -545,6 +630,12 @@ export async function getStudentConversation(studentId: string, conversationId: 
       source: true,
       updated_at: true,
       last_message_at: true,
+      student_last_read_at: true,
+      students: {
+        select: {
+          department: true,
+        },
+      },
       messages: {
         orderBy: [{ created_at: "asc" }],
         select: messageSelect,
@@ -556,7 +647,20 @@ export async function getStudentConversation(studentId: string, conversationId: 
     throw new ApiError(404, "Conversation not found");
   }
 
-  const summary = mapConversationSummary(conversation as ConversationDetailRecord);
+  await prisma.conversations.update({
+    where: {
+      id: conversation.id,
+    },
+    data: {
+      student_last_read_at: conversation.last_message_at,
+    },
+  });
+
+  const summary = mapConversationSummary({
+    ...(conversation as ConversationDetailRecord),
+    student_last_read_at: conversation.last_message_at,
+    unreadCount: 0,
+  });
 
   return {
     conversation: {
@@ -573,14 +677,15 @@ export async function createSupportConversation(
   payload: CreateComplaintInput
 ) {
   const trimmedDescription = payload.description.trim();
-  const conversationTitle = createConversationTitle(payload.title?.trim() || trimmedDescription);
+  const complaintTitle = payload.title?.trim() || createConversationTitle(trimmedDescription);
+  const supportTitle = await getStudentSupportTitle(studentId);
 
   const result = await prisma.$transaction(async (transaction) => {
     const complaint = await transaction.complaints.create({
       data: {
         id: randomUUID(),
         student_id: studentId,
-        title: payload.title?.trim() || conversationTitle,
+        title: complaintTitle,
         description: trimmedDescription,
         status: "pending",
       },
@@ -595,7 +700,7 @@ export async function createSupportConversation(
         student_id: studentId,
         conversation_type: toDatabaseConversationType("school_admin"),
         complaint_id: complaint.id,
-        title: `Support: ${conversationTitle}`,
+        title: supportTitle,
         status: "open",
         source: "support_desk",
         last_message_at: new Date(),
@@ -605,7 +710,7 @@ export async function createSupportConversation(
       },
     });
 
-    await transaction.messages.create({
+    const openingMessage = await transaction.messages.create({
       data: {
         id: randomUUID(),
         conversation_id: conversation.id,
@@ -618,6 +723,20 @@ export async function createSupportConversation(
           origin: "support_desk",
         },
       },
+      select: {
+        created_at: true,
+      },
+    });
+
+    await transaction.conversations.update({
+      where: {
+        id: conversation.id,
+      },
+      data: {
+        last_message_at: openingMessage.created_at,
+        student_last_read_at: openingMessage.created_at,
+        updated_at: openingMessage.created_at,
+      },
     });
 
     return {
@@ -625,6 +744,8 @@ export async function createSupportConversation(
       conversationId: conversation.id,
     };
   });
+
+  await emitSupportConversationChanged(result.conversationId);
 
   return {
     ...(await getStudentConversation(studentId, result.conversationId)),
@@ -640,13 +761,23 @@ export async function sendStudentMessage(studentId: string, payload: SendMessage
   let databaseConversationType = toDatabaseConversationType(conversationType);
   let conversationId = payload.conversation_id;
   let conversationTitle = createConversationTitle(trimmedText);
+  let supportTitle: string | null = null;
 
   if (conversationId) {
     const existingConversation = await getOwnedConversation(studentId, conversationId);
     conversationType = toApiConversationType(existingConversation.conversation_type);
     databaseConversationType = existingConversation.conversation_type;
     conversationTitle = existingConversation.title?.trim() || conversationTitle;
+    supportTitle =
+      conversationType === "school_admin"
+        ? await getStudentSupportTitle(studentId)
+        : null;
   } else {
+    supportTitle =
+      conversationType === "school_admin"
+        ? await getStudentSupportTitle(studentId)
+        : null;
+
     const conversation = await prisma.conversations.create({
       data: {
         id: randomUUID(),
@@ -655,7 +786,7 @@ export async function sendStudentMessage(studentId: string, payload: SendMessage
         title:
           conversationType === "lewa_ai"
             ? conversationTitle
-            : `Support: ${conversationTitle}`,
+            : supportTitle,
         status: "open",
         source: "mobile",
         last_message_at: new Date(),
@@ -689,9 +820,10 @@ export async function sendStudentMessage(studentId: string, payload: SendMessage
       title:
         conversationType === "lewa_ai"
           ? conversationTitle
-          : `Support: ${conversationTitle}`,
+          : supportTitle,
       updated_at: studentMessage.created_at,
       last_message_at: studentMessage.created_at,
+      student_last_read_at: studentMessage.created_at,
     },
   });
 
@@ -730,8 +862,11 @@ export async function sendStudentMessage(studentId: string, payload: SendMessage
       data: {
         updated_at: assistantMessage.created_at,
         last_message_at: assistantMessage.created_at,
+        student_last_read_at: assistantMessage.created_at,
       },
     });
+  } else {
+    await emitSupportConversationChanged(conversationId);
   }
 
   return {
@@ -774,6 +909,7 @@ export async function sendAdminReply(
     data: {
       updated_at: adminMessage.created_at,
       last_message_at: adminMessage.created_at,
+      admin_last_read_at: adminMessage.created_at,
     },
   });
 
@@ -793,12 +929,83 @@ export async function sendAdminReply(
     await notifyStudentAboutAdminReply({
       studentId: conversation.student_id,
       conversationId: conversation.id,
-      conversationTitle: conversation.title?.trim() || "School Admin",
+      messageId: adminMessage.id,
+      conversationTitle: await getStudentSupportTitle(conversation.student_id),
       messageText: payload.message_text.trim(),
     });
   } catch (error) {
     console.error("Failed to send admin reply notification", error);
   }
+
+  await emitSupportConversationChanged(conversation.id);
+
+  return getStudentConversation(conversation.student_id, conversation.id);
+}
+
+export async function sendDashboardAdminReply(
+  adminId: string,
+  conversationId: string,
+  payload: AdminReplyInput
+) {
+  const conversation = await getConversationById(conversationId);
+
+  if (!isSupportConversationType(conversation.conversation_type)) {
+    throw new ApiError(400, "Admin replies are only supported for School Admin conversations");
+  }
+
+  const adminMessage = await prisma.messages.create({
+    data: {
+      id: randomUUID(),
+      conversation_id: conversation.id,
+      sender_type: toDatabaseSenderType("admin"),
+      sender_admin_id: adminId,
+      message_type: "text",
+      message_text: payload.message_text.trim(),
+      metadata: {
+        created_by_admin_id: adminId,
+        created_via: "admin_dashboard",
+      },
+    },
+    select: messageSelect,
+  });
+
+  await prisma.conversations.update({
+    where: {
+      id: conversation.id,
+    },
+    data: {
+      assigned_admin_id: adminId,
+      updated_at: adminMessage.created_at,
+      last_message_at: adminMessage.created_at,
+      admin_last_read_at: adminMessage.created_at,
+    },
+  });
+
+  if (conversation.complaint_id) {
+    await prisma.complaints.update({
+      where: {
+        id: conversation.complaint_id,
+      },
+      data: {
+        status: "in_progress",
+        updated_at: adminMessage.created_at,
+      },
+    });
+  }
+
+  try {
+    await notifyStudentAboutAdminReply({
+      studentId: conversation.student_id,
+      conversationId: conversation.id,
+      messageId: adminMessage.id,
+      conversationTitle: await getStudentSupportTitle(conversation.student_id),
+      messageText: payload.message_text.trim(),
+    });
+  } catch (error) {
+    console.error("Failed to send admin reply notification", error);
+  }
+
+  await emitSupportConversationChanged(conversation.id);
 
   return getStudentConversation(conversation.student_id, conversation.id);
 }

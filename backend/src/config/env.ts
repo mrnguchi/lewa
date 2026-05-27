@@ -10,10 +10,26 @@ function requireEnv(name: string): string {
   return value;
 }
 
+function readBooleanEnv(name: string, defaultValue = false): boolean {
+  const value = process.env[name];
+
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
+const newsNotificationPollMs = Number(process.env.NEWS_NOTIFICATION_POLL_MS ?? 60000);
+
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: Number(process.env.PORT ?? 4000),
-  newsNotificationPollMs: Number(process.env.NEWS_NOTIFICATION_POLL_MS ?? 60000),
+  newsNotificationsEnabled: readBooleanEnv("NEWS_NOTIFICATIONS_ENABLED"),
+  newsNotificationPollMs:
+    Number.isFinite(newsNotificationPollMs) && newsNotificationPollMs > 0
+      ? newsNotificationPollMs
+      : 60000,
 
   jwtSecret: process.env.JWT_SECRET!,
   corsOrigin: process.env.CORS_ORIGIN ?? "*",
