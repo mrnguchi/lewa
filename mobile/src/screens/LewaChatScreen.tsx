@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -21,6 +21,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors } from '../theme/colors';
+import { useAppSync } from '../contexts/AppSyncContext';
 import {
   ChatThread,
   deleteChatConversation,
@@ -298,6 +299,7 @@ const LewaAiTab = ({
 // Hosts the main chat hub and decides whether to open the AI welcome flow or show saved threads.
 const LewaChatScreen: React.FC = () => {
   const navigation = useNavigation<LewaChatNavigationProp>();
+  const { lastSupportConversationUpdate, refreshSync } = useAppSync();
   const [activeTab, setActiveTab] = useState<ChatTab>('school_admin');
   const [schoolAdminThreads, setSchoolAdminThreads] = useState<ChatThread[]>([]);
   const [aiThreads, setAiThreads] = useState<ChatThread[]>([]);
@@ -330,19 +332,28 @@ const LewaChatScreen: React.FC = () => {
       setSchoolAdminThreads(schoolAdminConversations);
       setAiThreads(aiConversations);
       setHasSeenAiWelcome(hasSeenAiWelcomeScreen());
+      await refreshSync();
     } catch {
       setThreadsError(true);
     } finally {
       setIsLoadingThreads(false);
       setIsAiStateReady(true);
     }
-  }, []);
+  }, [refreshSync]);
 
   useFocusEffect(
     useCallback(() => {
       void syncThreads();
     }, [syncThreads])
   );
+
+  useEffect(() => {
+    if (!lastSupportConversationUpdate) {
+      return;
+    }
+
+    void syncThreads();
+  }, [lastSupportConversationUpdate, syncThreads]);
 
   // Opens an existing AI conversation thread from the saved thread list.
   const handleOpenAiThread = (thread: ChatThread) => {
@@ -435,6 +446,7 @@ const LewaChatScreen: React.FC = () => {
       }
 
       setSelectedThreadId(null);
+      await refreshSync();
       showSuccessToast('Chat deleted.');
     } catch {
       // The API interceptor shows the user-facing error toast.
@@ -548,11 +560,11 @@ const LewaChatScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F6F8',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#F4F6F8',
+    backgroundColor: colors.background,
   },
   headerCard: {
     marginHorizontal: 20,

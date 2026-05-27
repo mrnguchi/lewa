@@ -6,6 +6,11 @@ export type RootStackParamList = {
   LewaAIWelcome: undefined;
   LewaAIChat: { conversationId?: string } | undefined;
   SchoolAdminChat: { conversationId?: string } | undefined;
+  Receipts:
+    | {
+        notificationType?: 'payment_success' | 'payment_failed';
+      }
+    | undefined;
   NewsDetails:
     | {
         news: NewsArticle;

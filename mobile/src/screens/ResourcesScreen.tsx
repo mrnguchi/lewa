@@ -14,7 +14,6 @@ import {
   TextInput,
   Modal,
   RefreshControl,
-  Image,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -22,6 +21,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import AppHeader from '../components/AppHeader';
 import CustomToast from '../components/CustomToast';
+import ResourceCard from '../components/ResourceCard';
 import SpinningLoader from '../components/SpinningLoader';
 import { colors } from '../theme/colors';
 import { downloadResourceFile, getResources } from '../services/resources';
@@ -243,34 +243,13 @@ const ResourcesScreen: React.FC = () => {
         ) : (
           <View style={styles.cardsGrid}>
             {filteredData.map((resource) => (
-              <TouchableOpacity
+              <ResourceCard
                 key={resource.id}
-                style={styles.card}
-                activeOpacity={0.92}
-                onPress={() => handleOpenResource(resource)}
-              >
-                <Image
-                  source={require('../../assets/pdf-icon.png')}
-                  style={styles.pdfIcon}
-                />
-
-                <Text style={styles.cardCode}>{resource.code}</Text>
-                <Text style={styles.cardTitle} numberOfLines={2}>
-                  {resource.title}
-                </Text>
-                <Text style={styles.cardMeta} numberOfLines={1}>
-                  {getResourceMeta(resource)}
-                </Text>
-
-                <TouchableOpacity
-                  style={styles.downloadButton}
-                  activeOpacity={0.92}
-                  onPress={() => handleDownloadPress(resource)}
-                >
-                  <Text style={styles.downloadButtonText}>Download</Text>
-                  <MaterialCommunityIcons name="download-network" size={18} color={colors.white} />
-                </TouchableOpacity>
-              </TouchableOpacity>
+                meta={getResourceMeta(resource)}
+                onDownloadPress={handleDownloadPress}
+                onPress={handleOpenResource}
+                resource={resource}
+              />
             ))}
           </View>
         )}
@@ -366,7 +345,7 @@ const ResourcesScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -469,58 +448,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-  },
-  card: {
-    width: '48%',
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  pdfIcon: {
-    width: 110,
-    height: 110,
-    resizeMode: 'contain',
-    marginBottom: 1,
-    alignSelf: 'center',
-  },
-  cardCode: {
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
-    color: colors.primary,
-  },
-  cardTitle: {
-    fontSize: 11,
-    fontFamily: 'Poppins_400Regular',
-    color: '#6B7280',
-    marginTop: 8,
-    marginBottom: 8,
-    lineHeight: 16,
-  },
-  cardMeta: {
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    color: '#6B7280',
-    marginBottom: 12,
-  },
-  downloadButton: {
-    minHeight: 38,
-    borderRadius: 8,
-    backgroundColor: colors.textPrimary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  downloadButtonText: {
-    fontSize: 12,
-    fontFamily: 'Poppins_600SemiBold',
-    color: colors.white,
   },
   modalOverlay: {
     flex: 1,

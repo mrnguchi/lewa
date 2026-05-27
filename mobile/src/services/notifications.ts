@@ -17,7 +17,34 @@ type NewsNotificationTarget = {
   newsId: string;
 };
 
-type NotificationTarget = ChatNotificationTarget | NewsNotificationTarget;
+type PaymentNotificationTarget = {
+  type: 'payment';
+  notificationType: 'payment_success' | 'payment_failed';
+  paymentReference?: string;
+};
+
+type NotificationTarget =
+  | ChatNotificationTarget
+  | NewsNotificationTarget
+  | PaymentNotificationTarget;
+
+export type AppNotificationType =
+  | 'chat_message'
+  | 'payment_success'
+  | 'payment_failed'
+  | 'news_article';
+
+export interface AppNotification {
+  id: string;
+  type: AppNotificationType;
+  title: string;
+  body: string;
+  targetType?: string | null;
+  targetId?: string | null;
+  metadata?: Record<string, unknown> | null;
+  readAt?: string | null;
+  createdAt: string;
+}
 
 const PENDING_NOTIFICATION_TARGET_KEY = 'pending_notification_target';
 
@@ -131,6 +158,17 @@ export function getNotificationTarget(data: unknown): NotificationTarget | null 
     };
   }
 
+  if (payload.type === 'payment_success' || payload.type === 'payment_failed') {
+    return {
+      type: 'payment',
+      notificationType: payload.type,
+      paymentReference:
+        typeof payload.paymentReference === 'string'
+          ? payload.paymentReference
+          : undefined,
+    };
+  }
+
   return null;
 }
 
@@ -165,6 +203,13 @@ export function navigateToNotificationTarget(target: NotificationTarget): boolea
   if (target.type === 'news_article') {
     navigationRef.navigate('NewsDetails', {
       newsId: target.newsId,
+    });
+    return true;
+  }
+
+  if (target.type === 'payment') {
+    navigationRef.navigate('Receipts', {
+      notificationType: target.notificationType,
     });
     return true;
   }
@@ -208,4 +253,39 @@ export async function processLastNotificationResponse(isAuthenticated: boolean) 
       isAuthenticated,
     });
   }
+}
+
+export async function getStudentNotifications(limit = 20): Promise<AppNotification[]> {
+  const response = await api.get<{ success: boolean; data: AppNotification[] }>(
+    '/api/notifications/my',
+    {
+      params: { limit },
+    }
+  );
+
+  return response.data.data;
+}
+
+export async function getUnreadNotificationCount(): Promise<number> {
+  const response = await api.get<{ success: boolean; data: { count: number } }>(
+    '/api/notifications/unread-count'
+  );
+
+  return response.data.data.count;
+}
+
+export async function markNotificationRead(notificationId: string): Promise<AppNotification> {
+  const response = await api.patch<{ success: boolean; data: AppNotification }>(
+    `/api/notifications/${notificationId}/read`
+  );
+
+  return response.data.data;
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await api.patch('/api/notifications/read-all');
+}
+
+export async function deleteNotification(notificationId: string): Promise<void> {
+  await api.delete(`/api/notifications/${notificationId}`);
 }

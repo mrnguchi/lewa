@@ -300,10 +300,10 @@ const ConfirmNumberScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 18,

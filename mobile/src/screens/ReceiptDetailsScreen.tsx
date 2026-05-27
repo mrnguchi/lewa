@@ -230,13 +230,13 @@ const ReceiptDetailsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   header: {
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 20,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   backButton: {
     flexDirection: 'row',

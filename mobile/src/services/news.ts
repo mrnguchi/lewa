@@ -1,6 +1,14 @@
 import { api } from "./api";
 
-export const NEWS_CATEGORIES = ["All", "Tech", "Business", "Sports", "Events"] as const;
+export const NEWS_CATEGORIES = [
+  "All",
+  "Tech",
+  "Business",
+  "Sports",
+  "Events",
+  "Announcement",
+  "Lost & Found",
+] as const;
 
 export type NewsCategory = (typeof NEWS_CATEGORIES)[number];
 
@@ -55,8 +63,17 @@ export interface CreateNewsArticleInput {
 /**
  * Fetches the latest published news articles from the backend.
  */
-export async function fetchLatestNewsArticles(limit = 10): Promise<NewsArticle[]> {
-  const response = await api.get<NewsListResponse>(`/api/news?limit=${limit}`);
+export async function fetchLatestNewsArticles(
+  limit = 10,
+  category?: Exclude<NewsCategory, "All">
+): Promise<NewsArticle[]> {
+  const query = [`limit=${encodeURIComponent(String(limit))}`];
+
+  if (category) {
+    query.push(`category=${encodeURIComponent(category)}`);
+  }
+
+  const response = await api.get<NewsListResponse>(`/api/news?${query.join("&")}`);
   return response.data.data;
 }
 

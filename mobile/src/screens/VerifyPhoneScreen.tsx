@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
 
 interface VerifyPhoneScreenProps {
   onBack: () => void;
@@ -148,7 +149,7 @@ const VerifyPhoneScreen: React.FC<VerifyPhoneScreenProps> = ({ onBack, onSendCod
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     paddingHorizontal: 24,
   },
   loadingContainer: {
@@ -245,4 +246,3 @@ const styles = StyleSheet.create({
 });
 
 export default VerifyPhoneScreen;
-

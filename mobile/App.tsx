@@ -11,6 +11,7 @@ import LoginScreen from "./src/screens/LoginScreen";
 import VerifyPhoneScreen from "./src/screens/VerifyPhoneScreen";
 import VerifyOTPScreen from "./src/screens/VerifyOTPScreen";
 import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
+import { AppSyncProvider } from "./src/contexts/AppSyncContext";
 import { AuthProvider } from "./src/contexts/AuthContext";
 import { ToastProvider } from "./src/contexts/ToastContext";
 import { useAuth } from "./src/hooks/useAuth";
@@ -247,7 +248,9 @@ function AppContent() {
 
   return (
     <NavigationContainer ref={navigationRef} onReady={() => setIsNavigationReady(true)}>
-      <RootNavigator />
+      <AppSyncProvider>
+        <RootNavigator />
+      </AppSyncProvider>
     </NavigationContainer>
   );
 }

@@ -531,13 +531,13 @@ export default function AddNewsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   keyboardView: {
     flex: 1,
   },
   secondaryHeader: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 20,

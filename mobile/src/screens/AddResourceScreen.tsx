@@ -303,7 +303,7 @@ export default function AddResourceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F6F8',
+    backgroundColor: colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 16,
-    backgroundColor: '#F4F6F8',
+    backgroundColor: colors.background,
   },
   secondaryHeaderRow: {
     flexDirection: 'row',

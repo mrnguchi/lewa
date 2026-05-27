@@ -322,7 +322,7 @@ const PaymentMethodScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     marginTop: -10,
   },
   headerTop: {

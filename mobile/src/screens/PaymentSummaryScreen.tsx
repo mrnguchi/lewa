@@ -71,6 +71,19 @@ const formatCameroonPhone = (phone?: string | null) => {
   return `+237 ${localNumber.slice(0, 3)} ${localNumber.slice(3, 6)} ${localNumber.slice(6)}`;
 };
 
+const shouldCheckPaymentStatusAfterTriggerError = (error: any) => {
+  const status = error?.response?.status;
+
+  return (
+    !error?.response ||
+    error?.code === 'ECONNABORTED' ||
+    status === 499 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504
+  );
+};
+
 const PaymentSummaryScreen: React.FC = () => {
   const navigation = useNavigation<PaymentSummaryScreenNavigationProp>();
   const route = useRoute<PaymentSummaryScreenRouteProp>();
@@ -208,20 +221,24 @@ const PaymentSummaryScreen: React.FC = () => {
       } as any);
 
       await api.post(`/api/payments/${reference}/trigger`, undefined, {
-        timeout: 20000,
+        timeout: 45000,
         suppressErrorToast: true,
       } as any);
 
       allowNavigationRef.current = true;
       navigation.navigate('PaymentProcessing', { reference });
     } catch (error: any) {
-      const isConnectionProblem =
-        !error.response || error.code === 'ECONNABORTED';
+      if (shouldCheckPaymentStatusAfterTriggerError(error)) {
+        showErrorToast(
+          'We could not confirm whether the payment prompt started. Checking the payment status now.'
+        );
+        allowNavigationRef.current = true;
+        navigation.navigate('PaymentProcessing', { reference });
+        return;
+      }
 
       showErrorToast(
-        isConnectionProblem
-          ? 'Slow or no internet connection. Please check your connection before starting payment.'
-          : error.userMessage || 'Unable to start payment. Please try again.'
+        error.userMessage || 'Unable to start payment. Please try again.'
       );
     } finally {
       setIsConfirmingPayment(false);
@@ -411,11 +428,11 @@ const PaymentSummaryScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -425,7 +442,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 18,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: '#F2F4F7',
   },

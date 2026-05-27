@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import CustomToast from '../components/CustomToast';
+import { colors } from '../theme/colors';
 
 // List of faculties at the University of Buea
 const FACULTIES = [
@@ -697,7 +698,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingTop: 30,

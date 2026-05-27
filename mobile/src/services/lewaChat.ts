@@ -87,6 +87,14 @@ export const getSchoolAdminThreads = async () => getThreadsByType('school_admin'
 // Loads the authenticated student's AI conversations from the backend.
 export const getAiThreads = async () => getThreadsByType('lewa_ai');
 
+export const getUnreadChatCount = async () => {
+  const response = await api.get<{ success: boolean; data: { count: number } }>(
+    '/api/chat/unread-count'
+  );
+
+  return response.data.data.count;
+};
+
 // Loads one saved AI conversation with its full message history from the backend.
 export const getAiThreadById = async (threadId: string) => {
   const response = await api.get<{ success: boolean; data: ConversationDetailResponse }>(

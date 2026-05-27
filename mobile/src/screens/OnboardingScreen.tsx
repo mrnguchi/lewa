@@ -26,6 +26,7 @@ import {
 } from 'react-native';
 // Import Poppins font family from Expo Google Fonts
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
+import { colors } from '../theme/colors';
 
 // Get device screen width for responsive layout
 const { width } = Dimensions.get('window');
@@ -189,7 +190,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onFinish }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   slide: {
     width,
@@ -314,4 +315,3 @@ const styles = StyleSheet.create({
 });
 
 export default OnboardingScreen;
-

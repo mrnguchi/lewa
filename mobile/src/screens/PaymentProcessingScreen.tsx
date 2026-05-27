@@ -78,16 +78,6 @@ const PaymentProcessingScreen: React.FC = () => {
     let consecutivePollErrors = 0;
     const startedAt = Date.now();
 
-    const cleanupFailedPayment = async () => {
-      try {
-        await api.delete(`/api/payments/${reference}`, {
-          suppressErrorToast: true,
-        } as any);
-      } catch {
-        // Failed payment cleanup should not block the student's next action.
-      }
-    };
-
     const stopPollingWithModal = (
       mode: PaymentModalMode,
       title: string,
@@ -153,10 +143,12 @@ const PaymentProcessingScreen: React.FC = () => {
             clearTimeout(pollTimeout);
           }
 
-          await cleanupFailedPayment();
           setModalMode('failed');
           setModalTitle('Payment failed');
-          setErrorMessage('Payment failed. No money was received. Please try again.');
+          setErrorMessage(
+            paymentData.failureReason ||
+              'Payment failed. No money was received. Please try again.'
+          );
           setShowErrorModal(true);
           return;
         }
@@ -311,7 +303,7 @@ const styles = StyleSheet.create({
   container: {
     height: SCREEN_HEIGHT,
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 30,

@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: -15,
     paddingBottom: 20,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   titleSection: {
     flexDirection: 'row',

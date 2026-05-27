@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import CustomToast from '../components/CustomToast';
+import { colors } from '../theme/colors';
 
 interface LoginScreenProps {
   onRegisterPress: () => void;
@@ -270,9 +271,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
           </View>
 
           {/* Forgot Password Link */}
-          <TouchableOpacity style={styles.forgotPasswordContainer} onPress={onForgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot password ?</Text>
-          </TouchableOpacity>
+          <View style={styles.forgotPasswordContainer}>
+            <TouchableOpacity
+              onPress={onForgotPassword}
+              style={styles.forgotPasswordLink}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot password ?</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Login Button */}
           <TouchableOpacity
@@ -321,7 +327,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingTop: 30,
@@ -383,6 +389,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginBottom: 30,
   },
+  forgotPasswordLink: {
+    alignSelf: 'flex-end',
+  },
   forgotPasswordText: {
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
@@ -419,4 +428,3 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
-

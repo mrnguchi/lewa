@@ -30,6 +30,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../theme/colors';
+import { useAppSync } from '../contexts/AppSyncContext';
 import { showErrorToast, showSuccessToast } from '../services/toast';
 import {
   ChatMessage,
@@ -115,6 +116,12 @@ const ChatBubble = ({ item }: { item: ChatMessage }) => {
 const SchoolAdminChatScreen: React.FC = () => {
   const navigation = useNavigation<SchoolAdminChatNavigationProp>();
   const route = useRoute<SchoolAdminChatRouteProp>();
+  const {
+    joinSupportConversation,
+    lastSupportConversationUpdate,
+    leaveSupportConversation,
+    refreshSync,
+  } = useAppSync();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const listRef = useRef<FlatList<ChatMessage>>(null);
@@ -217,6 +224,7 @@ const SchoolAdminChatScreen: React.FC = () => {
       const thread = await getSchoolAdminThreadById(conversationId);
       setThreadTitle(thread.title);
       setMessages(thread.messages);
+      await refreshSync();
     } catch {
       setThreadTitle('School Admin');
       setMessages([]);
@@ -224,13 +232,33 @@ const SchoolAdminChatScreen: React.FC = () => {
     } finally {
       setIsLoadingConversation(false);
     }
-  }, []);
+  }, [refreshSync]);
 
   // Reconciles the screen state whenever navigation points to a different support thread.
   useEffect(() => {
     setActiveConversationId(routeConversationId);
     void syncConversation(routeConversationId);
   }, [routeConversationId, syncConversation]);
+
+  useEffect(() => {
+    if (!activeConversationId) {
+      return undefined;
+    }
+
+    joinSupportConversation(activeConversationId);
+
+    return () => {
+      leaveSupportConversation(activeConversationId);
+    };
+  }, [activeConversationId, joinSupportConversation, leaveSupportConversation]);
+
+  useEffect(() => {
+    if (!lastSupportConversationUpdate || !activeConversationId) {
+      return;
+    }
+
+    void syncConversation(activeConversationId);
+  }, [activeConversationId, lastSupportConversationUpdate, syncConversation]);
 
   // Keeps the latest message in view as the conversation updates.
   useEffect(() => {
@@ -296,6 +324,7 @@ const SchoolAdminChatScreen: React.FC = () => {
       setActiveConversationId(result.conversation.id);
       setThreadTitle(result.conversation.title);
       setMessages(result.messages);
+      await refreshSync();
     } catch {
       setMessages((currentMessages) =>
         currentMessages.filter((currentMessage) => currentMessage.id !== optimisticMessage.id)
@@ -567,11 +596,11 @@ const SchoolAdminChatScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FDFCFA',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FDFCFA',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',

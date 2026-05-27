@@ -219,7 +219,7 @@ const SupportDeskScreen: React.FC = () => {
 
     try {
       const result = await createComplaintConversation({
-        title: `${faculty} support`,
+        title: `${user?.department || faculty} support`,
         description: description.trim(),
       });
 
@@ -529,7 +529,7 @@ const SupportDeskScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   headerTop: {
     flexDirection: 'row',
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 10,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   translationButton: {
     width: 44,
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
    titleSection: {
     flexDirection: 'row',

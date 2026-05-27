@@ -91,13 +91,13 @@ export default function ResourceViewerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   secondaryHeader: {
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 18,
-    backgroundColor: '#F4F6F8',
+    backgroundColor: colors.background,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,

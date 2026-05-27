@@ -512,7 +512,7 @@ const CalendarScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
   },
   headerTop: {
     paddingHorizontal: 20,

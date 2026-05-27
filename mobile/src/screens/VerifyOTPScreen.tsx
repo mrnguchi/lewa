@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
 
 interface VerifyOTPScreenProps {
   onBack: () => void;
@@ -214,7 +215,7 @@ const VerifyOTPScreen: React.FC<VerifyOTPScreenProps> = ({ onBack, onVerifySucce
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     paddingHorizontal: 24,
   },
   loadingContainer: {

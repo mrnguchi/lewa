@@ -745,11 +745,11 @@ const LewaAIChatScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FDFCFA',
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FDFCFA',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
