@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/Poppins-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/assets/fonts/Poppins-Medium.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/assets/fonts/Poppins-SemiBold.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Poppins";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/assets/fonts/Poppins-Bold.ttf") format("truetype");
+}
+
+:root {
+  --primary: #167846;
+  --primary-dark: #0f5c36;
+  --primary-light: #e6f4ec;
+  --background: #f9fafb;
+  --foreground: #1f2933;
+  --text-primary: #1f2933;
+  --text-body: #6b7280;
+  --gold: #dc9754;
+  --border: #edf1ef;
+  --error: #dc2626;
+  --success: #16a34a;
+  --white: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-primary-light: var(--primary-light);
+  --color-text-primary: var(--text-primary);
+  --color-text-body: var(--text-body);
+  --color-gold: var(--gold);
+  --color-border-soft: var(--border);
+  --color-error: var(--error);
+  --color-success: var(--success);
+  --font-sans: "Poppins", Arial, Helvetica, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Poppins", Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+}
+
+button:not(:disabled),
+[role="button"],
+a[href],
+summary,
+.soft-button,
+.icon-surface,
+.clickable-surface,
+.metric-card {
+  cursor: pointer !important;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed !important;
+}
+
+.dashboard-card {
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 16px 42px rgba(31, 41, 51, 0.09);
+}
+
+.metric-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 22px 54px rgba(31, 41, 51, 0.12);
+}
+
+.metric-card-featured {
+  background: var(--text-primary);
+  box-shadow: 0 20px 54px rgba(31, 41, 51, 0.18);
+}
+
+.metric-card-featured:hover {
+  box-shadow: 0 24px 62px rgba(31, 41, 51, 0.24);
+}
+
+.dashboard-card-soft {
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 10px 30px rgba(31, 41, 51, 0.06);
+}
+
+.admin-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background-color: var(--text-primary);
+  box-shadow: 0 18px 45px rgba(31, 41, 51, 0.2);
+}
+
+.admin-hero::after {
+  content: none;
+}
+
+.soft-button {
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: 0 10px 24px rgba(31, 41, 51, 0.08);
+}
+
+.icon-surface {
+  border-radius: 8px;
+  background: var(--background);
+  box-shadow: inset 0 0 0 1px rgba(237, 241, 239, 0.9);
+}
+
+.chart-panel {
+  border-radius: 8px;
+  background: var(--background);
+  box-shadow: none;
+}
