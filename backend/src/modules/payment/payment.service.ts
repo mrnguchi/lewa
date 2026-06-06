@@ -132,8 +132,45 @@ const getPaymentTitle = (payment: {
 const formatPaymentAmount = (amount: any) =>
   `${Number(amount).toLocaleString("en-US").replace(/,/g, " ")} XAF`;
 
+const getPaymentApprovalCode = (paymentMethod?: string | null) => {
+  const normalizedMethod = paymentMethod?.toLowerCase() ?? "";
+
+  if (normalizedMethod.includes("orange")) {
+    return "#150#";
+  }
+
+  return "*126#";
+};
+
+const getPaymentMethodLabel = (paymentMethod?: string | null) => {
+  const normalizedMethod = paymentMethod?.toLowerCase() ?? "";
+
+  if (normalizedMethod.includes("orange")) {
+    return "Orange Money";
+  }
+
+  if (normalizedMethod.includes("mtn")) {
+    return "MTN MoMo";
+  }
+
+  return "Mobile Money";
+};
+
+// I remove the pending alert once Campay has given the payment a final state.
+const clearPaymentPendingNotification = async (payment: any) => {
+  await prisma.notifications.deleteMany({
+    where: {
+      student_id: payment.student_id,
+      type: "payment_pending",
+      target_id: payment.id,
+    },
+  });
+};
+
 // I notify after the receipt exists so tapping the alert always lands somewhere useful.
 const notifyPaymentSucceeded = async (payment: any, receipt: any) => {
+  await clearPaymentPendingNotification(payment);
+
   await createStudentNotification({
     studentId: payment.student_id,
     type: "payment_success",
@@ -155,6 +192,8 @@ const notifyPaymentSucceeded = async (payment: any, receipt: any) => {
 
 // I keep failed payments around long enough for the student to read the reason in the app.
 const notifyPaymentFailed = async (payment: any, reason: string) => {
+  await clearPaymentPendingNotification(payment);
+
   await createStudentNotification({
     studentId: payment.student_id,
     type: "payment_failed",
@@ -482,6 +521,85 @@ export const deleteDisposablePayment = async (reference: string, studentId: stri
   return {
     reference,
     deleted: true,
+  };
+};
+
+// I save a pending reminder without pretending the payment has been cancelled.
+export const createPendingPaymentReminder = async (
+  reference: string,
+  studentId: string
+) => {
+  let payment = await prisma.payments.findUnique({
+    where: { reference_id: reference },
+  });
+
+  if (!payment) {
+    throw new ApiError(404, "Payment not found");
+  }
+
+  if (payment.student_id !== studentId) {
+    throw new ApiError(403, "You do not have permission to view this payment.");
+  }
+
+  if (payment.status === "pending" && payment.provider_reference) {
+    payment = await syncPaymentWithProvider(payment, {
+      forceProviderCheck: true,
+    });
+  }
+
+  const currentPayment = payment as NonNullable<typeof payment>;
+
+  if (currentPayment.status !== "pending") {
+    return {
+      payment: {
+        reference: currentPayment.reference_id,
+        status: currentPayment.status,
+        failureReason: currentPayment.failure_reason,
+      },
+      notification: null,
+    };
+  }
+
+  if (!currentPayment.provider_reference) {
+    return {
+      payment: {
+        reference: currentPayment.reference_id,
+        status: "not_started",
+        failureReason: null,
+      },
+      notification: null,
+    };
+  }
+
+  const approvalCode = getPaymentApprovalCode(currentPayment.payment_method);
+  const methodLabel = getPaymentMethodLabel(currentPayment.payment_method);
+  const notification = await createStudentNotification({
+    studentId,
+    type: "payment_pending",
+    title: "Payment still pending",
+    body: `Your ${methodLabel} payment is still pending. If you have not approved it yet, dial ${approvalCode}, confirm, then try again in Lewa.`,
+    targetType: "payment",
+    targetId: currentPayment.id,
+    metadata: {
+      paymentId: currentPayment.id,
+      paymentReference: currentPayment.reference_id,
+      paymentType: currentPayment.payment_type,
+      paymentMethod: currentPayment.payment_method,
+      feeInstallment: currentPayment.fee_installment,
+      amount: String(currentPayment.amount),
+      approvalCode,
+      methodLabel,
+    },
+    sendPush: false,
+  });
+
+  return {
+    payment: {
+      reference: currentPayment.reference_id,
+      status: currentPayment.status,
+      failureReason: currentPayment.failure_reason,
+    },
+    notification,
   };
 };
 

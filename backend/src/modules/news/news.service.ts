@@ -190,7 +190,9 @@ async function claimDueNewsNotifications(options?: { newsIds?: string[] }) {
   const staleClaimCutoff = new Date(Date.now() - NEWS_NOTIFICATION_CLAIM_TIMEOUT_MS);
   const newsIdFilter =
     options?.newsIds?.length
-      ? Prisma.sql`AND "id" IN (${Prisma.join(options.newsIds)})`
+      ? Prisma.sql`AND "id" IN (${Prisma.join(
+          options.newsIds.map((newsId) => Prisma.sql`${newsId}::uuid`)
+        )})`
       : Prisma.empty;
 
   return prisma.$queryRaw<DueNewsNotificationRecord[]>(Prisma.sql`
@@ -234,7 +236,7 @@ async function markNewsNotificationSent(newsId: string) {
       SET
         "notification_sent_at" = NOW(),
         "notification_dispatch_started_at" = NULL
-      WHERE "id" = ${newsId}
+      WHERE "id" = ${newsId}::uuid
     `
   );
 }
@@ -244,7 +246,7 @@ async function releaseNewsNotificationClaim(newsId: string) {
     Prisma.sql`
       UPDATE "public"."news"
       SET "notification_dispatch_started_at" = NULL
-      WHERE "id" = ${newsId}
+      WHERE "id" = ${newsId}::uuid
     `
   );
 }

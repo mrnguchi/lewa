@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   initiatePayment,
   triggerPayment,
+  createPendingPaymentReminder,
   deleteDisposablePayment,
   getStudentPayments,
   getPayments,
@@ -29,6 +30,11 @@ router.post("/", authenticateStudent, initiatePayment);
  * Trigger payment with provider (Campay)
  */
 router.post("/:reference/trigger", authenticateStudent, triggerPayment);
+
+/**
+ * Save a reminder for a payment that is still waiting for phone approval
+ */
+router.post("/:reference/pending-reminder", authenticateStudent, createPendingPaymentReminder);
 
 /**
  * Delete a payment that is safe to discard

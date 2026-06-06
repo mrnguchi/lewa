@@ -75,6 +75,21 @@ export const triggerPayment = async (req: Request, res: Response) => {
 };
 
 /**
+ * Save a pending-payment reminder when the student leaves the processing screen.
+ */
+export const createPendingPaymentReminder = async (req: Request, res: Response) => {
+  const reference = req.params.reference as string;
+  const studentId = (req as any).student.studentId;
+
+  const result = await paymentService.createPendingPaymentReminder(reference, studentId);
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+};
+
+/**
  * Delete a pending untriggered payment or a confirmed failed payment
  */
 export const deleteDisposablePayment = async (req: Request, res: Response) => {

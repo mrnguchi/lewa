@@ -11,6 +11,7 @@ const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 export type StudentNotificationType =
   | "chat_message"
   | "payment_success"
+  | "payment_pending"
   | "payment_failed"
   | "news_article";
 
@@ -107,8 +108,44 @@ async function sendStudentPushNotification(notification: NotificationRecord) {
 // I save every important event first, then optionally push it to the phone.
 export async function createStudentNotification(input: CreateStudentNotificationInput) {
   let notification: NotificationRecord & { student_id?: string };
+  const notificationData = {
+    student_id: input.studentId,
+    type: input.type,
+    title: input.title.trim(),
+    body: input.body.trim(),
+    target_type: input.targetType,
+    target_id: input.targetId,
+    metadata: input.metadata,
+  };
 
-  try {
+  if (input.targetId) {
+    // I reuse targeted notifications so retries update the card instead of creating noisy duplicates.
+    notification = await prisma.notifications.upsert({
+      select: {
+        ...notificationSelect,
+        student_id: true,
+      },
+      where: {
+        student_id_type_target_id: {
+          student_id: input.studentId,
+          type: input.type,
+          target_id: input.targetId,
+        },
+      },
+      create: {
+        id: randomUUID(),
+        ...notificationData,
+      },
+      update: {
+        title: notificationData.title,
+        body: notificationData.body,
+        target_type: notificationData.target_type,
+        metadata: notificationData.metadata,
+        read_at: null,
+        created_at: new Date(),
+      },
+    });
+  } else {
     notification = await prisma.notifications.create({
       select: {
         ...notificationSelect,
@@ -116,41 +153,9 @@ export async function createStudentNotification(input: CreateStudentNotification
       },
       data: {
         id: randomUUID(),
-        student_id: input.studentId,
-        type: input.type,
-        title: input.title.trim(),
-        body: input.body.trim(),
-        target_type: input.targetType,
-        target_id: input.targetId,
-        metadata: input.metadata,
+        ...notificationData,
       },
     });
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002" &&
-      input.targetId
-    ) {
-      const existingNotification = await prisma.notifications.findFirst({
-        select: {
-          ...notificationSelect,
-          student_id: true,
-        },
-        where: {
-          student_id: input.studentId,
-          type: input.type,
-          target_id: input.targetId,
-        },
-      });
-
-      if (!existingNotification) {
-        throw error;
-      }
-
-      notification = existingNotification;
-    } else {
-      throw error;
-    }
   }
 
   if (input.sendPush !== false) {
