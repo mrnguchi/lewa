@@ -2,13 +2,23 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const nodeEnv = process.env.NODE_ENV ?? "development";
+
 function requireEnv(name: string): string {
-  const value = process.env[name];
+  const value = process.env[name]?.trim();
+
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
+
   return value;
 }
+
+const parseCorsOrigins = (value: string) =>
+  value
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
 
 function readBooleanEnv(name: string, defaultValue = false): boolean {
   const value = process.env[name];
@@ -21,9 +31,20 @@ function readBooleanEnv(name: string, defaultValue = false): boolean {
 }
 
 const newsNotificationPollMs = Number(process.env.NEWS_NOTIFICATION_POLL_MS ?? 60000);
+const corsOrigin = requireEnv("CORS_ORIGIN");
+const corsOrigins = corsOrigin === "*" ? [] : parseCorsOrigins(corsOrigin);
+const jwtSecret = requireEnv("JWT_SECRET");
+
+if (nodeEnv === "production" && corsOrigin === "*") {
+  throw new Error("CORS_ORIGIN must list trusted origins in production");
+}
+
+if (nodeEnv === "production" && jwtSecret.length < 32) {
+  throw new Error("JWT_SECRET must contain at least 32 characters in production");
+}
 
 export const env = {
-  nodeEnv: process.env.NODE_ENV ?? "development",
+  nodeEnv,
   port: Number(process.env.PORT ?? 4000),
   newsNotificationsEnabled: readBooleanEnv("NEWS_NOTIFICATIONS_ENABLED"),
   newsNotificationPollMs:
@@ -31,19 +52,28 @@ export const env = {
       ? newsNotificationPollMs
       : 60000,
 
-  jwtSecret: process.env.JWT_SECRET!,
-  corsOrigin: process.env.CORS_ORIGIN ?? "*",
+  databaseUrl: requireEnv("DATABASE_URL"),
+  jwtSecret,
+  corsOrigin,
+  corsOrigins,
+  allowAnyCorsOrigin: corsOrigin === "*",
 
-  campayBaseUrl: process.env.CAMPAY_BASE_URL!,
-  campayToken: process.env.CAMPAY_ACCESS_TOKEN!,
-  campayWebhookKey: process.env.CAMPAY_WEBHOOK_KEY!,
+  campayBaseUrl: requireEnv("CAMPAY_BASE_URL"),
+  campayToken: requireEnv("CAMPAY_ACCESS_TOKEN"),
+  campayWebhookKey: requireEnv("CAMPAY_WEBHOOK_KEY"),
 
-  cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME!,
-  cloudinaryApiKey: process.env.CLOUDINARY_API_KEY!,
-  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET!,
-  cloudinaryUploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET!,
+  cloudinaryCloudName: requireEnv("CLOUDINARY_CLOUD_NAME"),
+  cloudinaryApiKey: requireEnv("CLOUDINARY_API_KEY"),
+  cloudinaryApiSecret: requireEnv("CLOUDINARY_API_SECRET"),
+  cloudinaryUploadPreset: requireEnv("CLOUDINARY_UPLOAD_PRESET"),
 
   openAiApiKey: process.env.OPENAI_API_KEY,
   openAiModel: process.env.OPENAI_MODEL,
   openAiVectorStoreId: process.env.OPENAI_VECTOR_STORE_ID,
 };
+
+// Native apps send no browser origin, while browser requests must match our allowlist.
+export const isCorsOriginAllowed = (origin?: string) =>
+  !origin ||
+  env.allowAnyCorsOrigin ||
+  env.corsOrigins.includes(origin.replace(/\/$/, ""));

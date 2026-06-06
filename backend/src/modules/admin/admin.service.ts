@@ -169,7 +169,7 @@ const assertLoginWorkspace = (
   throw new ApiError(403, "This admin account has no supported access scope");
 };
 
-const getAdminStudentScopeWhere = (
+export const getAdminStudentScopeWhere = (
   admin: AdminAccessScope,
   requestedScope: AdminScopeQuery = {}
 ): Prisma.studentsWhereInput => {
@@ -221,7 +221,7 @@ const combineStudentWhere = (
   return activeClauses.length > 0 ? { AND: activeClauses } : {};
 };
 
-const getScopedPaymentWhere = (
+export const getScopedPaymentWhere = (
   admin: AdminAccessScope,
   requestedScope: AdminScopeQuery = {}
 ): Prisma.paymentsWhereInput => {

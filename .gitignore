@@ -34,6 +34,8 @@ ios/
 
 logs/
 *.log
+*.swp
+*.swo
 
 
 # VS Code

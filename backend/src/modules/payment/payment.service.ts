@@ -4,6 +4,7 @@ import { ApiError } from "../../utils/api-error";
 import axios from "axios";
 import { env } from "../../config/env";
 import { createStudentNotification } from "../notification/notification.service";
+import type { CampayWebhookPayload } from "./campay-webhook";
 
 interface InitiatePaymentInput {
   studentId: string;
@@ -665,56 +666,80 @@ export const getStudentPayments = async (studentId: string) => {
   });
 };
 
-export const handleCampayWebhook = async (payload: any) => {
-  console.log("Received Campay webhook payload:", JSON.stringify(payload, null, 2));
+export const handleCampayWebhook = async (payload: CampayWebhookPayload) => {
+  console.log("Received verified Campay webhook:", {
+    status: payload.status,
+    reference: payload.reference,
+    externalReference: payload.external_reference,
+  });
 
   const reference = payload.external_reference as string;
-  const status = payload.status as string;
-  const operatorReference = payload.operator_reference as string | undefined;
+  const providerReference = payload.reference as string;
 
-  console.log("Extracted data:", { reference, status, operatorReference });
-
-  if (!reference) {
-    console.error("Invalid webhook payload - missing reference");
-    throw new ApiError(400, "Invalid webhook payload");
+  if (payload.endpoint && payload.endpoint !== "collect") {
+    throw new ApiError(400, "Unsupported Campay webhook endpoint");
   }
 
-  const paymentStatus = toPaymentStatus(status);
+  const payment = await prisma.payments.findUnique({
+    where: { reference_id: reference },
+  });
 
-  if (paymentStatus === "successful") {
-    console.log("Payment status: SUCCESSFUL");
-  } else if (paymentStatus === "failed") {
-    console.log("Payment status: FAILED");
-  } else {
-    console.log("Payment status: PENDING or UNKNOWN");
+  if (!payment) {
+    throw new ApiError(404, "Payment not found");
   }
 
-  console.log(`Updating payment ${reference} to status: ${paymentStatus}`);
+  if (
+    payment.provider_reference &&
+    payment.provider_reference !== providerReference
+  ) {
+    throw new ApiError(409, "Campay payment reference does not match");
+  }
+
+  // The signed callback is only a signal; CamPay's API remains the source of truth.
+  const providerPayment = await checkCampayTransactionStatus(providerReference);
+
+  if (!providerPayment) {
+    throw new ApiError(502, "Could not verify payment status with Campay");
+  }
+
+  if (
+    providerPayment.external_reference &&
+    providerPayment.external_reference !== reference
+  ) {
+    throw new ApiError(409, "Campay external reference does not match");
+  }
+
+  const paymentStatus = toPaymentStatus(providerPayment.status);
   const failureReason =
-    paymentStatus === "failed" ? extractPaymentFailureReason(payload) : null;
+    paymentStatus === "failed"
+      ? extractPaymentFailureReason(providerPayment)
+      : null;
 
-  const payment = await prisma.payments.update({
+  const updatedPayment = await prisma.payments.update({
     where: { reference_id: reference },
     data: {
       status: paymentStatus,
-      provider_reference: operatorReference ?? undefined,
-      paid_at: status === "SUCCESSFUL" ? new Date() : null,
+      provider_reference: providerReference,
+      paid_at: paymentStatus === "successful" ? new Date() : null,
       failure_reason: failureReason,
       failed_at: paymentStatus === "failed" ? new Date() : null,
     },
   });
 
-  console.log("Payment updated:", payment.id);
+  console.log("Payment updated:", updatedPayment.id);
 
   if (paymentStatus === "successful") {
     providerStatusCheckCache.delete(reference);
     console.log("Payment successful - generating receipt...");
-    const receipt = await generateReceipt(payment);
-    await updateStudentFeeStatus(payment);
-    await notifyPaymentSucceeded(payment, receipt);
+    const receipt = await generateReceipt(updatedPayment);
+    await updateStudentFeeStatus(updatedPayment);
+    await notifyPaymentSucceeded(updatedPayment, receipt);
   } else if (paymentStatus === "failed") {
     providerStatusCheckCache.delete(reference);
-    await notifyPaymentFailed(payment, failureReason || DEFAULT_PAYMENT_FAILURE_REASON);
+    await notifyPaymentFailed(
+      updatedPayment,
+      failureReason || DEFAULT_PAYMENT_FAILURE_REASON
+    );
   } else {
     console.log("Payment not successful - skipping receipt generation");
   }
@@ -854,7 +879,9 @@ const syncPaymentWithProvider = async (
     return payment;
   }
 
-  const campayStatus = await checkCampayTransactionStatus(payment.reference_id);
+  const campayStatus = await checkCampayTransactionStatus(
+    payment.provider_reference
+  );
 
   if (!campayStatus) {
     return payment;
@@ -1075,7 +1102,7 @@ export const getReceiptByReference = async (reference: string) => {
 
 /**
  * Check and update expired subscriptions
- * This should be called periodically (e.g., daily cron job)
+ * This should be called periodically (e.g., monthly cron job)
  */
 export const updateExpiredSubscriptions = async () => {
   try {

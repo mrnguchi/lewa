@@ -13,6 +13,7 @@ import {
   getOverview,
   getResourceFileUploadSignature,
   generateSchoolPaymentReceipt,
+  generateFeeInsight,
   getStudentDistribution,
   getSupportConversation,
   importCalendarEntries,
@@ -37,6 +38,7 @@ router.use(authenticateAdmin);
 
 router.get("/auth/me", getCurrentAdmin);
 router.get("/overview", getOverview);
+router.post("/insights/fees", generateFeeInsight);
 
 router.get("/students", listStudents);
 router.get("/students/distribution", getStudentDistribution);

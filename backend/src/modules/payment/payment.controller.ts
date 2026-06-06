@@ -1,4 +1,6 @@
 import { Request, Response } from "express";
+import { ApiError } from "../../utils/api-error";
+import { verifyCampayWebhook } from "./campay-webhook";
 import * as paymentService from "./payment.service";
 
 const createPaymentRequestGuard = (req: Request, res: Response) => {
@@ -109,24 +111,29 @@ export const deleteDisposablePayment = async (req: Request, res: Response) => {
  */
 export const campayWebhook = async (req: Request, res: Response) => {
   try {
+    const rawPayload = req.method === "GET" ? req.query : req.body;
 
-    const payload = req.method === "GET" ? req.query : req.body;
-
-    console.log("---- CAM PAY WEBHOOK ----");
-    console.log(payload);
+    // The callback is verified before its payment details reach the service layer.
+    const payload = verifyCampayWebhook(rawPayload);
 
     await paymentService.handleCampayWebhook(payload);
 
     res.status(200).json({
       success: true,
     });
-
   } catch (error) {
-
     console.error("Webhook error:", error);
 
-    res.status(200).json({
-      success: false
+    if (error instanceof ApiError && error.statusCode === 401) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Campay webhook signature",
+      });
+    }
+
+    // A provider verification error stays retryable instead of acknowledging it.
+    res.status(500).json({
+      success: false,
     });
   }
 };

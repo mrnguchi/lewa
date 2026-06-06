@@ -47,11 +47,11 @@ const normalizeRoomKey = (value: string) =>
   encodeURIComponent(value.trim().toLowerCase());
 
 const getCorsOrigin = () => {
-  if (env.corsOrigin === "*") {
+  if (env.allowAnyCorsOrigin) {
     return true;
   }
 
-  return env.corsOrigin.split(",").map((origin) => origin.trim());
+  return env.corsOrigins;
 };
 
 const getTokenFromSocket = (socket: Socket) => {
@@ -359,6 +359,20 @@ export const initializeRealtime = (httpServer: HttpServer) => {
   });
 
   return io;
+};
+
+// I close active realtime connections before the process exits.
+export const closeRealtime = async () => {
+  if (!io) {
+    return;
+  }
+
+  const activeServer = io;
+  io = null;
+
+  await new Promise<void>((resolve) => {
+    activeServer.close(() => resolve());
+  });
 };
 
 // I call this after support writes so connected dashboards and students get fresh thread data.

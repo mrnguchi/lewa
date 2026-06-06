@@ -27,6 +27,11 @@ export const listStudentsQuerySchema = z.object({
 
 export const adminScopeQuerySchema = z.object(adminScopeQueryShape);
 
+export const adminFeeInsightSchema = z.object({
+  ...adminScopeQueryShape,
+  period: z.enum(["daily", "weekly", "monthly", "yearly"]),
+});
+
 export const studentDistributionQuerySchema = z.object(adminScopeQueryShape);
 
 export const listSchoolPaymentsQuerySchema = z.object({
@@ -62,6 +67,7 @@ export const listSupportConversationsQuerySchema = z.object({
 
 export type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 export type AdminScopeQuery = z.infer<typeof adminScopeQuerySchema>;
+export type AdminFeeInsightInput = z.infer<typeof adminFeeInsightSchema>;
 export type ListStudentsQuery = z.infer<typeof listStudentsQuerySchema>;
 export type StudentDistributionQuery = z.infer<typeof studentDistributionQuerySchema>;
 export type ListSchoolPaymentsQuery = z.infer<typeof listSchoolPaymentsQuerySchema>;

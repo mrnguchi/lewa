@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 
 import * as adminService from "./admin.service";
 import {
+  adminFeeInsightSchema,
   adminScopeQuerySchema,
   adminLoginSchema,
   listSchoolPaymentsQuerySchema,
@@ -11,6 +12,7 @@ import {
   schoolPaymentParamsSchema,
   studentDistributionQuerySchema,
 } from "./admin.schema";
+import * as adminInsightService from "./admin-insight.service";
 import { createNewsSchema, getNewsQuerySchema } from "../news/news.schema";
 import * as newsService from "../news/news.service";
 import {
@@ -60,6 +62,21 @@ export const getOverview = async (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     data: overview,
+  });
+};
+
+//
+
+export const generateFeeInsight = async (req: Request, res: Response) => {
+  const payload = adminFeeInsightSchema.parse(req.body);
+  const insight = await adminInsightService.generateFeeInsight(
+    getRequestAdmin(req),
+    payload
+  );
+
+  res.status(200).json({
+    success: true,
+    data: insight,
   });
 };
 

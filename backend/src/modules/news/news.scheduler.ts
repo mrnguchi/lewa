@@ -3,6 +3,7 @@ import { dispatchDueNewsNotifications } from "./news.service";
 
 let schedulerStarted = false;
 let schedulerBusy = false;
+let schedulerTimer: NodeJS.Timeout | null = null;
 
 // Polls for news that has reached its publish time and still needs an app notification.
 export function startNewsNotificationScheduler() {
@@ -36,9 +37,19 @@ export function startNewsNotificationScheduler() {
 
   void runTick();
 
-  const timer = setInterval(() => {
+  schedulerTimer = setInterval(() => {
     void runTick();
   }, env.newsNotificationPollMs);
 
-  timer.unref?.();
+  schedulerTimer.unref?.();
+}
+
+// I stop the interval cleanly when the hosting service restarts the backend.
+export function stopNewsNotificationScheduler() {
+  if (schedulerTimer) {
+    clearInterval(schedulerTimer);
+    schedulerTimer = null;
+  }
+
+  schedulerStarted = false;
 }

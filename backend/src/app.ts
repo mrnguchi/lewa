@@ -4,13 +4,16 @@ import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
 
-import { env } from "./config/env";
+import { env, isCorsOriginAllowed } from "./config/env";
+import { prisma } from "./database/prisma";
 import { ApiError } from "./utils/api-error";
 import { errorMiddleware } from "./middlewares/error.middleware";
-import { asyncHandler } from "./utils/async-handler";
-import routes from "./routes"
+import routes from "./routes";
 
 export const app = express();
+
+// The deployed service runs behind the hosting provider's reverse proxy.
+app.set("trust proxy", 1);
 
 /* -----------------------------------------------------
    GLOBAL MIDDLEWARE
@@ -29,7 +32,15 @@ app.use(express.urlencoded({ extended: true }));
 // CORS configuration
 app.use(
   cors({
-    origin:true,
+    // Browser traffic is limited to configured dashboard origins.
+    origin: (origin, callback) => {
+      if (isCorsOriginAllowed(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new ApiError(403, "Origin is not allowed by CORS"));
+    },
     credentials: true,
   })
 );
@@ -50,11 +61,31 @@ app.get("/health", (_req, res) => {
   });
 });
 
+app.get("/ready", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+
+    res.status(200).json({
+      ok: true,
+      database: "ready",
+      service: "lewa-backend",
+      timestamp: new Date().toISOString(),
+    });
+  } catch {
+    res.status(503).json({
+      ok: false,
+      database: "unavailable",
+      service: "lewa-backend",
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 /* -----------------------------------------------------
    ROUTES
 ----------------------------------------------------- */
 
-app.use("/api", routes)
+app.use("/api", routes);
 
 
 
