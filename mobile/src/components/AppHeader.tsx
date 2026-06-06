@@ -21,6 +21,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { useAppSync } from '../contexts/AppSyncContext';
 import { useAuth } from '../hooks/useAuth';
+import BackIconButton from './BackIconButton';
 import { api } from '../services/api';
 import {
   AppNotification,
@@ -36,6 +37,8 @@ interface AppHeaderProps {
   variant?: 'default' | 'hero' | 'home';
   greeting?: string;
   name?: string;
+  title?: string;
+  onBackPress?: () => void;
 }
 
 type ProfileReceipt = {
@@ -145,12 +148,14 @@ const formatNotificationTime = (dateString: string) => {
 const getNotificationIcon = (type: AppNotification['type']): IoniconName => {
   if (type === 'chat_message') return 'chatbubble-ellipses';
   if (type === 'payment_success') return 'checkmark-circle';
+  if (type === 'payment_pending') return 'hourglass';
   if (type === 'payment_failed') return 'alert-circle';
   return 'newspaper';
 };
 
 const getNotificationIconColor = (type: AppNotification['type']) => {
   if (type === 'payment_success') return colors.primary;
+  if (type === 'payment_pending') return colors.textPrimary;
   if (type === 'payment_failed') return '#DC2626';
   if (type === 'news_article') return '#2563EB';
   return colors.textPrimary;
@@ -158,17 +163,26 @@ const getNotificationIconColor = (type: AppNotification['type']) => {
 
 const getNotificationIconBackground = (type: AppNotification['type']) => {
   if (type === 'payment_success') return '#E8F5E9';
+  if (type === 'payment_pending') return '#FEF3C7';
   if (type === 'payment_failed') return '#FEE2E2';
   if (type === 'news_article') return '#DBEAFE';
   return '#EEF2F7';
 };
 
-export default function AppHeader({ variant = 'default', greeting, name }: AppHeaderProps) {
+export default function AppHeader({
+  variant = 'default',
+  greeting,
+  name,
+  title,
+  onBackPress,
+}: AppHeaderProps) {
   const { user, logout, refreshUserData, updateUser } = useAuth();
   const { notificationUnreadCount, refreshSync } = useAppSync();
   const navigation = useNavigation();
   const isHero = variant === 'hero';
   const isHome = variant === 'home';
+  const isStackHeader = Boolean(title);
+  const isAndroid = Platform.OS === 'android';
   const displayName = name?.trim() || user?.full_name?.split(' ')[0] || 'Student';
   const displayGreeting = greeting?.trim() || 'Hello';
 
@@ -207,6 +221,8 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
   const [failedPaymentNotification, setFailedPaymentNotification] =
+    useState<AppNotification | null>(null);
+  const [pendingPaymentNotification, setPendingPaymentNotification] =
     useState<AppNotification | null>(null);
   const [isClearingFailedPayment, setIsClearingFailedPayment] = useState(false);
 
@@ -437,6 +453,7 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
   const handleOpenNotificationSheet = () => {
     setLanguageMenuVisible(false);
     setFailedPaymentNotification(null);
+    setPendingPaymentNotification(null);
     setNotificationSheetVisible(true);
   };
 
@@ -462,7 +479,14 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
       }
 
       if (notification.type === 'payment_failed') {
+        setPendingPaymentNotification(null);
         setFailedPaymentNotification(notification);
+        return;
+      }
+
+      if (notification.type === 'payment_pending') {
+        setFailedPaymentNotification(null);
+        setPendingPaymentNotification(notification);
         return;
       }
 
@@ -596,14 +620,52 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
     failedPaymentNotification
       ? getNotificationMetadataValue(failedPaymentNotification, 'paymentReference')
       : undefined;
+  const pendingPaymentAmount =
+    pendingPaymentNotification
+      ? getNotificationMetadataValue(pendingPaymentNotification, 'amount')
+      : undefined;
+  const pendingPaymentReference =
+    pendingPaymentNotification
+      ? getNotificationMetadataValue(pendingPaymentNotification, 'paymentReference')
+      : undefined;
+  const pendingPaymentCode =
+    pendingPaymentNotification
+      ? getNotificationMetadataValue(pendingPaymentNotification, 'approvalCode') || '*126#'
+      : '*126#';
+  const pendingPaymentMethod =
+    pendingPaymentNotification
+      ? getNotificationMetadataValue(pendingPaymentNotification, 'methodLabel') ||
+        'Mobile Money'
+      : 'Mobile Money';
+
+  // I reopen the same pending payment so the student can check it without creating a duplicate.
+  const handleRetryPendingPayment = () => {
+    if (!pendingPaymentReference) {
+      return;
+    }
+
+    setNotificationSheetVisible(false);
+    setPendingPaymentNotification(null);
+    // @ts-ignore - navigation typing
+    navigation.navigate('PaymentProcessing', { reference: pendingPaymentReference });
+  };
+
+  const handleStackBackPress = () => {
+    if (onBackPress) {
+      onBackPress();
+      return;
+    }
+
+    navigation.goBack();
+  };
 
   return (
     <>
       {/* Header with Translation and Profile Buttons */}
       {isHome ? (
-        <View style={styles.homeHeader}>
+        <View style={[styles.homeHeader, isAndroid && styles.androidHomeHeader]}>
           <TouchableOpacity
-            style={styles.homeProfileButton}
+            style={[styles.homeProfileButton, isAndroid && styles.androidHomeProfileButton]}
             onPress={() => {
               setLanguageMenuVisible(false);
               setProfileModalVisible(true);
@@ -613,43 +675,88 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
             {profileImage ? (
               <Image
                 source={getProfileImageSource()}
-                style={styles.homeProfileImage}
+                style={[styles.homeProfileImage, isAndroid && styles.androidHomeProfileImage]}
               />
             ) : (
-              <Ionicons name="person" size={23} color={colors.textPrimary} />
+              <Ionicons name="person" size={isAndroid ? 18 : 23} color={colors.textPrimary} />
             )}
           </TouchableOpacity>
 
-          <View style={styles.homeGreetingCopy}>
-            <Text style={styles.homeGreetingText} numberOfLines={1}>
+          <View style={[styles.homeGreetingCopy, isAndroid && styles.androidHomeGreetingCopy]}>
+            <Text
+              style={[styles.homeGreetingText, isAndroid && styles.androidHomeGreetingText]}
+              numberOfLines={1}
+            >
               {displayGreeting} {displayName}
             </Text>
-            <Text style={styles.homeWelcomeText}>Welcome to Lewa</Text>
+            <Text style={[styles.homeWelcomeText, isAndroid && styles.androidHomeWelcomeText]}>
+              Welcome to Lewa
+            </Text>
           </View>
 
-          <View style={styles.homeHeaderActions}>
+          <View style={[styles.homeHeaderActions, isAndroid && styles.androidHomeHeaderActions]}>
             <TouchableOpacity
-              style={styles.homeActionButton}
+              style={[styles.homeActionButton, isAndroid && styles.androidHomeActionButton]}
               activeOpacity={0.82}
               onPress={handleOpenNotificationSheet}
             >
-              <Ionicons name="notifications" size={22} color={colors.textPrimary} />
-              {notificationUnreadCount > 0 && <View style={styles.notificationDot} />}
+              <Ionicons name="notifications" size={isAndroid ? 18 : 22} color={colors.textPrimary} />
+              {notificationUnreadCount > 0 && (
+                <View style={[styles.notificationDot, isAndroid && styles.androidNotificationDot]} />
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.homeActionButton, styles.homeTranslationButton]}
+              style={[
+                styles.homeActionButton,
+                styles.homeTranslationButton,
+                isAndroid && styles.androidHomeActionButton,
+              ]}
               activeOpacity={0.82}
               onPress={handleLanguagePress}
             >
-              <Text style={styles.homeTranslationText}>{selectedLanguage.toUpperCase()}</Text>
+              <Text style={[styles.homeTranslationText, isAndroid && styles.androidHomeTranslationText]}>
+                {selectedLanguage.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : isStackHeader ? (
+        <View style={[styles.stackHeader, isAndroid && styles.androidStackHeader]}>
+          <View style={styles.stackHeaderSide}>
+            <BackIconButton onPress={handleStackBackPress} />
+          </View>
+
+          <View style={styles.stackHeaderTitleWrap}>
+            <Text style={styles.stackHeaderTitle} numberOfLines={1}>
+              {title}
+            </Text>
+          </View>
+
+          <View style={[styles.stackHeaderSide, styles.stackHeaderRight]}>
+            <TouchableOpacity
+              style={[
+                styles.homeActionButton,
+                styles.homeTranslationButton,
+                isAndroid && styles.androidHomeActionButton,
+              ]}
+              activeOpacity={0.82}
+              onPress={handleLanguagePress}
+            >
+              <Text style={[styles.homeTranslationText, isAndroid && styles.androidHomeTranslationText]}>
+                {selectedLanguage.toUpperCase()}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
       ) : (
         <View style={[styles.headerTop, isHero && styles.headerTopHero]}>
           <TouchableOpacity
-            style={[styles.homeProfileButton, isHero && styles.profileButtonHero]}
+            style={[
+              styles.homeProfileButton,
+              isHero && styles.profileButtonHero,
+              isAndroid && styles.androidHomeProfileButton,
+            ]}
             onPress={() => {
               setLanguageMenuVisible(false);
               setProfileModalVisible(true);
@@ -659,12 +766,12 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
             {profileImage ? (
               <Image
                 source={getProfileImageSource()}
-                style={styles.homeProfileImage}
+                style={[styles.homeProfileImage, isAndroid && styles.androidHomeProfileImage]}
               />
             ) : (
               <Ionicons
                 name="person"
-                size={23}
+                size={isAndroid ? 18 : 23}
                 color={isHero ? colors.white : colors.textPrimary}
               />
             )}
@@ -702,11 +809,17 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
             )}
 
             <TouchableOpacity
-              style={[styles.homeActionButton, styles.homeTranslationButton]}
+              style={[
+                styles.homeActionButton,
+                styles.homeTranslationButton,
+                isAndroid && styles.androidHomeActionButton,
+              ]}
               activeOpacity={0.82}
               onPress={handleLanguagePress}
             >
-              <Text style={styles.homeTranslationText}>{selectedLanguage.toUpperCase()}</Text>
+              <Text style={[styles.homeTranslationText, isAndroid && styles.androidHomeTranslationText]}>
+                {selectedLanguage.toUpperCase()}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -723,7 +836,7 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
             style={styles.languageMenuDismissLayer}
             onPress={() => setLanguageMenuVisible(false)}
           />
-          <View style={styles.languageMenuSurface}>
+          <View style={[styles.languageMenuSurface, isAndroid && styles.androidFloatingSurface]}>
             <Text style={styles.languageMenuTitle}>Language</Text>
 
             {LANGUAGE_OPTIONS.map((language) => {
@@ -764,6 +877,7 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
         onRequestClose={() => {
           setNotificationSheetVisible(false);
           setFailedPaymentNotification(null);
+          setPendingPaymentNotification(null);
         }}
       >
         <View style={styles.notificationSheetBackdrop}>
@@ -772,10 +886,11 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
             onPress={() => {
               setNotificationSheetVisible(false);
               setFailedPaymentNotification(null);
+              setPendingPaymentNotification(null);
             }}
           />
 
-          <View style={styles.notificationSheet}>
+          <View style={[styles.notificationSheet, isAndroid && styles.androidBottomSheet]}>
             <View style={styles.notificationSheetHandle} />
 
             <View style={styles.notificationSheetHeader}>
@@ -874,7 +989,7 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
             </TouchableOpacity>
 
             {failedPaymentNotification && (
-              <View style={styles.failedPaymentSheet}>
+              <View style={[styles.failedPaymentSheet, isAndroid && styles.androidBottomSheet]}>
                 <View style={styles.failedPaymentIcon}>
                   <Ionicons name="alert-circle" size={34} color="#DC2626" />
                 </View>
@@ -914,6 +1029,56 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
                 </TouchableOpacity>
               </View>
             )}
+
+            {pendingPaymentNotification && (
+              <View style={[styles.failedPaymentSheet, isAndroid && styles.androidBottomSheet]}>
+                <View style={[styles.failedPaymentIcon, styles.pendingPaymentIcon]}>
+                  <Ionicons name="hourglass" size={32} color={colors.textPrimary} />
+                </View>
+                <Text style={styles.failedPaymentTitle}>Payment still pending</Text>
+                <Text style={styles.failedPaymentMessage}>
+                  If you have not approved this {pendingPaymentMethod} payment yet,
+                  dial {pendingPaymentCode}, confirm it, then tap Try again.
+                </Text>
+
+                <View style={styles.failedPaymentMetaCard}>
+                  {pendingPaymentAmount && (
+                    <View style={styles.failedPaymentMetaRow}>
+                      <Text style={styles.failedPaymentMetaLabel}>Amount</Text>
+                      <Text style={styles.failedPaymentMetaValue}>
+                        {Number(pendingPaymentAmount).toLocaleString()} XAF
+                      </Text>
+                    </View>
+                  )}
+                  {pendingPaymentReference && (
+                    <View style={styles.failedPaymentMetaRow}>
+                      <Text style={styles.failedPaymentMetaLabel}>Reference</Text>
+                      <Text style={styles.failedPaymentMetaValue} numberOfLines={1}>
+                        {pendingPaymentReference}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.pendingPaymentActions}>
+                  <TouchableOpacity
+                    style={styles.pendingPaymentSecondaryButton}
+                    onPress={() => setPendingPaymentNotification(null)}
+                    activeOpacity={0.86}
+                  >
+                    <Text style={styles.pendingPaymentSecondaryText}>Close</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.pendingPaymentPrimaryButton}
+                    onPress={handleRetryPendingPayment}
+                    activeOpacity={0.86}
+                    disabled={!pendingPaymentReference}
+                  >
+                    <Text style={styles.pendingPaymentPrimaryText}>Try again</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -927,13 +1092,7 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
       >
         <View style={styles.profileModalContainer}>
           <View style={styles.profileModalHeader}>
-            <TouchableOpacity
-              style={styles.modalIconButton}
-              onPress={() => setProfileModalVisible(false)}
-              activeOpacity={0.82}
-            >
-              <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-            </TouchableOpacity>
+            <BackIconButton onPress={() => setProfileModalVisible(false)} />
             <Text style={styles.profileModalTitle}>Profile</Text>
             <View style={styles.modalIconButton}>
               <Ionicons name="settings-outline" size={21} color={colors.textPrimary} />
@@ -972,7 +1131,7 @@ export default function AppHeader({ variant = 'default', greeting, name }: AppHe
               </Text>
             </View>
 
-            <View style={styles.profileInfoCard}>
+            <View style={[styles.profileInfoCard, isAndroid && styles.androidProfileInfoCard]}>
               <View style={styles.profileInfoRow}>
                 <View style={styles.profileInfoIcon}>
                   <Ionicons name="person-outline" size={18} color={colors.textPrimary} />
@@ -1204,6 +1363,51 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 
+  stackHeader: {
+    paddingTop: 58,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    minHeight: 110,
+    backgroundColor: colors.background,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    position: 'relative',
+  },
+
+  androidStackHeader: {
+    paddingTop: 54,
+    paddingBottom: 10,
+    minHeight: 102,
+  },
+
+  stackHeaderSide: {
+    width: 52,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+
+  stackHeaderRight: {
+    alignItems: 'flex-end',
+  },
+
+  stackHeaderTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  stackHeaderTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontFamily: 'Poppins_700Bold',
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+
   homeHeader: {
     paddingTop: 58,
     paddingHorizontal: 20,
@@ -1211,6 +1415,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+
+  androidHomeHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 54,
+    paddingBottom: 10,
   },
 
   homeProfileButton: {
@@ -1224,6 +1434,12 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
 
+  androidHomeProfileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+
   homeProfileImage: {
     width: 50,
     height: 50,
@@ -1231,10 +1447,21 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
 
+  androidHomeProfileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+
   homeGreetingCopy: {
     flex: 1,
     marginLeft: 12,
     marginRight: 12,
+  },
+
+  androidHomeGreetingCopy: {
+    marginLeft: 10,
+    marginRight: 8,
   },
 
   homeGreetingText: {
@@ -1244,6 +1471,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
+  androidHomeGreetingText: {
+    fontSize: 13.5,
+    lineHeight: 18,
+  },
+
   homeWelcomeText: {
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
@@ -1251,10 +1483,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
+  androidHomeWelcomeText: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+
   homeHeaderActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+
+  androidHomeHeaderActions: {
+    gap: 6,
   },
 
   defaultHeaderActions: {
@@ -1275,6 +1516,12 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
+  androidHomeActionButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+  },
+
   homeTranslationButton: {
     backgroundColor: colors.textPrimary,
   },
@@ -1283,6 +1530,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Poppins_700Bold',
     color: colors.white,
+  },
+
+  androidHomeTranslationText: {
+    fontSize: 10.5,
   },
 
   languageMenuBackdrop: {
@@ -1309,6 +1560,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 22,
     elevation: 9,
+  },
+  androidFloatingSurface: {
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
 
   languageMenuTitle: {
@@ -1366,6 +1624,14 @@ const styles = StyleSheet.create({
     borderColor: colors.white,
   },
 
+  androidNotificationDot: {
+    top: 7,
+    right: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+
   notificationSheetBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(17, 24, 39, 0.2)',
@@ -1390,6 +1656,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 22,
     elevation: 14,
+  },
+  androidBottomSheet: {
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
 
   notificationSheetHandle: {
@@ -1572,6 +1843,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  pendingPaymentIcon: {
+    backgroundColor: '#FEF3C7',
+  },
+
   failedPaymentTitle: {
     fontSize: 18,
     fontFamily: 'Poppins_700Bold',
@@ -1629,6 +1904,44 @@ const styles = StyleSheet.create({
   },
 
   failedPaymentCloseText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_700Bold',
+    color: colors.white,
+  },
+
+  pendingPaymentActions: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 18,
+  },
+
+  pendingPaymentSecondaryButton: {
+    flex: 1,
+    minHeight: 50,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  pendingPaymentPrimaryButton: {
+    flex: 1,
+    minHeight: 50,
+    borderRadius: 25,
+    backgroundColor: colors.textPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  pendingPaymentSecondaryText: {
+    fontSize: 14,
+    fontFamily: 'Poppins_700Bold',
+    color: colors.textPrimary,
+  },
+
+  pendingPaymentPrimaryText: {
     fontSize: 14,
     fontFamily: 'Poppins_700Bold',
     color: colors.white,
@@ -1755,6 +2068,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
+  },
+  androidProfileInfoCard: {
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 0,
   },
 
   profileInfoRow: {

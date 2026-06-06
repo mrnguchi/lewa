@@ -121,7 +121,7 @@ export default function NewsDetailsScreen() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader title="News details" onBackPress={handleBack} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.feedbackText}>Loading article...</Text>
@@ -133,7 +133,7 @@ export default function NewsDetailsScreen() {
   if (!news) {
     return (
       <View style={styles.container}>
-        <AppHeader />
+        <AppHeader title="News details" onBackPress={handleBack} />
         <View style={styles.loadingContainer}>
           <Text style={styles.feedbackErrorText}>{loadError ?? 'This article could not be found.'}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={handleBack}>
@@ -146,17 +146,7 @@ export default function NewsDetailsScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
-
-      <View style={styles.header}>
-        <View style={styles.titleSection}>
-          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={24} color="#1F2933" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.pageTitle}>News details</Text>
-        </View>
-      </View>
+      <AppHeader title="News details" onBackPress={handleBack} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.heroImageContainer}>

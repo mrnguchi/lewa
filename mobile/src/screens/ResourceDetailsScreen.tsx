@@ -13,6 +13,7 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -45,6 +46,7 @@ const ResourceDetailsScreen: React.FC = () => {
   const navigation = useNavigation<ResourceDetailsScreenNavigationProp>();
   const route = useRoute<ResourceDetailsScreenRouteProp>();
   const { resource, type } = route.params;
+  const isAndroid = Platform.OS === 'android';
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -66,52 +68,60 @@ const ResourceDetailsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
-      {/* Header */}
-      <View style={styles.header}>
-        
-
-        {/* Back button and title */}
-        <View style={styles.titleRow}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.pageTitle}>
-            {type === 'handout' ? 'Handout details' : 'Past question details'}
-          </Text>
-        </View>
-      </View>
+      <AppHeader
+        title={type === 'handout' ? 'Handout details' : 'Past question details'}
+        onBackPress={() => navigation.goBack()}
+      />
 
       {/* Scrollable Content */}
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, isAndroid && styles.androidScrollContent]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* PDF Icon */}
         <Image
           source={require('../../assets/pdf-icon.png')}
-          style={styles.pdfIcon}
+          style={[styles.pdfIcon, isAndroid && styles.androidPdfIcon]}
         />
 
         {/* Resource Info Card */}
-        <View style={styles.infoCard}>
+        <View style={[styles.infoCard, isAndroid && styles.androidInfoCard]}>
           <View style={styles.infoHeader}>
-            <Text style={styles.courseCode}>{resource.code}</Text>
+            <Text style={[styles.courseCode, isAndroid && styles.androidCourseCode]}>
+              {resource.code}
+            </Text>
             {resource.price && (
-              <Text style={styles.price}>{resource.price}</Text>
+              <Text style={[styles.price, isAndroid && styles.androidPrice]}>
+                {resource.price}
+              </Text>
             )}
           </View>
 
-          <Text style={styles.courseTitle}>{resource.title}</Text>
-          <Text style={styles.description}>{description}</Text>
+          <Text style={[styles.courseTitle, isAndroid && styles.androidCourseTitle]}>
+            {resource.title}
+          </Text>
+          <Text style={[styles.description, isAndroid && styles.androidDescription]}>
+            {description}
+          </Text>
 
           {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.downloadButton}>
-              <MaterialCommunityIcons name="download-network" size={18} color={colors.textPrimary} />
-              <Text style={styles.downloadButtonText}>Download</Text>
+          <View style={[styles.actionButtons, isAndroid && styles.androidActionButtons]}>
+            <TouchableOpacity style={[styles.downloadButton, isAndroid && styles.androidActionButton]}>
+              <MaterialCommunityIcons
+                name="download-network"
+                size={isAndroid ? 16 : 18}
+                color={colors.textPrimary}
+              />
+              <Text style={[styles.downloadButtonText, isAndroid && styles.androidActionButtonText]}>
+                Download
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.openButton}>
-              <Text style={styles.openButtonText}>Open</Text>
-              <MaterialIcons name="open-in-new" size={18} color={colors.white} />
+            <TouchableOpacity style={[styles.openButton, isAndroid && styles.androidActionButton]}>
+              <Text style={[styles.openButtonText, isAndroid && styles.androidActionButtonText]}>
+                Open
+              </Text>
+              <MaterialIcons name="open-in-new" size={isAndroid ? 16 : 18} color={colors.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -197,12 +207,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+  androidScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 30,
+  },
   pdfIcon: {
     width: 350,
     height: 350,
     resizeMode: 'contain',
     alignSelf: 'center',
     marginBottom: 24,
+  },
+  androidPdfIcon: {
+    width: 230,
+    height: 230,
+    marginBottom: 14,
   },
   infoCard: {
     backgroundColor: colors.white,
@@ -213,6 +233,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 4,
+  },
+  androidInfoCard: {
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 0,
   },
   infoHeader: {
     flexDirection: 'row',
@@ -225,16 +254,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
   },
+  androidCourseCode: {
+    fontSize: 17,
+    lineHeight: 23,
+  },
   price: {
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.gold,
+  },
+  androidPrice: {
+    fontSize: 13.5,
   },
   courseTitle: {
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
     marginBottom: 12,
+  },
+  androidCourseTitle: {
+    fontSize: 13.5,
+    lineHeight: 19,
+    marginBottom: 9,
   },
   description: {
     fontSize: 14,
@@ -243,10 +284,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 24,
   },
+  androidDescription: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 18,
+  },
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  androidActionButtons: {
+    gap: 10,
   },
   downloadButton: {
     flex: 1,
@@ -258,6 +307,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     gap: 8,
   },
+  androidActionButton: {
+    borderRadius: 10,
+    paddingVertical: 11,
+    gap: 6,
+  },
   downloadIcon: {
     width: 18,
     height: 18,
@@ -268,6 +322,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
+  },
+  androidActionButtonText: {
+    fontSize: 13,
   },
   openButton: {
     flex: 1,
@@ -294,4 +351,3 @@ const styles = StyleSheet.create({
 });
 
 export default ResourceDetailsScreen;
-

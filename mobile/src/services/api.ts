@@ -3,7 +3,7 @@ import { authStorage } from "../utils/authStorage";
 import { showErrorToast } from "./toast";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
 
-export const API_BASE_URL = "http://10.202.111.87:4000";
+export const API_BASE_URL = "http://172.20.10.3:4000";
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // Increased to 30 seconds for registration/login with password hashing

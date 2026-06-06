@@ -19,7 +19,7 @@ type NewsNotificationTarget = {
 
 type PaymentNotificationTarget = {
   type: 'payment';
-  notificationType: 'payment_success' | 'payment_failed';
+  notificationType: 'payment_success' | 'payment_pending' | 'payment_failed';
   paymentReference?: string;
 };
 
@@ -31,6 +31,7 @@ type NotificationTarget =
 export type AppNotificationType =
   | 'chat_message'
   | 'payment_success'
+  | 'payment_pending'
   | 'payment_failed'
   | 'news_article';
 
@@ -158,7 +159,11 @@ export function getNotificationTarget(data: unknown): NotificationTarget | null 
     };
   }
 
-  if (payload.type === 'payment_success' || payload.type === 'payment_failed') {
+  if (
+    payload.type === 'payment_success' ||
+    payload.type === 'payment_pending' ||
+    payload.type === 'payment_failed'
+  ) {
     return {
       type: 'payment',
       notificationType: payload.type,
@@ -208,6 +213,17 @@ export function navigateToNotificationTarget(target: NotificationTarget): boolea
   }
 
   if (target.type === 'payment') {
+    if (target.notificationType === 'payment_pending') {
+      if (!target.paymentReference) {
+        return false;
+      }
+
+      navigationRef.navigate('PaymentProcessing', {
+        reference: target.paymentReference,
+      });
+      return true;
+    }
+
     navigationRef.navigate('Receipts', {
       notificationType: target.notificationType,
     });

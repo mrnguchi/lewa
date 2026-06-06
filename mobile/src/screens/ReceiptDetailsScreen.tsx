@@ -18,6 +18,7 @@ import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import BackIconButton from '../components/BackIconButton';
 
 interface Receipt {
   id: string;
@@ -104,10 +105,7 @@ const ReceiptDetailsScreen: React.FC = () => {
     <View style={styles.container}>
       {/* Header with Back Button */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
+        <BackIconButton style={styles.backButton} onPress={() => navigation.goBack()} />
       </View>
 
       {/* main container */}
@@ -390,4 +388,3 @@ const styles = StyleSheet.create({
 });
 
 export default ReceiptDetailsScreen;
-

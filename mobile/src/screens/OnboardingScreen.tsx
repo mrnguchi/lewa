@@ -18,18 +18,17 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  Dimensions,
   FlatList,
   NativeSyntheticEvent,
   NativeScrollEvent,
   ActivityIndicator,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 // Import Poppins font family from Expo Google Fonts
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
-
-// Get device screen width for responsive layout
-const { width } = Dimensions.get('window');
 
 // TypeScript interface defining the structure of each onboarding screen
 interface OnboardingItem {
@@ -72,7 +71,22 @@ interface OnboardingScreenProps {
 
 const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onFinish }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlatList<OnboardingItem>>(null);
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const isAndroid = Platform.OS === 'android';
+  const isCompactHeight = height < 760;
+  // I tune Android separately because its nav/status bars make the iOS spacing feel oversized.
+  const illustrationSize = Math.min(
+    width * (isAndroid ? 0.76 : 0.85),
+    height * (isAndroid || isCompactHeight ? 0.35 : 0.42),
+    isAndroid ? 355 : 380
+  );
+  const slideTopPadding = isAndroid
+    ? Math.max(isCompactHeight ? 58 : 78, Math.min(isCompactHeight ? 72 : 96, height * 0.085))
+    : 80;
+  const paginationBottomGap = isAndroid ? 42 : 32;
+  const footerBottomPadding = Math.max(insets.bottom + 14, isAndroid ? 26 : 34);
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -82,9 +96,9 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onFinish }) => {
 
   if (!fontsLoaded) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <ActivityIndicator size="large" color="#167846" />
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -113,23 +127,33 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onFinish }) => {
     if (highlight) {
       const parts = title.split(highlight);
       return (
-        <Text style={styles.title}>
+        <Text style={[styles.title, isAndroid && styles.androidTitle]}>
           {parts[0]}
           <Text style={styles.titleHighlight}>{highlight}</Text>
           {parts[1]}
         </Text>
       );
     }
-    return <Text style={styles.title}>{title}</Text>;
+    return <Text style={[styles.title, isAndroid && styles.androidTitle]}>{title}</Text>;
   };
 
   const renderItem = ({ item }: { item: OnboardingItem }) => (
-    <View style={styles.slide}>
-      <View style={styles.imageContainer}>
+    <View style={[styles.slide, { width, paddingTop: slideTopPadding }]}>
+      <View
+        style={[
+          styles.imageContainer,
+          {
+            width: illustrationSize,
+            height: illustrationSize,
+            marginBottom: isAndroid ? 16 : 20,
+            paddingTop: isAndroid ? 12 : 35,
+          },
+        ]}
+      >
         <Image source={item.image} style={styles.image} resizeMode="contain" />
       </View>
 
-      <View style={styles.pagination}>
+      <View style={[styles.pagination, { marginBottom: paginationBottomGap }]}>
         {onboardingData.map((_, index) => (
           <View
             key={index}
@@ -142,19 +166,38 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onFinish }) => {
       </View>
 
       {/* Text content container with shadow - wraps both title and description */}
-      <View style={styles.contentContainer}>
-        <View style={styles.textCard}>
-          {/* Title with optional green highlight for specific words */}
-          {renderTitle(item.title, item.titleHighlight)}
-          {/* Description text below the title */}
-          <Text style={styles.description}>{item.description}</Text>
+      <View
+        style={[
+          styles.contentContainer,
+          { paddingHorizontal: isAndroid ? 30 : 32 },
+        ]}
+      >
+        <View style={styles.cardFrame}>
+          {isAndroid && <View style={styles.androidSoftShadow} />}
+          <View
+            style={[
+              styles.textCard,
+              isAndroid && styles.androidTextCard,
+              {
+                paddingHorizontal: isAndroid ? 22 : 20,
+                paddingVertical: isAndroid ? 21 : 35,
+              },
+            ]}
+          >
+            {/* Title with optional green highlight for specific words */}
+            {renderTitle(item.title, item.titleHighlight)}
+            {/* Description text below the title */}
+            <Text style={[styles.description, isAndroid && styles.androidDescription]}>
+              {item.description}
+            </Text>
+          </View>
         </View>
       </View>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
         ref={flatListRef}
         data={onboardingData}
@@ -167,23 +210,29 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onFinish }) => {
         keyExtractor={(item) => item.id}
       />
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: footerBottomPadding }]}>
         {currentIndex < onboardingData.length - 1 ? (
           <>
             <TouchableOpacity onPress={handleSkip}>
-              <Text style={styles.skipText}>SKIP</Text>
+              <Text style={[styles.skipText, isAndroid && styles.androidFooterText]}>SKIP</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-              <Text style={styles.nextText}>NEXT</Text>
+            <TouchableOpacity
+              style={[styles.nextButton, isAndroid && styles.androidActionButton]}
+              onPress={handleNext}
+            >
+              <Text style={[styles.nextText, isAndroid && styles.androidFooterText]}>NEXT</Text>
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity style={styles.startButton} onPress={handleNext}>
-            <Text style={styles.startText}>START</Text>
+          <TouchableOpacity
+            style={[styles.startButton, isAndroid && styles.androidStartButton]}
+            onPress={handleNext}
+          >
+            <Text style={[styles.startText, isAndroid && styles.androidFooterText]}>START</Text>
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -193,18 +242,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   slide: {
-    width,
     flex: 1,
     alignItems: 'center',
-    paddingTop: 80,
   },
   imageContainer: {
-    width: width * 0.85,
-    height: width * 0.85,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingTop: 35,
   },
   image: {
     width: '100%',
@@ -214,7 +257,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
   },
   dot: {
     width: 10,
@@ -224,6 +266,7 @@ const styles = StyleSheet.create({
   },
   activeDot: {
     backgroundColor: '#167846',
+    width: 50,
   },
   inactiveDot: {
     backgroundColor: '#FFFFFF',
@@ -232,17 +275,18 @@ const styles = StyleSheet.create({
   },
   // Container for the text content area
   contentContainer: {
-    paddingHorizontal: 32,
     alignItems: 'center',
+    width: '100%',
+  },
+  cardFrame: {
+    position: 'relative',
     width: '100%',
   },
   // Card container 
   textCard: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 35,
     borderRadius: 12,
-    width: '103%', 
+    width: '100%',
     // iOS shadow properties
     shadowColor: '#000',
     shadowOffset: {
@@ -251,8 +295,21 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    // Android shadow property
-    elevation: 3,
+  },
+  androidTextCard: {
+    borderWidth: 1,
+    borderColor: '#F1F4F7',
+    elevation: 0,
+  },
+  androidSoftShadow: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    top: 10,
+    bottom: 2,
+    borderRadius: 12,
+    backgroundColor: '#DDE3EA',
+    opacity: 0.18,
   },
   // Main title text style
   title: {
@@ -261,6 +318,11 @@ const styles = StyleSheet.create({
     color: '#1F2933',
     textAlign: 'center',
     marginBottom: 12, // Space between title and description
+  },
+  androidTitle: {
+    fontSize: 21,
+    lineHeight: 29,
+    marginBottom: 10,
   },
   // Green highlight for specific words in title (e.g., "&" in "Fast, Simple & Reliable")
   titleHighlight: {
@@ -274,12 +336,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
   },
+  androidDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 32,
-    paddingBottom: 50,
+    paddingTop: 12,
     //paddingTop: 20,
   },
   skipText: {
@@ -292,6 +358,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 48,
     paddingVertical: 14,
     borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   nextText: {
     fontSize: 16,
@@ -306,11 +374,28 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   startText: {
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: '#FFFFFF',
+  },
+  androidActionButton: {
+    minWidth: 160,
+    height: 50,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderRadius: 25,
+  },
+  androidStartButton: {
+    height: 50,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderRadius: 25,
+  },
+  androidFooterText: {
+    fontSize: 14,
   },
 });
 

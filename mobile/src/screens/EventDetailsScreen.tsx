@@ -66,16 +66,7 @@ const EventDetailsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* Header */}
-        <AppHeader />
-
-        {/* Back Button and Title */}
-        <View style={styles.titleRow}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.pageTitle}>Item Details</Text>
-        </View>
+      <AppHeader title="Item Details" onBackPress={() => navigation.goBack()} />
       
 
       {/* Scrollable Content */}
@@ -300,4 +291,3 @@ const styles = StyleSheet.create({
 });
 
 export default EventDetailsScreen;
-

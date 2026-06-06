@@ -10,12 +10,22 @@
  */
 
 import React from 'react';
-import { Text, TouchableOpacity, StyleSheet, View } from 'react-native';
+import {
+  Dimensions,
+  Platform,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { colors } from '../theme/colors';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useAppSync } from '../contexts/AppSyncContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface TabItem {
   id: string;
@@ -34,56 +44,88 @@ const tabs: TabItem[] = [
 
 const AppBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {
   const { chatUnreadCount } = useAppSync();
+  const insets = useSafeAreaInsets();
+  const windowDimensions = useWindowDimensions();
+  const isAndroid = Platform.OS === 'android';
+  const screenToWindowGap = Math.max(
+    0,
+    Dimensions.get('screen').height - windowDimensions.height
+  );
+  const androidStatusSpace = StatusBar.currentHeight ?? insets.top;
+  const estimatedAndroidNavSpace = Math.max(0, screenToWindowGap - androidStatusSpace);
+  const hasVisibleAndroidNavControls =
+    isAndroid &&
+    (insets.bottom >= 32 || estimatedAndroidNavSpace >= 32 || screenToWindowGap >= 64);
+  // I only lift the floating bar when Android reports real system navigation space.
+  const bottomOffset = isAndroid
+    ? hasVisibleAndroidNavControls
+      ? 42
+      : 18
+    : 25;
+  const androidSystemNavSurfaceHeight = hasVisibleAndroidNavControls
+    ? Math.max(50, insets.bottom + 8, estimatedAndroidNavSpace + 8, bottomOffset + 8)
+    : 0;
   const messageBadgeLabel =
     chatUnreadCount > 99 ? '99+' : chatUnreadCount > 0 ? String(chatUnreadCount) : null;
 
   return (
-    <View style={styles.container}>
-      {tabs.map((tab, index) => {
-        const isActive = state.index === index;
-        const iconColor = isActive ? colors.primary : 'rgba(255, 255, 255, 0.72)';
-        const ioniconName = tab.id === 'Home' ? tab.iconName : `${tab.iconName}-outline`;
+    <>
+      {isAndroid && androidSystemNavSurfaceHeight > 0 && (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.androidSystemNavSurface,
+            { height: androidSystemNavSurfaceHeight },
+          ]}
+        />
+      )}
 
-        return (
-          <TouchableOpacity
-            key={tab.id}
-            style={[styles.tabButton, isActive && styles.tabButtonActive]}
-            onPress={() => navigation.navigate(tab.id)}
-            activeOpacity={0.7}
-          >
-            {tab.iconLibrary === 'material' ? (
-              <MaterialCommunityIcons
-                name={tab.iconName}
-                size={isActive ? 21 : 23}
-                color={iconColor}
-              />
-            ) : (
-              <Ionicons
-                name={ioniconName as any}
-                size={isActive ? 21 : 23}
-                color={iconColor}
-              />
-            )}
-            {isActive && <Text style={styles.tabLabel}>{tab.label}</Text>}
-            {tab.id === 'LewaChat' && messageBadgeLabel && (
-              <View style={[styles.messageBadge, isActive && styles.messageBadgeActive]}>
-                <Text style={styles.messageBadgeText}>{messageBadgeLabel}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        );
-      })}
-    </View>
+      <View style={[styles.container, { bottom: bottomOffset }, isAndroid && styles.androidContainer]}>
+        {tabs.map((tab, index) => {
+          const isActive = state.index === index;
+          const iconColor = isActive ? colors.primary : 'rgba(255, 255, 255, 0.72)';
+          const ioniconName = tab.id === 'Home' ? tab.iconName : `${tab.iconName}-outline`;
+
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.tabButton, isActive && styles.tabButtonActive]}
+              onPress={() => navigation.navigate(tab.id)}
+              activeOpacity={0.7}
+            >
+              {tab.iconLibrary === 'material' ? (
+                <MaterialCommunityIcons
+                  name={tab.iconName}
+                  size={isActive ? 21 : 23}
+                  color={iconColor}
+                />
+              ) : (
+                <Ionicons
+                  name={ioniconName as any}
+                  size={isActive ? 21 : 23}
+                  color={iconColor}
+                />
+              )}
+              {isActive && <Text style={styles.tabLabel}>{tab.label}</Text>}
+              {tab.id === 'LewaChat' && messageBadgeLabel && (
+                <View style={[styles.messageBadge, isActive && styles.messageBadgeActive]}>
+                  <Text style={styles.messageBadgeText}>{messageBadgeLabel}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 15,
     left: 8,
     right: 8,
-    marginBottom: 10,
+    zIndex: 20,
     flexDirection: 'row',
     backgroundColor: colors.textPrimary,
     paddingVertical: 10,
@@ -96,6 +138,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 8,
+  },
+  androidSystemNavSurface: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    backgroundColor: colors.background,
+  },
+  androidContainer: {
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   tabButton: {
     width: 40,

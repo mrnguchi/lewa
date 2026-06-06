@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { NavigationContainer } from "@react-navigation/native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as ExpoSplashScreen from "expo-splash-screen";
 import * as Notifications from 'expo-notifications';
 import RootNavigator from "./src/navigation";
@@ -257,10 +258,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ToastProvider>
+    <SafeAreaProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ToastProvider>
+    </SafeAreaProvider>
   );
 }

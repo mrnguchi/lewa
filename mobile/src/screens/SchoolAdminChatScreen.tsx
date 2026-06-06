@@ -29,6 +29,7 @@ import {
 } from '@expo-google-fonts/poppins';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import BackIconButton from '../components/BackIconButton';
 import { colors } from '../theme/colors';
 import { useAppSync } from '../contexts/AppSyncContext';
 import { showErrorToast, showSuccessToast } from '../services/toast';
@@ -441,9 +442,7 @@ const SchoolAdminChatScreen: React.FC = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 6 : 0}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} activeOpacity={0.86} onPress={handleBack}>
-            <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-          </TouchableOpacity>
+          <BackIconButton style={styles.backButton} onPress={handleBack} />
 
           <View style={styles.profileBlock}>
             <View style={styles.avatarShell}>

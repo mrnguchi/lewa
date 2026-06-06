@@ -32,22 +32,7 @@ export default function ResourceViewerScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
-
-      <View style={styles.secondaryHeader}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-        <View style={styles.titleBlock}>
-          <Text style={styles.pageTitle} numberOfLines={1}>
-            {resource.title}
-          </Text>
-          <Text style={styles.pageSubtitle}>
-            {resource.code} • Level {resource.level}
-          </Text>
-        </View>
-      </View>
+      <AppHeader title={resource.title} onBackPress={() => navigation.goBack()} />
 
       <View style={styles.viewerShell}>
         {hasError ? (

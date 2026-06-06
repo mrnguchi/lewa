@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   TextInput,
   Animated,
+  Platform,
 } from 'react-native';
 import {
   useFonts,
@@ -60,6 +61,7 @@ const HOME_RESOURCE_LIMIT = 4;
 export default function HomeScreen() {
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const { user, isLoading: authLoading } = useAuth();
+  const isAndroid = Platform.OS === 'android';
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -265,35 +267,43 @@ export default function HomeScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, isAndroid && styles.androidScrollContent]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.searchSection}>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+        <View style={[styles.searchSection, isAndroid && styles.androidSearchSection]}>
+          <View style={[styles.searchContainer, isAndroid && styles.androidSearchContainer]}>
+            <Ionicons
+              name="search"
+              size={isAndroid ? 18 : 20}
+              color="#9CA3AF"
+              style={[styles.searchIcon, isAndroid && styles.androidSearchIcon]}
+            />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, isAndroid && styles.androidSearchInput]}
               placeholder="Search updates, calendar, resources..."
               placeholderTextColor="#9CA3AF"
             />
-            <TouchableOpacity style={styles.searchFilterButton} activeOpacity={0.82}>
+            <TouchableOpacity
+              style={[styles.searchFilterButton, isAndroid && styles.androidSearchFilterButton]}
+              activeOpacity={0.82}
+            >
               <Image
                 source={require('../../assets/filter-icon-new.png')}
-                style={styles.searchFilterIcon}
+                style={[styles.searchFilterIcon, isAndroid && styles.androidSearchFilterIcon]}
               />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.bodyContent}>
-          <View style={styles.profileCard}>
+          <View style={[styles.profileCard, isAndroid && styles.androidProfileCard]}>
             <ImageBackground
               source={require('../../assets/profile-card-bg.jpg')}
               style={styles.profileCardBackground}
               imageStyle={styles.profileCardImage}
               resizeMode="cover"
             >
-              <View style={styles.profileCardOverlay}>
+                <View style={[styles.profileCardOverlay, isAndroid && styles.androidProfileCardOverlay]}>
                 <View style={styles.profileTopSection}>
                   <View style={styles.schoolBrandRow}>
                     <View style={styles.schoolLogoContainer}>
@@ -361,61 +371,82 @@ export default function HomeScreen() {
             </ImageBackground>
           </View>
 
-          <View style={styles.ctaRow}>
-            <TouchableOpacity style={styles.ctaButton} onPress={handlePayFeesPress} activeOpacity={0.82}>
-              <View style={[styles.ctaIconBubble, styles.payFeesIconBubble]}>
+          <View style={[styles.ctaRow, isAndroid && styles.androidCtaRow]}>
+            <TouchableOpacity
+              style={[styles.ctaButton, isAndroid && styles.androidCtaButton]}
+              onPress={handlePayFeesPress}
+              activeOpacity={0.82}
+            >
+              <View
+                style={[
+                  styles.ctaIconBubble,
+                  styles.payFeesIconBubble,
+                  isAndroid && styles.androidCtaIconBubble,
+                ]}
+              >
                 <Image
                   source={require('../../assets/pay-fees.png')}
-                  style={[styles.ctaIcon, styles.payFeesIcon]}
+                  style={[styles.ctaIcon, styles.payFeesIcon, isAndroid && styles.androidCtaIcon]}
                 />
               </View>
-              <Text style={[styles.ctaText, styles.payFeesText]} numberOfLines={2}>Pay Fees</Text>
+              <Text
+                style={[styles.ctaText, styles.payFeesText, isAndroid && styles.androidCtaText]}
+                numberOfLines={2}
+              >
+                Pay Fees
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.ctaButton}
+              style={[styles.ctaButton, isAndroid && styles.androidCtaButton]}
               onPress={() => navigation.navigate('Receipts')}
               activeOpacity={0.82}
             >
-              <View style={styles.ctaIconBubble}>
+              <View style={[styles.ctaIconBubble, isAndroid && styles.androidCtaIconBubble]}>
                 <Image
                   source={require('../../assets/receipt-icon-new.png')}
-                  style={styles.ctaIcon}
+                  style={[styles.ctaIcon, isAndroid && styles.androidCtaIcon]}
                 />
               </View>
-              <Text style={styles.ctaText} numberOfLines={2}>My Receipts</Text>
+              <Text style={[styles.ctaText, isAndroid && styles.androidCtaText]} numberOfLines={2}>
+                My Receipts
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.ctaButton}
+              style={[styles.ctaButton, isAndroid && styles.androidCtaButton]}
               onPress={() => navigation.navigate('SupportDesk')}
               activeOpacity={0.82}
             >
-              <View style={styles.ctaIconBubble}>
+              <View style={[styles.ctaIconBubble, isAndroid && styles.androidCtaIconBubble]}>
                 <Image
                   source={require('../../assets/help-desk-new.png')}
-                  style={styles.ctaIcon}
+                  style={[styles.ctaIcon, isAndroid && styles.androidCtaIcon]}
                 />
               </View>
-              <Text style={styles.ctaText} numberOfLines={2}>Help Desk</Text>
+              <Text style={[styles.ctaText, isAndroid && styles.androidCtaText]} numberOfLines={2}>
+                Help Desk
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.ctaButton}
+              style={[styles.ctaButton, isAndroid && styles.androidCtaButton]}
               onPress={() => navigation.navigate('AddResource')}
               activeOpacity={0.82}
             >
-              <View style={styles.ctaIconBubble}>
+              <View style={[styles.ctaIconBubble, isAndroid && styles.androidCtaIconBubble]}>
                 <Image
                   source={require('../../assets/add-resource-icon-new.png')}
-                  style={styles.ctaIcon}
+                  style={[styles.ctaIcon, isAndroid && styles.androidCtaIcon]}
                 />
               </View>
-              <Text style={styles.ctaText} numberOfLines={2}>Add Resource</Text>
+              <Text style={[styles.ctaText, isAndroid && styles.androidCtaText]} numberOfLines={2}>
+                Add Resource
+              </Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, isAndroid && styles.androidSection]}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleContainer}>
                 <Text style={styles.sectionTitle}>Latest News</Text>
@@ -433,13 +464,16 @@ export default function HomeScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.newsSliderContent}
-              style={styles.newsSlider}
+              contentContainerStyle={[
+                styles.newsSliderContent,
+                isAndroid && styles.androidNewsSliderContent,
+              ]}
+              style={[styles.newsSlider, isAndroid && styles.androidNewsSlider]}
             >
               {latestNewsArticles.map((news) => (
                 <TouchableOpacity
                   key={news.id}
-                  style={styles.newsCard}
+                  style={[styles.newsCard, isAndroid && styles.androidNewsCard]}
                   activeOpacity={0.88}
                   onPress={() => handleOpenNews(news)}
                 >
@@ -481,13 +515,13 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
           ) : (
-            <View style={styles.newsStateContainer}>
+            <View style={[styles.newsStateContainer, isAndroid && styles.androidSoftSurface]}>
               <Text style={styles.newsStateText}>No news articles available right now.</Text>
             </View>
           )}
           </View>
 
-          <View style={styles.section}>
+          <View style={[styles.section, isAndroid && styles.androidSection]}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleContainer}>
                 <Text style={styles.sectionTitle}>Resources</Text>
@@ -498,7 +532,7 @@ export default function HomeScreen() {
             </View>
 
             {isResourcesLoading ? (
-              <View style={styles.resourceStateContainer}>
+              <View style={[styles.resourceStateContainer, isAndroid && styles.androidSoftSurface]}>
                 <ActivityIndicator color={colors.primary} />
               </View>
             ) : homeResources.length ? (
@@ -514,7 +548,7 @@ export default function HomeScreen() {
                 ))}
               </View>
             ) : (
-              <View style={styles.resourceStateContainer}>
+              <View style={[styles.resourceStateContainer, isAndroid && styles.androidSoftSurface]}>
                 <Text style={styles.newsStateText}>No resources available right now.</Text>
               </View>
             )}
@@ -531,7 +565,7 @@ export default function HomeScreen() {
             },
           ]}
         >
-          <View style={styles.toastContent}>
+          <View style={[styles.toastContent, isAndroid && styles.androidToastContent]}>
             <Ionicons name="alert-circle" size={20} color={colors.white} />
             <Text style={styles.toastText}>
               You haven't subscribed yet. Please subscribe to pay fees.
@@ -561,6 +595,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 118,
   },
+  androidScrollContent: {
+    paddingBottom: 140,
+  },
   bodyContent: {
     backgroundColor: colors.background,
     overflow: 'visible',
@@ -571,6 +608,11 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     backgroundColor: colors.background,
   },
+  androidSearchSection: {
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 14,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -580,14 +622,25 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     paddingVertical: 8,
   },
+  androidSearchContainer: {
+    paddingLeft: 14,
+    paddingRight: 6,
+    paddingVertical: 4,
+  },
   searchIcon: {
     marginRight: 8,
+  },
+  androidSearchIcon: {
+    marginRight: 7,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     fontFamily: 'Poppins_400Regular',
     color: colors.textPrimary,
+  },
+  androidSearchInput: {
+    fontSize: 13.5,
   },
   searchFilterButton: {
     width: 42,
@@ -598,11 +651,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: 8,
   },
+  androidSearchFilterButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    marginLeft: 6,
+  },
   searchFilterIcon: {
     width: 22,
     height: 22,
     resizeMode: 'contain',
     tintColor: colors.white,
+  },
+  androidSearchFilterIcon: {
+    width: 18,
+    height: 18,
   },
   profileCard: {
     marginHorizontal: 20,
@@ -614,6 +677,14 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 6,
     zIndex: 2,
+  },
+  androidProfileCard: {
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(229, 231, 235, 0.35)',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 1,
   },
   profileCardBackground: {
     borderRadius: 20,
@@ -628,6 +699,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 18,
     backgroundColor: 'rgba(31, 41, 51, 0.86)',
+  },
+  androidProfileCardOverlay: {
+    padding: 16,
   },
   profileTopSection: {
     flexDirection: 'row',
@@ -742,11 +816,18 @@ const styles = StyleSheet.create({
     marginTop: 18,
     gap: 10,
   },
+  androidCtaRow: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
   ctaButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+  },
+  androidCtaButton: {
+    gap: 6,
   },
   ctaIconBubble: {
     width: 58,
@@ -758,6 +839,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  androidCtaIconBubble: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
   payFeesIconBubble: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
@@ -766,6 +852,10 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     resizeMode: 'contain',
+  },
+  androidCtaIcon: {
+    width: 27,
+    height: 27,
   },
   payFeesIcon: {
     tintColor: colors.white,
@@ -777,12 +867,19 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     textAlign: 'center',
   },
+  androidCtaText: {
+    fontSize: 10.3,
+    lineHeight: 13,
+  },
   payFeesText: {
     color: colors.primary,
   },
   section: {
     marginTop: 24,
     paddingHorizontal: 20,
+  },
+  androidSection: {
+    paddingHorizontal: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -818,6 +915,10 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginBottom: 14,
   },
+  androidSoftSurface: {
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+  },
   newsStateContainer: {
     minHeight: 100,
     alignItems: 'center',
@@ -834,9 +935,16 @@ const styles = StyleSheet.create({
   newsSlider: {
     marginHorizontal: -20,
   },
+  androidNewsSlider: {
+    marginHorizontal: -16,
+  },
   newsSliderContent: {
     paddingHorizontal: 20,
     gap: 14,
+  },
+  androidNewsSliderContent: {
+    paddingHorizontal: 16,
+    gap: 12,
   },
   newsCard: {
     width: 168,
@@ -849,6 +957,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 5,
     elevation: 3,
+  },
+  androidNewsCard: {
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.025,
+    shadowRadius: 3,
+    elevation: 0,
   },
   newsImageWrap: {
     width: '100%',
@@ -954,6 +1069,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     gap: 12,
+  },
+  androidToastContent: {
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   toastText: {
     flex: 1,

@@ -11,6 +11,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
@@ -42,6 +43,7 @@ type FeeSelectionScreenNavigationProp = NativeStackNavigationProp<RootStackParam
 const FeeSelectionScreen: React.FC = () => {
   const navigation = useNavigation<FeeSelectionScreenNavigationProp>();
   const { user } = useAuth();
+  const isAndroid = Platform.OS === 'android';
   const hasCompletedFees = user?.fee_status === 'PAID';
   const hasPaidHalf = user?.fee_status === 'PARTIAL';
   const studentLevel = user?.level ?? 400;
@@ -86,143 +88,171 @@ const FeeSelectionScreen: React.FC = () => {
     <View style={styles.container}>
 
     {/* Fixed Top Header */}
-    <AppHeader />
+    <AppHeader title="Fee Selection" onBackPress={() => navigation.goBack()} />
 
     <ScrollView
       style={styles.scrollView}
+      contentContainerStyle={[styles.scrollContent, isAndroid && styles.androidScrollContent]}
       showsVerticalScrollIndicator={false}
     >
-        {/* Header */}
-        <View style={styles.header}>
-          {/* Back Button and Title */}
-          <View style={styles.titleSection}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={24} color="#1F2933" />
-              <Text style={styles.backText}>Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.pageTitle}>Fee Selection</Text>
-          </View>
-        </View>
-
         {/* Fee Cards */}
-        <View style={styles.cardsContainer}>
+        <View style={[styles.cardsContainer, isAndroid && styles.androidCardsContainer]}>
           {/* Complete Fee Payment Card */}
           <TouchableOpacity
-            style={[styles.feeCard, hasPaidHalf && styles.disabledFeeCard]}
+            style={[
+              styles.feeCard,
+              isAndroid && styles.androidFeeCard,
+              hasPaidHalf && styles.disabledFeeCard,
+            ]}
             activeOpacity={0.85}
             disabled={hasPaidHalf || hasCompletedFees}
             onPress={() => handleFeeSelection('full', FULL_FEE_AMOUNT)}
           >
-            <View style={styles.cardHeader}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="wallet" size={32} color={colors.primary} />
+            <View style={[styles.cardHeader, isAndroid && styles.androidCardHeader]}>
+              <View style={[styles.iconContainer, isAndroid && styles.androidIconContainer]}>
+                <Ionicons name="wallet" size={isAndroid ? 26 : 32} color={colors.primary} />
               </View>
               <View style={styles.cardTitleContainer}>
-                <Text style={styles.cardTitle}>Complete Fee Payment</Text>
-                <Text style={styles.cardYear}>{CURRENT_ACADEMIC_YEAR_LABEL}</Text>
+                <Text style={[styles.cardTitle, isAndroid && styles.androidCardTitle]}>
+                  Complete Fee Payment
+                </Text>
+                <Text style={[styles.cardYear, isAndroid && styles.androidCardYear]}>
+                  {CURRENT_ACADEMIC_YEAR_LABEL}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.cardBody}>
+            <View style={[styles.cardBody, isAndroid && styles.androidCardBody]}>
               <View style={styles.amountSection}>
-                <Text style={styles.amountLabel}>Amount</Text>
-                <Text style={styles.amountValue}>{FULL_FEE_AMOUNT} <Text style={styles.currency}>XAF</Text></Text>
+                <Text style={[styles.amountLabel, isAndroid && styles.androidMetaLabel]}>
+                  Amount
+                </Text>
+                <Text style={[styles.amountValue, isAndroid && styles.androidAmountValue]}>
+                  {FULL_FEE_AMOUNT} <Text style={[styles.currency, isAndroid && styles.androidCurrency]}>XAF</Text>
+                </Text>
               </View>
 
               <View style={styles.studentLvSection}>
-                <Text style={styles.studentLvLabel}>Student Lv</Text>
-                <View style={styles.studentLvValue}>
-                  <Ionicons name="person" size={16} color={colors.gold} />
-                  <Text style={styles.studentLvText}>{studentLevel}</Text>
+                <Text style={[styles.studentLvLabel, isAndroid && styles.androidMetaLabel]}>
+                  Student Lv
+                </Text>
+                <View style={[styles.studentLvValue, isAndroid && styles.androidStudentLvValue]}>
+                  <Ionicons name="person" size={isAndroid ? 14 : 16} color={colors.gold} />
+                  <Text style={[styles.studentLvText, isAndroid && styles.androidStudentLvText]}>
+                    {studentLevel}
+                  </Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.cardFooter}>
+            <View style={[styles.cardFooter, isAndroid && styles.androidCardFooter]}>
               <View style={styles.paymentSection}>
-                <Text style={styles.payableLabel}>Payable with</Text>
+                <Text style={[styles.payableLabel, isAndroid && styles.androidMetaLabel]}>
+                  Payable with
+                </Text>
                 <View style={styles.paymentOptions}>
-                  <View style={styles.paymentChip}>
-                    <Text style={styles.paymentChipText}>Orange</Text>
+                  <View style={[styles.paymentChip, isAndroid && styles.androidPaymentChip]}>
+                    <Text style={[styles.paymentChipText, isAndroid && styles.androidPaymentChipText]}>Orange</Text>
                   </View>
-                  <View style={styles.paymentChip}>
-                    <Text style={styles.paymentChipText}>MTN</Text>
+                  <View style={[styles.paymentChip, isAndroid && styles.androidPaymentChip]}>
+                    <Text style={[styles.paymentChipText, isAndroid && styles.androidPaymentChipText]}>MTN</Text>
                   </View>
-                  <View style={styles.paymentChip}>
-                    <Text style={styles.paymentChipText}>Bank</Text>
+                  <View style={[styles.paymentChip, isAndroid && styles.androidPaymentChip]}>
+                    <Text style={[styles.paymentChipText, isAndroid && styles.androidPaymentChipText]}>Bank</Text>
                   </View>
                 </View>
               </View>
               <TouchableOpacity
-                style={[styles.arrowButton, hasPaidHalf && styles.arrowButtonDisabled]}
+                style={[
+                  styles.arrowButton,
+                  isAndroid && styles.androidArrowButton,
+                  hasPaidHalf && styles.arrowButtonDisabled,
+                ]}
                 onPress={() => handleFeeSelection('full', FULL_FEE_AMOUNT)}
                 disabled={hasPaidHalf || hasCompletedFees}
               >
-                <Ionicons name="arrow-forward" size={24} color={colors.white} />
+                <Ionicons name="arrow-forward" size={isAndroid ? 20 : 24} color={colors.white} />
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
 
           {/* Half Fee Payment Card */}
           <TouchableOpacity
-            style={[styles.feeCard, styles.feeCardWhite]}
+            style={[
+              styles.feeCard,
+              styles.feeCardWhite,
+              isAndroid && styles.androidFeeCard,
+              isAndroid && styles.androidFeeCardWhite,
+            ]}
             activeOpacity={0.85}
             disabled={hasCompletedFees}
             onPress={() => handleFeeSelection('half', HALF_FEE_AMOUNT)}
           >
-            <View style={styles.cardHeader}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="card" size={32} color={colors.primary} />
+            <View style={[styles.cardHeader, isAndroid && styles.androidCardHeader]}>
+              <View style={[styles.iconContainer, isAndroid && styles.androidIconContainer]}>
+                <Ionicons name="card" size={isAndroid ? 26 : 32} color={colors.primary} />
               </View>
               <View style={styles.cardTitleContainer}>
-                <Text style={styles.cardTitleDark}>Half Fee Payment</Text>
-                <Text style={styles.cardYearDark}>{CURRENT_ACADEMIC_YEAR_LABEL}</Text>
+                <Text style={[styles.cardTitleDark, isAndroid && styles.androidCardTitle]}>
+                  Half Fee Payment
+                </Text>
+                <Text style={[styles.cardYearDark, isAndroid && styles.androidCardYear]}>
+                  {CURRENT_ACADEMIC_YEAR_LABEL}
+                </Text>
               </View>
             </View>
 
-            <View style={styles.cardBody}>
+            <View style={[styles.cardBody, isAndroid && styles.androidCardBody]}>
               <View style={styles.amountSection}>
-                <Text style={styles.amountLabelDark}>Amount</Text>
-                <Text style={styles.amountValue}>{HALF_FEE_AMOUNT} <Text style={styles.currencyDark}>XAF</Text></Text>
+                <Text style={[styles.amountLabelDark, isAndroid && styles.androidMetaLabel]}>Amount</Text>
+                <Text style={[styles.amountValue, isAndroid && styles.androidAmountValue]}>
+                  {HALF_FEE_AMOUNT} <Text style={[styles.currencyDark, isAndroid && styles.androidCurrency]}>XAF</Text>
+                </Text>
               </View>
 
               <View style={styles.studentLvSection}>
-                <Text style={styles.studentLvLabelDark}>Student Lv</Text>
-                <View style={styles.studentLvValue}>
-                  <Ionicons name="person" size={16} color={colors.gold} />
-                  <Text style={styles.studentLvText}>{studentLevel}</Text>
+                <Text style={[styles.studentLvLabelDark, isAndroid && styles.androidMetaLabel]}>
+                  Student Lv
+                </Text>
+                <View style={[styles.studentLvValue, isAndroid && styles.androidStudentLvValue]}>
+                  <Ionicons name="person" size={isAndroid ? 14 : 16} color={colors.gold} />
+                  <Text style={[styles.studentLvText, isAndroid && styles.androidStudentLvText]}>
+                    {studentLevel}
+                  </Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.cardFooter}>
+            <View style={[styles.cardFooter, isAndroid && styles.androidCardFooter]}>
               <View style={styles.paymentSection}>
-                <Text style={styles.payableLabelDark}>Payable with</Text>
+                <Text style={[styles.payableLabelDark, isAndroid && styles.androidMetaLabel]}>
+                  Payable with
+                </Text>
                 <View style={styles.paymentOptions}>
-                  <View style={styles.paymentChip}>
-                    <Text style={styles.paymentChipText}>Orange</Text>
+                  <View style={[styles.paymentChip, isAndroid && styles.androidPaymentChip]}>
+                    <Text style={[styles.paymentChipText, isAndroid && styles.androidPaymentChipText]}>Orange</Text>
                   </View>
-                  <View style={styles.paymentChip}>
-                    <Text style={styles.paymentChipText}>MTN</Text>
+                  <View style={[styles.paymentChip, isAndroid && styles.androidPaymentChip]}>
+                    <Text style={[styles.paymentChipText, isAndroid && styles.androidPaymentChipText]}>MTN</Text>
                   </View>
-                  <View style={styles.paymentChip}>
-                    <Text style={styles.paymentChipText}>Bank</Text>
+                  <View style={[styles.paymentChip, isAndroid && styles.androidPaymentChip]}>
+                    <Text style={[styles.paymentChipText, isAndroid && styles.androidPaymentChipText]}>Bank</Text>
                   </View>
                 </View>
               </View>
               <TouchableOpacity
-                style={styles.arrowButton}
+                style={[styles.arrowButton, isAndroid && styles.androidArrowButton]}
                 onPress={() => handleFeeSelection('half', HALF_FEE_AMOUNT)}
                 disabled={hasCompletedFees}
               >
-                <Ionicons name="arrow-forward" size={24} color={colors.white} />
+                <Ionicons name="arrow-forward" size={isAndroid ? 20 : 24} color={colors.white} />
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </View>
 
         {/* Bottom padding */}
-        <View style={{ height: 40 }} />
+        <View style={[styles.bottomSpacer, isAndroid && styles.androidBottomSpacer]} />
       </ScrollView>
 
       
@@ -237,6 +267,14 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
+  androidScrollContent: {
+    justifyContent: 'center',
+    paddingBottom: 18,
   },
   header: {
     paddingHorizontal: 20,
@@ -312,10 +350,25 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 20,
   },
+  androidCardsContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 0,
+    gap: 14,
+  },
+  bottomSpacer: {
+    height: 40,
+  },
+  androidBottomSpacer: {
+    height: 0,
+  },
   feeCard: {
     backgroundColor: colors.textPrimary,
     borderRadius: 16,
     padding: 20,
+  },
+  androidFeeCard: {
+    borderRadius: 14,
+    padding: 16,
   },
   disabledFeeCard: {
     opacity: 0.45,
@@ -328,11 +381,22 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 3,
   },
+  androidFeeCardWhite: {
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 0,
+  },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginBottom: 20,
+  },
+  androidCardHeader: {
+    gap: 10,
+    marginBottom: 15,
   },
   iconContainer: {
     width: 56,
@@ -341,6 +405,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  androidIconContainer: {
+    width: 46,
+    height: 46,
+    borderRadius: 11,
   },
   cardTitleContainer: {
     flex: 1,
@@ -351,15 +420,27 @@ const styles = StyleSheet.create({
     color: colors.white,
     marginBottom: 2,
   },
+  androidCardTitle: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
   cardYear: {
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
     color: colors.white,
   },
+  androidCardYear: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
   cardBody: {
     flexDirection: 'row',
     gap: 20,
     marginBottom: 20,
+  },
+  androidCardBody: {
+    gap: 14,
+    marginBottom: 15,
   },
   amountSection: {
     flex: 1,
@@ -370,15 +451,26 @@ const styles = StyleSheet.create({
     color: colors.white,
     marginBottom: 4,
   },
+  androidMetaLabel: {
+    fontSize: 10.5,
+    marginBottom: 3,
+  },
   amountValue: {
     fontSize: 24,
     fontFamily: 'Poppins_700Bold',
     color: colors.primary,
   },
+  androidAmountValue: {
+    fontSize: 21,
+    lineHeight: 27,
+  },
   currency: {
     fontSize: 16,
     fontFamily: 'Poppins_500Medium',
     color: colors.white,
+  },
+  androidCurrency: {
+    fontSize: 13,
   },
   studentLvSection: {
     alignItems: 'flex-end',
@@ -398,16 +490,28 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
+  androidStudentLvValue: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 7,
+  },
   studentLvText: {
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
+  },
+  androidStudentLvText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  androidCardFooter: {
+    gap: 10,
   },
   paymentSection: {
     flex: 1,
@@ -432,10 +536,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
+  androidPaymentChip: {
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+  },
   paymentChipText: {
     fontSize: 12,
     fontFamily: 'Poppins_500Medium',
     color: colors.textBody,
+  },
+  androidPaymentChipText: {
+    fontSize: 10.5,
   },
   arrowButton: {
     width: 50,
@@ -444,6 +555,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  androidArrowButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
   },
   arrowButtonDisabled: {
     backgroundColor: '#9CA3AF',

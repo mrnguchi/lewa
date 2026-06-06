@@ -16,19 +16,22 @@ import {
   NativeSyntheticEvent,
   Image,
   BackHandler,
+  Platform,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../hooks/useAuth';
 import { showErrorToast, showSuccessToast } from '../services/toast';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = SCREEN_WIDTH - 80;
-const CARD_SPACING = 20;
+const IS_ANDROID = Platform.OS === 'android';
+const CARD_WIDTH = SCREEN_WIDTH - (IS_ANDROID ? 64 : 80);
+const CARD_SPACING = IS_ANDROID ? 14 : 20;
 
 interface PaymentMethod {
   id: string;
@@ -102,6 +105,9 @@ const PaymentMethodScreen: React.FC = () => {
   const route = useRoute<PaymentMethodScreenRouteProp>();
   const { paymentType, feeInstallment, amount } = route.params;
   const { user } = useAuth();
+  const isAndroid = IS_ANDROID;
+  const insets = useSafeAreaInsets();
+  const androidBottomPadding = Math.max(insets.bottom + 18, 32);
 
   const [selectedMethod, setSelectedMethod] = useState<string>('mtn');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -193,101 +199,107 @@ const PaymentMethodScreen: React.FC = () => {
     <View style={styles.container}>
 
     {/* Fixed Top Header */}
-    <AppHeader />
+    <AppHeader title="Payment method" onBackPress={handleBack} />
 
     {/* <ScrollView
       style={styles.scrollView}
       showsVerticalScrollIndicator={false}
     > */}
-        {/* Header */}
-        <View style={styles.header}>
-
-          {/* Back Button and Title */}
-          <View style={styles.titleSection}>
-            <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-              <Ionicons name="arrow-back" size={24} color="#1F2933" />
-              <Text style={styles.backText}>Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.pageTitle}>Payment method</Text>
-          </View>
-        </View>
-
+      <View style={[styles.contentShell, isAndroid && styles.androidContentShell]}>
         {/* Payment Method Cards Carousel */}
-        <View style={styles.carouselContainer}>
-          <ScrollView
-            ref={scrollViewRef}
-            horizontal
-            pagingEnabled={false}
-            showsHorizontalScrollIndicator={false}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            snapToInterval={CARD_WIDTH + CARD_SPACING}
-            decelerationRate="fast"
-            contentContainerStyle={styles.carouselContent}
-          >
-            {paymentMethods.map((method, index) => (
-              <TouchableOpacity
-                key={method.id}
-                style={[
-                  styles.paymentCard,
-                  index === 0 && { marginLeft: 40 },
-                  index === paymentMethods.length - 1 && { marginRight: 40 },
-                ]}
-                onPress={() => setSelectedMethod(method.id)}
-                activeOpacity={0.9}
-              >
-                {/* Radio Button */}
+        <View style={[styles.carouselStage, isAndroid && styles.androidCarouselStage]}>
+          <View style={[styles.carouselContainer, isAndroid && styles.androidCarouselContainer]}>
+            <Text style={[styles.selectHint, isAndroid && styles.androidSelectHint]}>
+              Swipe to select your preferred payment method
+            </Text>
+
+            <ScrollView
+              ref={scrollViewRef}
+              horizontal
+              pagingEnabled={false}
+              showsHorizontalScrollIndicator={false}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              snapToInterval={CARD_WIDTH + CARD_SPACING}
+              decelerationRate="fast"
+              contentContainerStyle={[styles.carouselContent, isAndroid && styles.androidCarouselContent]}
+            >
+              {paymentMethods.map((method, index) => (
                 <TouchableOpacity
-                  style={styles.radioButton}
+                  key={method.id}
+                  style={[
+                    styles.paymentCard,
+                    isAndroid && styles.androidPaymentCard,
+                    index === 0 && { marginLeft: isAndroid ? 32 : 40 },
+                    index === paymentMethods.length - 1 && { marginRight: isAndroid ? 32 : 40 },
+                  ]}
                   onPress={() => setSelectedMethod(method.id)}
+                  activeOpacity={0.9}
                 >
-                  <View style={[
-                    styles.radioOuter,
-                    selectedMethod === method.id && styles.radioOuterSelected
-                  ]}>
-                    {selectedMethod === method.id && (
-                      <View style={styles.radioInner} />
-                    )}
+                  {/* Radio Button */}
+                  <TouchableOpacity
+                    style={[styles.radioButton, isAndroid && styles.androidRadioButton]}
+                    onPress={() => setSelectedMethod(method.id)}
+                  >
+                    <View style={[
+                      styles.radioOuter,
+                      isAndroid && styles.androidRadioOuter,
+                      selectedMethod === method.id && styles.radioOuterSelected
+                    ]}>
+                      {selectedMethod === method.id && (
+                        <View style={[styles.radioInner, isAndroid && styles.androidRadioInner]} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Logo */}
+                  <View style={[styles.logoContainer, isAndroid && styles.androidLogoContainer]}>
+                    <Image source={method.logo} style={[styles.logo, isAndroid && styles.androidLogo]} />
                   </View>
+
+                  {/* Payment Method Name */}
+                  <Text style={[styles.methodName, isAndroid && styles.androidMethodName]}>
+                    {method.displayName}
+                  </Text>
+
+                  {/* Payment Type */}
+                  <Text style={[styles.feeDetails, isAndroid && styles.androidFeeDetails]}>
+                    {paymentTypeText}
+                  </Text>
+
+                  {/* Amount */}
+                  <Text style={[styles.totalAmount, isAndroid && styles.androidTotalAmount]}>
+                    {amount.toLocaleString()} <Text style={[styles.currency, isAndroid && styles.androidCurrency]}>XAF</Text>
+                  </Text>
                 </TouchableOpacity>
+              ))}
+            </ScrollView>
 
-                {/* Logo */}
-                <View style={styles.logoContainer}>
-                  <Image source={method.logo} style={styles.logo} />
-                </View>
-
-                {/* Payment Method Name */}
-                <Text style={styles.methodName}>{method.displayName}</Text>
-
-                {/* Payment Type */}
-                <Text style={styles.feeDetails}>
-                  {paymentTypeText}
-                </Text>
-
-                {/* Amount */}
-                <Text style={styles.totalAmount}>
-                  {amount.toLocaleString()} <Text style={styles.currency}>XAF</Text>
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Carousel Indicators */}
-          <View style={styles.indicatorContainer}>
-            {paymentMethods.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.indicator,
-                  currentIndex === index && styles.indicatorActive,
-                ]}
-              />
-            ))}
+            {/* Carousel Indicators */}
+            <View style={[styles.indicatorContainer, isAndroid && styles.androidIndicatorContainer]}>
+              {paymentMethods.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.indicator,
+                    isAndroid && styles.androidIndicator,
+                    currentIndex === index && styles.indicatorActive,
+                    isAndroid && currentIndex === index && styles.androidIndicatorActive,
+                  ]}
+                />
+              ))}
+            </View>
           </View>
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.actionButtons}>
+        <View
+          style={[
+            styles.actionButtons,
+            isAndroid && styles.androidActionButtons,
+            isAndroid && { paddingBottom: androidBottomPadding },
+          ]}
+        >
           {/* <TouchableOpacity
             style={styles.cancelButton}
             onPress={handleCancel}
@@ -302,17 +314,20 @@ const PaymentMethodScreen: React.FC = () => {
 
 
           <TouchableOpacity
-            style={styles.nextButton}
+            style={[styles.nextButton, isAndroid && styles.androidNextButton]}
             onPress={handleNext}
           >
-            <Text style={styles.nextButtonText}>Next</Text>
+            <Text style={[styles.nextButtonText, isAndroid && styles.androidNextButtonText]}>
+              Next
+            </Text>
           </TouchableOpacity>
 
           
         </View>
 
         {/* Bottom padding */}
-        <View style={{ height: 120 }} />
+        <View style={[styles.bottomSpacer, isAndroid && styles.androidBottomSpacer]} />
+      </View>
       {/* </ScrollView> */}
 
     </View>
@@ -326,6 +341,27 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  contentShell: {
+    flex: 1,
+  },
+  androidContentShell: {
+    justifyContent: 'space-between',
+  },
+  selectHint: {
+    paddingHorizontal: 32,
+    marginBottom: 8,
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: 'Poppins_400Regular',
+    color: colors.textBody,
+    textAlign: 'center',
+  },
+  androidSelectHint: {
+    paddingHorizontal: 28,
+    marginBottom: 6,
+    fontSize: 11.5,
+    lineHeight: 17,
   },
   header: {
     paddingHorizontal: 20,
@@ -398,11 +434,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   carouselContainer: {
-    marginTop: 60,
+    marginTop: 48,
     marginBottom: 20,
   },
+  carouselStage: {
+    width: '100%',
+  },
+  // I only center the stage on Android so the carousel keeps its real size.
+  androidCarouselStage: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  androidCarouselContainer: {
+    marginTop: 0,
+    marginBottom: 0,
+  },
   carouselContent: {
-    paddingVertical: 40,
+    paddingTop: 12,
+    paddingBottom: 40,
+  },
+  androidCarouselContent: {
+    paddingTop: 10,
+    paddingBottom: 22,
   },
   paymentCard: {
     width: CARD_WIDTH,
@@ -417,11 +470,24 @@ const styles = StyleSheet.create({
     elevation: 3,
     position: 'relative',
   },
+  androidPaymentCard: {
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 0,
+  },
   radioButton: {
     position: 'absolute',
     top: 20,
     right: 20,
     zIndex: 10,
+  },
+  androidRadioButton: {
+    top: 16,
+    right: 16,
   },
   radioOuter: {
     width: 24,
@@ -433,6 +499,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  androidRadioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
   radioOuterSelected: {
     borderColor: colors.primary,
   },
@@ -441,6 +512,11 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: colors.primary,
+  },
+  androidRadioInner: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
   },
   logoContainer: {
     width: 100,
@@ -453,10 +529,20 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     overflow: 'hidden',
   },
+  androidLogoContainer: {
+    width: 78,
+    height: 78,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
   logo: {
     width: 100,
     height: 100,
     resizeMode: 'contain',
+  },
+  androidLogo: {
+    width: 78,
+    height: 78,
   },
   methodName: {
     fontSize: 24,
@@ -464,21 +550,38 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: 8,
   },
+  androidMethodName: {
+    fontSize: 19,
+    lineHeight: 25,
+    marginBottom: 6,
+  },
   feeDetails: {
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     marginBottom: 12,
   },
+  androidFeeDetails: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 9,
+  },
   totalAmount: {
     fontSize: 25,
     fontFamily: 'Poppins_700SemiBold',
     color: colors.primary,
   },
+  androidTotalAmount: {
+    fontSize: 22,
+    lineHeight: 28,
+  },
   currency: {
     fontSize: 18,
     fontFamily: 'Poppins_500Medium',
     color: colors.textBody,
+  },
+  androidCurrency: {
+    fontSize: 14,
   },
   indicatorContainer: {
     flexDirection: 'row',
@@ -487,15 +590,27 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 20,
   },
+  androidIndicatorContainer: {
+    marginTop: 10,
+    gap: 6,
+  },
   indicator: {
     width: 24,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#D1D5DB',
   },
+  androidIndicator: {
+    width: 18,
+    height: 5,
+    borderRadius: 3,
+  },
   indicatorActive: {
     width: 40,
     backgroundColor: colors.primary,
+  },
+  androidIndicatorActive: {
+    width: 32,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -506,6 +621,11 @@ const styles = StyleSheet.create({
     gap: 16,
     bottom: 0,
   },
+  androidActionButtons: {
+    paddingTop: 0,
+    paddingHorizontal: 32,
+    paddingBottom: 28,
+  },
   nextButton: {
     flex: 1,
     backgroundColor: colors.primary,
@@ -514,10 +634,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  androidNextButton: {
+    paddingVertical: 13,
+    borderRadius: 24,
+  },
   nextButtonText: {
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.white,
+  },
+  androidNextButtonText: {
+    fontSize: 14,
   },
   cancelButton: {
     flex: 1,
@@ -534,6 +661,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.primary,
+  },
+  bottomSpacer: {
+    height: 120,
+  },
+  androidBottomSpacer: {
+    height: 0,
   },
 });
 

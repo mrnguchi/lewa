@@ -18,7 +18,10 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts, Poppins_400Regular, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 
 interface WelcomeScreenProps {
@@ -27,6 +30,16 @@ interface WelcomeScreenProps {
 }
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onRegister, onLogin }) => {
+  const { width, height } = useWindowDimensions();
+  const isAndroid = Platform.OS === 'android';
+  const isCompactHeight = height < 760;
+  // I keep Android spacing separate so the hero and buttons do not feel oversized.
+  const androidImageHeight = Math.min(
+    height * (isCompactHeight ? 0.38 : 0.42),
+    isCompactHeight ? 320 : 365
+  );
+  const androidTaglineWidth = Math.min(width - 28, 470);
+
   // Load Poppins fonts
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -36,45 +49,79 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onRegister, onLogin }) =>
   // Show loading indicator while fonts are loading
   if (!fontsLoaded) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
+      <SafeAreaView style={[styles.container, styles.loadingContainer]} edges={['top', 'bottom']}>
         <ActivityIndicator size="large" color="#FFFFFF" />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView
+      style={[
+        styles.container,
+        isAndroid && styles.androidContainer,
+      ]}
+      edges={['top', 'bottom']}
+    >
       {/* Welcome heading */}
-      <Text style={styles.welcomeText}>WELCOME !</Text>
+      <Text style={[styles.welcomeText, isAndroid && styles.androidWelcomeText]}>
+        WELCOME !
+      </Text>
 
       {/* Welcome illustration */}
-      <View style={styles.imageContainer}>
+      <View
+        style={[
+          styles.imageContainer,
+          isAndroid && styles.androidImageContainer,
+          isAndroid && {
+            height: androidImageHeight,
+            maxHeight: androidImageHeight,
+            marginBottom: isCompactHeight ? 28 : 36,
+          },
+        ]}
+      >
         <Image
           source={require('../../assets/welcome_screen.png')}
           style={styles.image}
           resizeMode="contain"
         />
         {/* Tagline text */}
-      <Text style={styles.tagline}>
-        Pay your fees easily and securely. No queues,{'\n'}No paper receipts
-      </Text>
+        <Text
+          style={[
+            styles.tagline,
+            isAndroid && styles.androidTagline,
+            isAndroid && { width: androidTaglineWidth },
+          ]}
+        >
+          Pay your fees easily and securely. No queues,{'\n'}No paper receipts
+        </Text>
       </View>
 
       
 
       {/* Action buttons container */}
-      <View style={styles.buttonsContainer}>
+      <View style={[styles.buttonsContainer, isAndroid && styles.androidButtonsContainer]}>
         {/* Register button */}
-        <TouchableOpacity style={styles.registerButton} onPress={onRegister}>
-          <Text style={styles.registerButtonText}>Register</Text>
+        <TouchableOpacity
+          style={[styles.registerButton, isAndroid && styles.androidButton]}
+          onPress={onRegister}
+        >
+          <Text style={[styles.registerButtonText, isAndroid && styles.androidButtonText]}>
+            Register
+          </Text>
         </TouchableOpacity>
 
         {/* Login button  */}
-        <TouchableOpacity style={styles.loginButton} onPress={onLogin}>
-          <Text style={styles.loginButtonText}>Login</Text>
+        <TouchableOpacity
+          style={[styles.loginButton, isAndroid && styles.androidButton]}
+          onPress={onLogin}
+        >
+          <Text style={[styles.loginButtonText, isAndroid && styles.androidButtonText]}>
+            Login
+          </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -89,6 +136,11 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     paddingHorizontal: 24,
   },
+  androidContainer: {
+    paddingTop: 50,
+    paddingBottom: 30,
+    paddingHorizontal: 32,
+  },
   // Loading state container
   loadingContainer: {
     justifyContent: 'center',
@@ -102,6 +154,12 @@ const styles = StyleSheet.create({
     marginBottom: -50,
     paddingTop: 55,
   },
+  androidWelcomeText: {
+    fontSize: 28,
+    letterSpacing: 3.2,
+    marginBottom: 0,
+    paddingTop: 0,
+  },
   // Container for the welcome illustration
   imageContainer: {
     flex: 1,
@@ -110,6 +168,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxHeight: 400,
     marginBottom: 50,
+  },
+  androidImageContainer: {
+    flex: 0,
   },
   // Welcome illustration image
   image: {
@@ -126,10 +187,18 @@ const styles = StyleSheet.create({
     //marginBottom: 4,
     marginTop: -60,
   },
+  androidTagline: {
+    fontSize: 13.5,
+    lineHeight: 21,
+    marginTop: -20,
+  },
   // Container for both buttons
   buttonsContainer: {
     width: '100%',
     gap: 16,
+  },
+  androidButtonsContainer: {
+    gap: 14,
   },
   // Register button - white background
   registerButton: {
@@ -139,11 +208,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
+  androidButton: {
+    height: 50,
+    paddingVertical: 0,
+    borderRadius: 25,
+    justifyContent: 'center',
+  },
   // Register button text - green color
   registerButtonText: {
     fontSize: 20,
     fontFamily: 'Poppins_600SemiBold',
     color: '#167846',
+  },
+  androidButtonText: {
+    fontSize: 18,
   },
   // Login button - outlined with white border
   loginButton: {

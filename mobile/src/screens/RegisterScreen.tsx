@@ -17,7 +17,9 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
@@ -140,6 +142,9 @@ interface RegisterScreenProps {
 }
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegisterSuccess }) => {
+  const { height } = useWindowDimensions();
+  const isAndroid = Platform.OS === 'android';
+  const isCompactHeight = height < 760;
   // Get auth context
   const { login } = useAuth();
 
@@ -332,9 +337,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
   // Show loading indicator while fonts load
   if (!fontsLoaded) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
+      <SafeAreaView style={[styles.container, styles.loadingContainer]} edges={['top', 'bottom']}>
         <ActivityIndicator size="large" color="#167846" />
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -352,35 +357,50 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
       />
 
       {/* Green header section with logo */}
-      <View style={styles.header}>
+      <View style={[styles.header, isAndroid && styles.androidHeader]}>
         <Image
           source={require('../../assets/splash-icon.png')}
-          style={styles.logo}
+          style={[
+            styles.logo,
+            isAndroid && (isCompactHeight ? styles.androidCompactLogo : styles.androidLogo),
+          ]}
           resizeMode="contain"
         />
       </View>
 
       {/* White content section */}
-      <View style={styles.contentContainer}>
+      <View style={[styles.contentContainer, isAndroid && styles.androidContentContainer]}>
         <ScrollView
           style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isAndroid && styles.androidScrollContent,
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* "Get Started" heading */}
-          <Text style={styles.heading}>Get Started</Text>
+          <Text style={[styles.heading, isAndroid && styles.androidHeading]}>
+            Get Started
+          </Text>
 
           {/* Error message display */}
           {errorMessage ? (
-            <Text style={styles.errorMessage}>{errorMessage}</Text>
+            <Text style={[styles.errorMessage, isAndroid && styles.androidErrorMessage]}>
+              {errorMessage}
+            </Text>
           ) : null}
 
 
           {/* Full Name Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Full Name</Text>
+          <View style={[styles.inputContainer, isAndroid && styles.androidInputContainer]}>
+            <Text style={[styles.label, isAndroid && styles.androidLabel]}>Full Name</Text>
             <TextInput
-              style={[styles.input, fieldErrors.has('fullName') && styles.inputError]}
+              style={[
+                styles.input,
+                isAndroid && styles.androidInput,
+                fieldErrors.has('fullName') && styles.inputError,
+              ]}
               placeholder="Enter Full Name"
               placeholderTextColor="#999"
               value={fullName}
@@ -397,34 +417,35 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
           </View>
 
           {/* Faculty Dropdown */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Faculty or School</Text>
+          <View style={[styles.inputContainer, isAndroid && styles.androidInputContainer]}>
+            <Text style={[styles.label, isAndroid && styles.androidLabel]}>Faculty or School</Text>
             <TouchableOpacity
               style={[
                 styles.input,
                 styles.dropdownInput,
+                isAndroid && styles.androidInput,
                 fieldErrors.has('faculty') && styles.inputError,
               ]}
               onPress={() => setShowFacultyDropdown(!showFacultyDropdown)}
             >
-              <Text style={[styles.inputText, !faculty && styles.placeholderText]}>
+              <Text style={[styles.inputText, isAndroid && styles.androidInputText, !faculty && styles.placeholderText]}>
                 {faculty || 'Select Faculty'}
               </Text>
               <Ionicons
                 name={showFacultyDropdown ? 'chevron-up' : 'chevron-down'}
-                size={20}
+                size={isAndroid ? 18 : 20}
                 color="#999"
               />
             </TouchableOpacity>
 
             {/* Dropdown menu */}
             {showFacultyDropdown && (
-              <View style={styles.dropdownMenu}>
+              <View style={[styles.dropdownMenu, isAndroid && styles.androidDropdownMenu]}>
                 <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
                   {FACULTIES.map((fac, index) => (
                     <TouchableOpacity
                       key={index}
-                      style={styles.dropdownItem}
+                      style={[styles.dropdownItem, isAndroid && styles.androidDropdownItem]}
                       onPress={() => {
                         setFaculty(fac);
                         setDepartment(''); // Reset department when faculty changes
@@ -437,7 +458,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
                         });
                       }}
                     >
-                      <Text style={styles.dropdownItemText}>{fac}</Text>
+                      <Text style={[styles.dropdownItemText, isAndroid && styles.androidDropdownItemText]}>
+                        {fac}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -446,12 +469,13 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
           </View>
 
           {/* Department Dropdown */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Department</Text>
+          <View style={[styles.inputContainer, isAndroid && styles.androidInputContainer]}>
+            <Text style={[styles.label, isAndroid && styles.androidLabel]}>Department</Text>
             <TouchableOpacity
               style={[
                 styles.input,
                 styles.dropdownInput,
+                isAndroid && styles.androidInput,
                 fieldErrors.has('department') && styles.inputError,
                 !faculty && styles.inputDisabled, // Disable if no faculty selected
               ]}
@@ -462,24 +486,24 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
               }}
               disabled={!faculty}
             >
-              <Text style={[styles.inputText, !department && styles.placeholderText]}>
+              <Text style={[styles.inputText, isAndroid && styles.androidInputText, !department && styles.placeholderText]}>
                 {department || (faculty ? 'Select Department' : 'Select Faculty First')}
               </Text>
               <Ionicons
                 name={showDepartmentDropdown ? 'chevron-up' : 'chevron-down'}
-                size={20}
+                size={isAndroid ? 18 : 20}
                 color={faculty ? "#999" : "#ccc"}
               />
             </TouchableOpacity>
 
             {/* Dropdown menu */}
             {showDepartmentDropdown && faculty && (
-              <View style={styles.dropdownMenu}>
+              <View style={[styles.dropdownMenu, isAndroid && styles.androidDropdownMenu]}>
                 <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
                   {FACULTY_DEPARTMENTS[faculty]?.map((dept, index) => (
                     <TouchableOpacity
                       key={index}
-                      style={styles.dropdownItem}
+                      style={[styles.dropdownItem, isAndroid && styles.androidDropdownItem]}
                       onPress={() => {
                         setDepartment(dept);
                         setShowDepartmentDropdown(false);
@@ -490,7 +514,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
                         });
                       }}
                     >
-                      <Text style={styles.dropdownItemText}>{dept}</Text>
+                      <Text style={[styles.dropdownItemText, isAndroid && styles.androidDropdownItemText]}>
+                        {dept}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -499,34 +525,35 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
           </View>
 
           {/* Level Dropdown */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Level</Text>
+          <View style={[styles.inputContainer, isAndroid && styles.androidInputContainer]}>
+            <Text style={[styles.label, isAndroid && styles.androidLabel]}>Level</Text>
             <TouchableOpacity
               style={[
                 styles.input,
                 styles.dropdownInput,
+                isAndroid && styles.androidInput,
                 fieldErrors.has('level') && styles.inputError,
               ]}
               onPress={() => setShowLevelDropdown(!showLevelDropdown)}
             >
-              <Text style={[styles.inputText, !level && styles.placeholderText]}>
+              <Text style={[styles.inputText, isAndroid && styles.androidInputText, !level && styles.placeholderText]}>
                 {level ? `Level ${level}` : 'Select Level'}
               </Text>
               <Ionicons
                 name={showLevelDropdown ? 'chevron-up' : 'chevron-down'}
-                size={20}
+                size={isAndroid ? 18 : 20}
                 color="#999"
               />
             </TouchableOpacity>
 
             {/* Dropdown menu */}
             {showLevelDropdown && (
-              <View style={styles.dropdownMenu}>
+              <View style={[styles.dropdownMenu, isAndroid && styles.androidDropdownMenu]}>
                 <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
                   {LEVELS.map((lvl, index) => (
                     <TouchableOpacity
                       key={index}
-                      style={styles.dropdownItem}
+                      style={[styles.dropdownItem, isAndroid && styles.androidDropdownItem]}
                       onPress={() => {
                         setLevel(lvl);
                         setShowLevelDropdown(false);
@@ -537,7 +564,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
                         });
                       }}
                     >
-                      <Text style={styles.dropdownItemText}>Level {lvl}</Text>
+                      <Text style={[styles.dropdownItemText, isAndroid && styles.androidDropdownItemText]}>
+                        Level {lvl}
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
@@ -546,10 +575,14 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
           </View>
 
           {/* Matricule Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Matricule</Text>
+          <View style={[styles.inputContainer, isAndroid && styles.androidInputContainer]}>
+            <Text style={[styles.label, isAndroid && styles.androidLabel]}>Matricule</Text>
             <TextInput
-              style={[styles.input, fieldErrors.has('matricule') && styles.inputError]}
+              style={[
+                styles.input,
+                isAndroid && styles.androidInput,
+                fieldErrors.has('matricule') && styles.inputError,
+              ]}
               placeholder="Enter Matricule"
               placeholderTextColor="#999"
               value={matricule}
@@ -566,12 +599,21 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
           </View>
 
           {/* Phone Number Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Phone number</Text>
-            <View style={[styles.input, styles.phoneInputContainer, fieldErrors.has('phoneNumber') && styles.inputError]}>
-              <Text style={styles.countryCode}>+237</Text>
+          <View style={[styles.inputContainer, isAndroid && styles.androidInputContainer]}>
+            <Text style={[styles.label, isAndroid && styles.androidLabel]}>Phone number</Text>
+            <View
+              style={[
+                styles.input,
+                styles.phoneInputContainer,
+                isAndroid && styles.androidInput,
+                fieldErrors.has('phoneNumber') && styles.inputError,
+              ]}
+            >
+              <Text style={[styles.countryCode, isAndroid && styles.androidCountryCode]}>
+                +237
+              </Text>
               <TextInput
-                style={styles.phoneInput}
+                style={[styles.phoneInput, isAndroid && styles.androidPhoneInput]}
                 placeholder="Enter Phone number"
                 placeholderTextColor="#999"
                 value={phoneNumber}
@@ -593,11 +635,18 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
 
 
           {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <View style={[styles.input, styles.passwordInputContainer, fieldErrors.has('password') && styles.inputError]}>
+          <View style={[styles.inputContainer, isAndroid && styles.androidInputContainer]}>
+            <Text style={[styles.label, isAndroid && styles.androidLabel]}>Password</Text>
+            <View
+              style={[
+                styles.input,
+                styles.passwordInputContainer,
+                isAndroid && styles.androidInput,
+                fieldErrors.has('password') && styles.inputError,
+              ]}
+            >
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, isAndroid && styles.androidPasswordInput]}
                 placeholder="Enter password"
                 placeholderTextColor="#999"
                 value={password}
@@ -614,7 +663,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={22}
+                  size={isAndroid ? 20 : 22}
                   color="#999"
                 />
               </TouchableOpacity>
@@ -622,11 +671,18 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
           </View>
 
           {/* Confirm Password Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm Password</Text>
-            <View style={[styles.input, styles.passwordInputContainer, fieldErrors.has('confirmPassword') && styles.inputError]}>
+          <View style={[styles.inputContainer, isAndroid && styles.androidInputContainer]}>
+            <Text style={[styles.label, isAndroid && styles.androidLabel]}>Confirm Password</Text>
+            <View
+              style={[
+                styles.input,
+                styles.passwordInputContainer,
+                isAndroid && styles.androidInput,
+                fieldErrors.has('confirmPassword') && styles.inputError,
+              ]}
+            >
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, isAndroid && styles.androidPasswordInput]}
                 placeholder="Confirm password"
                 placeholderTextColor="#999"
                 value={confirmPassword}
@@ -643,7 +699,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
               <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
                 <Ionicons
                   name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={22}
+                  size={isAndroid ? 20 : 22}
                   color="#999"
                 />
               </TouchableOpacity>
@@ -652,22 +708,28 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
 
           {/* Sign Up Button */}
           <TouchableOpacity
-            style={styles.signUpButton}
+            style={[styles.signUpButton, isAndroid && styles.androidSignUpButton]}
             onPress={handleSignUp}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.signUpButtonText}>Sign up</Text>
+              <Text style={[styles.signUpButtonText, isAndroid && styles.androidSignUpButtonText]}>
+                Sign up
+              </Text>
             )}
           </TouchableOpacity>
 
           {/* Login Link */}
           <View style={styles.loginLinkContainer}>
-            <Text style={styles.loginLinkText}>Already have an account ? </Text>
+            <Text style={[styles.loginLinkText, isAndroid && styles.androidLoginLinkText]}>
+              Already have an account ?{' '}
+            </Text>
             <TouchableOpacity onPress={onLoginPress}>
-              <Text style={styles.loginLink}>Login</Text>
+              <Text style={[styles.loginLink, isAndroid && styles.androidLoginLinkText]}>
+                Login
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -696,6 +758,19 @@ const styles = StyleSheet.create({
     width: 140,
     height: 120,
   },
+  // I keep the Android signup form compact so the long form stays easy to scan.
+  androidHeader: {
+    paddingTop: 40,
+    paddingBottom: 22,
+  },
+  androidLogo: {
+    width: 118,
+    height: 102,
+  },
+  androidCompactLogo: {
+    width: 104,
+    height: 92,
+  },
   contentContainer: {
     flex: 1,
     backgroundColor: colors.background,
@@ -705,8 +780,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     marginTop:20,
   },
+  androidContentContainer: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 24,
+    paddingHorizontal: 28,
+    marginTop: 0,
+  },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  androidScrollContent: {
+    paddingBottom: 34,
   },
   heading: {
     fontSize: 28,
@@ -715,6 +803,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
   },
+  androidHeading: {
+    fontSize: 25,
+    marginBottom: 8,
+  },
   errorMessage: {
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
@@ -722,15 +814,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 15,
   },
+  androidErrorMessage: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
   inputContainer: {
     marginBottom: 20,
     position: 'relative',
+  },
+  androidInputContainer: {
+    marginBottom: 14,
   },
   label: {
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: '#167846',
     marginBottom: 8,
+  },
+  androidLabel: {
+    fontSize: 13,
+    marginBottom: 7,
   },
   input: {
     backgroundColor: '#FFFFFF',
@@ -742,6 +846,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_400Regular',
     color: '#333',
+  },
+  androidInput: {
+    height: 48,
+    borderWidth: 0.6,
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 0,
+    fontSize: 14,
   },
   inputError: {
     borderColor: '#FF0000',
@@ -760,6 +872,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_400Regular',
     color: '#333',
+  },
+  androidInputText: {
+    flex: 1,
+    fontSize: 14,
   },
   placeholderText: {
     color: '#999',
@@ -784,6 +900,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  androidDropdownMenu: {
+    top: 72,
+    borderWidth: 0.6,
+    borderRadius: 12,
+    maxHeight: 220,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   dropdownScroll: {
     maxHeight: 200,
   },
@@ -793,10 +918,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
+  androidDropdownItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
   dropdownItemText: {
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
     color: '#333',
+  },
+  androidDropdownItemText: {
+    fontSize: 13,
   },
   phoneInputContainer: {
     flexDirection: 'row',
@@ -808,11 +940,18 @@ const styles = StyleSheet.create({
     color: '#167846',
     marginRight: 10,
   },
+  androidCountryCode: {
+    fontSize: 14,
+    marginRight: 8,
+  },
   phoneInput: {
     flex: 1,
     fontSize: 16,
     fontFamily: 'Poppins_400Regular',
     color: '#333',
+  },
+  androidPhoneInput: {
+    fontSize: 14,
   },
   passwordInputContainer: {
     flexDirection: 'row',
@@ -824,6 +963,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: '#333',
   },
+  androidPasswordInput: {
+    fontSize: 14,
+  },
   signUpButton: {
     backgroundColor: '#167846',
     paddingVertical: 16,
@@ -832,10 +974,21 @@ const styles = StyleSheet.create({
     marginTop: 35,
     marginBottom: 20,
   },
+  androidSignUpButton: {
+    height: 50,
+    paddingVertical: 0,
+    borderRadius: 25,
+    justifyContent: 'center',
+    marginTop: 24,
+    marginBottom: 18,
+  },
   signUpButtonText: {
     fontSize: 20,
     fontFamily: 'Poppins_600SemiBold',
     color: '#FFFFFF',
+  },
+  androidSignUpButtonText: {
+    fontSize: 18,
   },
   loginLinkContainer: {
     flexDirection: 'row',
@@ -852,6 +1005,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: '#167846',
+  },
+  androidLoginLinkText: {
+    fontSize: 14,
   },
 });
 

@@ -137,18 +137,7 @@ const ReceiptsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* Header Top Section */}
-        <AppHeader />
-
-      <View style={styles.header}>
-        {/* Back Button and Title */}
-        <View style={styles.titleSection}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#1F2933" />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.pageTitle}>My receipts</Text>
-        </View>
-      </View>
+      <AppHeader title="My receipts" onBackPress={() => navigation.goBack()} />
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}

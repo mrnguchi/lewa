@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
@@ -21,6 +22,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { showErrorToast } from '../services/toast';
+import BackIconButton from '../components/BackIconButton';
 
 type RootStackParamList = {
   MainTabs: { screen: string };
@@ -35,6 +37,7 @@ const PaymentSuccessfulScreen: React.FC = () => {
   const route = useRoute<PaymentSuccessfulScreenRouteProp>();
   const { reference } = route.params;
   const { refreshUserData } = useAuth();
+  const isAndroid = Platform.OS === 'android';
 
   const [isLoading, setIsLoading] = useState(true);
   const [receiptData, setReceiptData] = useState<any>(null);
@@ -80,10 +83,10 @@ const PaymentSuccessfulScreen: React.FC = () => {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}>
-            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
+          <BackIconButton
+            style={styles.backButton}
+            onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+          />
         </View>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }}>
           <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 18, color: colors.textPrimary, textAlign: 'center' }}>
@@ -133,104 +136,134 @@ const PaymentSuccessfulScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* Header with Back Button */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackHome}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-          <Text style={styles.backText}>Back home</Text>
-        </TouchableOpacity>
+      <View style={[styles.header, isAndroid && styles.androidHeader]}>
+        <BackIconButton
+          style={[styles.backButton, isAndroid && styles.androidBackButton]}
+          onPress={handleBackHome}
+        />
 
       </View>
 
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, isAndroid && styles.androidScrollContent]}
       >
         {/* Success Icon */}
-        <View style={styles.successIconContainer}>
-          <View style={styles.successIconCircle}>
-            <Ionicons name="checkmark" size={60} color={colors.white} />
+        <View style={[styles.successIconContainer, isAndroid && styles.androidSuccessIconContainer]}>
+          <View style={[styles.successIconCircle, isAndroid && styles.androidSuccessIconCircle]}>
+            <Ionicons name="checkmark" size={isAndroid ? 48 : 60} color={colors.white} />
           </View>
         </View>
 
         {/* Title */}
-        <Text style={styles.title}>Payment successful</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, isAndroid && styles.androidTitle]}>
+          Payment successful
+        </Text>
+        <Text style={[styles.subtitle, isAndroid && styles.androidSubtitle]}>
           {isSubscription ? 'Your subscription is now active' : 'Your fee status will be updated'}
         </Text>
 
         {/* Fee Type Card */}
-        <View style={styles.feeCard}>
-          <View style={styles.paymentIconContainer}>
-            <Ionicons name={isSubscription ? "calendar-outline" : "card-outline"} size={32} color={colors.primary} />
+        <View style={[styles.feeCard, isAndroid && styles.androidFeeCard]}>
+          <View style={[styles.paymentIconContainer, isAndroid && styles.androidPaymentIconContainer]}>
+            <Ionicons
+              name={isSubscription ? "calendar-outline" : "card-outline"}
+              size={isAndroid ? 26 : 32}
+              color={colors.primary}
+            />
           </View>
           <View style={styles.feeInfo}>
-            <Text style={styles.feeTypeText}>{feeType}</Text>
-            {!isSubscription && <Text style={styles.feeStatus}>{feeInstallment}</Text>}
-            {!isSubscription && <Text style={styles.academicYear}>{academicYear}</Text>}
-            {isSubscription && <Text style={styles.feeStatus}>1 Year Access</Text>}
+            <Text style={[styles.feeTypeText, isAndroid && styles.androidFeeTypeText]}>{feeType}</Text>
+            {!isSubscription && (
+              <Text style={[styles.feeStatus, isAndroid && styles.androidFeeStatus]}>
+                {feeInstallment}
+              </Text>
+            )}
+            {!isSubscription && (
+              <Text style={[styles.academicYear, isAndroid && styles.androidAcademicYear]}>
+                {academicYear}
+              </Text>
+            )}
+            {isSubscription && (
+              <Text style={[styles.feeStatus, isAndroid && styles.androidFeeStatus]}>
+                1 Year Access
+              </Text>
+            )}
           </View>
         </View>
 
         {/* Payment Summary */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Payment summary</Text>
+        <View style={[styles.summaryCard, isAndroid && styles.androidSummaryCard]}>
+          <Text style={[styles.summaryTitle, isAndroid && styles.androidSummaryTitle]}>
+            Payment summary
+          </Text>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Name</Text>
-            <Text style={styles.summaryValue}>{studentName}</Text>
+            <Text style={[styles.summaryLabel, isAndroid && styles.androidSummaryLabel]}>Name</Text>
+            <Text style={[styles.summaryValue, isAndroid && styles.androidSummaryValue]}>{studentName}</Text>
           </View>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Matricule</Text>
-            <Text style={styles.summaryValue}>{matricule}</Text>
+            <Text style={[styles.summaryLabel, isAndroid && styles.androidSummaryLabel]}>Matricule</Text>
+            <Text style={[styles.summaryValue, isAndroid && styles.androidSummaryValue]}>{matricule}</Text>
           </View>
 
           {/* Show faculty and level only for fee payments */}
           {!isSubscription && (
             <>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Faculty</Text>
-                <Text style={styles.summaryValue}>{faculty}</Text>
+                <Text style={[styles.summaryLabel, isAndroid && styles.androidSummaryLabel]}>Faculty</Text>
+                <Text style={[styles.summaryValue, isAndroid && styles.androidSummaryValue]}>{faculty}</Text>
               </View>
 
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Level</Text>
-                <Text style={styles.summaryValue}>{level}</Text>
+                <Text style={[styles.summaryLabel, isAndroid && styles.androidSummaryLabel]}>Level</Text>
+                <Text style={[styles.summaryValue, isAndroid && styles.androidSummaryValue]}>{level}</Text>
               </View>
             </>
           )}
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Payment method</Text>
-            <Text style={styles.summaryValue}>{paymentMethod}</Text>
+            <Text style={[styles.summaryLabel, isAndroid && styles.androidSummaryLabel]}>Payment method</Text>
+            <Text style={[styles.summaryValue, isAndroid && styles.androidSummaryValue]}>{paymentMethod}</Text>
           </View>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Phone number</Text>
-            <Text style={styles.summaryValue}>{phoneNumber}</Text>
+            <Text style={[styles.summaryLabel, isAndroid && styles.androidSummaryLabel]}>Phone number</Text>
+            <Text style={[styles.summaryValue, isAndroid && styles.androidSummaryValue]}>{phoneNumber}</Text>
           </View>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Amount</Text>
-            <Text style={styles.summaryValue}>{amountPaid.toLocaleString()} XAF</Text>
+            <Text style={[styles.summaryLabel, isAndroid && styles.androidSummaryLabel]}>Amount</Text>
+            <Text style={[styles.summaryValue, isAndroid && styles.androidSummaryValue]}>{amountPaid.toLocaleString()} XAF</Text>
           </View>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Reference</Text>
-            <Text style={styles.summaryValue}>{reference}</Text>
+            <Text style={[styles.summaryLabel, isAndroid && styles.androidSummaryLabel]}>Reference</Text>
+            <Text style={[styles.summaryValue, isAndroid && styles.androidSummaryValue]}>{reference}</Text>
           </View>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Date</Text>
-            <Text style={styles.summaryValue}>{dateOfPayment}</Text>
+            <Text style={[styles.summaryLabel, isAndroid && styles.androidSummaryLabel]}>Date</Text>
+            <Text style={[styles.summaryValue, isAndroid && styles.androidSummaryValue]}>{dateOfPayment}</Text>
           </View>
         </View>
 
         {/* Download Receipt Button */}
-        <TouchableOpacity style={styles.downloadButton} onPress={() => console.log('Download receipt')}>
-          <Ionicons name="download-outline" size={20} color={colors.white} style={{ marginRight: 8 }} />
-          <Text style={styles.downloadButtonText}>Download receipt</Text>
+        <TouchableOpacity
+          style={[styles.downloadButton, isAndroid && styles.androidDownloadButton]}
+          onPress={() => console.log('Download receipt')}
+        >
+          <Ionicons
+            name="download-outline"
+            size={isAndroid ? 18 : 20}
+            color={colors.white}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.downloadButtonText, isAndroid && styles.androidDownloadButtonText]}>
+            Download receipt
+          </Text>
         </TouchableOpacity>
 
         {/* Bottom padding */}
@@ -254,6 +287,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     
   },
+  androidHeader: {
+    paddingTop: 52,
+    paddingBottom: 4,
+  },
   backButton: {
     justifyContent: 'flex-start',
     width: 44,
@@ -264,6 +301,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 4,
 
+  },
+  androidBackButton: {
+    width: 38,
+    height: 38,
+    paddingHorizontal: 0,
+    flex: 0,
+    gap: 0,
   },
   backText: {
     fontSize: 16,
@@ -280,8 +324,15 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     alignItems: 'center',
   },
+  androidScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+  },
   successIconContainer: {
     marginBottom: 32,
+  },
+  androidSuccessIconContainer: {
+    marginBottom: 22,
   },
   successIconCircle: {
     width: 90,
@@ -296,6 +347,14 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
   },
+  androidSuccessIconCircle: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    shadowOpacity: 0.12,
+    shadowRadius: 7,
+    elevation: 2,
+  },
   title: {
     fontSize: 28,
     fontFamily: 'Poppins_700Bold',
@@ -303,12 +362,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
+  androidTitle: {
+    fontSize: 23,
+    lineHeight: 30,
+  },
   subtitle: {
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     textAlign: 'center',
     marginBottom: 32,
+  },
+  androidSubtitle: {
+    fontSize: 12.5,
+    lineHeight: 19,
+    marginBottom: 24,
   },
   feeCard: {
     width: '100%',
@@ -326,6 +394,11 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: colors.border1,
   },
+  androidFeeCard: {
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 18,
+  },
   paymentIconContainer: {
     width: 64,
     height: 64,
@@ -334,6 +407,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+  },
+  androidPaymentIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 11,
+    marginRight: 13,
   },
   paymentIcon: {
     width: '100%',
@@ -356,16 +435,27 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: 4,
   },
+  androidFeeTypeText: {
+    fontSize: 14,
+    lineHeight: 19,
+  },
   feeStatus: {
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: colors.textPrimary,
     marginBottom: 2,
   },
+  androidFeeStatus: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
   academicYear: {
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
+  },
+  androidAcademicYear: {
+    fontSize: 11,
   },
   summaryCard: {
     width: '100%',
@@ -379,11 +469,25 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  androidSummaryCard: {
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 0,
+  },
   summaryTitle: {
     fontSize: 18,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
     marginBottom: 20,
+  },
+  androidSummaryTitle: {
+    fontSize: 16,
+    marginBottom: 16,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -397,12 +501,19 @@ const styles = StyleSheet.create({
     color: colors.textBody,
     flex: 1,
   },
+  androidSummaryLabel: {
+    fontSize: 12,
+  },
   summaryValue: {
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: colors.textPrimary,
     textAlign: 'right',
     flex: 1,
+  },
+  androidSummaryValue: {
+    fontSize: 12,
+    lineHeight: 17,
   },
   downloadButton: {
     width: '80%',
@@ -418,6 +529,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  androidDownloadButton: {
+    width: '82%',
+    paddingVertical: 14,
+    borderRadius: 24,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 1,
+  },
   downloadIcon: {
     width: 20,
     height: 20,
@@ -428,6 +547,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.white,
+  },
+  androidDownloadButtonText: {
+    fontSize: 13,
   },
 });
 

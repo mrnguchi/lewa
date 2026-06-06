@@ -220,20 +220,13 @@ export default function AddNewsScreen() {
         onHide={() => setToastVisible(false)}
       />
 
-      <AppHeader />
+      <AppHeader title="Add News" onBackPress={() => navigation.goBack()} />
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.secondaryHeader}>
-          <View style={styles.secondaryHeaderRow}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-              <Text style={styles.backText}>Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.pageTitle}>Add News</Text>
-          </View>
           <Text style={styles.pageSubtitle}>
             Create a polished update with the right story details, category, and poster preview.
           </Text>

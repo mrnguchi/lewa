@@ -17,7 +17,9 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold } from '@expo-google-fonts/poppins';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../services/api';
@@ -42,6 +44,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   initialPassword = '',
   onFormChange
 }) => {
+  const { height } = useWindowDimensions();
+  const isAndroid = Platform.OS === 'android';
+  const isCompactHeight = height < 760;
   // Get auth context
   const { login } = useAuth();
 
@@ -191,9 +196,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   // Show loading indicator while fonts load
   if (!fontsLoaded) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
+      <SafeAreaView style={[styles.container, styles.loadingContainer]} edges={['top', 'bottom']}>
         <ActivityIndicator size="large" color="#167846" />
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -211,23 +216,32 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
       />
 
       {/* Green header section with logo */}
-      <View style={styles.header}>
+      <View style={[styles.header, isAndroid && styles.androidHeader]}>
         <Image
           source={require('../../assets/splash-icon.png')}
-          style={styles.logo}
+          style={[
+            styles.logo,
+            isAndroid && (isCompactHeight ? styles.androidCompactLogo : styles.androidLogo),
+          ]}
           resizeMode="contain"
         />
       </View>
 
       {/* White content section */}
-      <View style={styles.contentContainer}>
+      <View style={[styles.contentContainer, isAndroid && styles.androidContentContainer]}>
         <ScrollView
           style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isAndroid && styles.androidScrollContent,
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* "Welcome back" heading */}
-          <Text style={styles.heading}>Welcome back</Text>
+          <Text style={[styles.heading, isAndroid && styles.androidHeading]}>
+            Welcome back
+          </Text>
 
           {/* Error message display */}
           {/* {errorMessage ? (
@@ -235,10 +249,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
           ) : null} */}
 
           {/* Matricule Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Matricule</Text>
+          <View style={[styles.inputContainer, isAndroid && styles.androidInputContainer]}>
+            <Text style={[styles.label, isAndroid && styles.androidLabel]}>Matricule</Text>
             <TextInput
-              style={[styles.input, fieldErrors.has('matricule') && styles.inputError]}
+              style={[
+                styles.input,
+                isAndroid && styles.androidInput,
+                fieldErrors.has('matricule') && styles.inputError,
+              ]}
               placeholder="Enter Matricule"
               placeholderTextColor="#999"
               value={matricule}
@@ -249,11 +267,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
 
 
           {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
-            <View style={[styles.input, styles.passwordInputContainer, fieldErrors.has('password') && styles.inputError]}>
+          <View style={[styles.inputContainer, isAndroid && styles.androidInputContainer]}>
+            <Text style={[styles.label, isAndroid && styles.androidLabel]}>Password</Text>
+            <View
+              style={[
+                styles.input,
+                styles.passwordInputContainer,
+                isAndroid && styles.androidInput,
+                fieldErrors.has('password') && styles.inputError,
+              ]}
+            >
               <TextInput
-                style={styles.passwordInput}
+                style={[styles.passwordInput, isAndroid && styles.androidPasswordInput]}
                 placeholder="Enter password"
                 placeholderTextColor="#999"
                 value={password}
@@ -271,33 +296,41 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
           </View>
 
           {/* Forgot Password Link */}
-          <View style={styles.forgotPasswordContainer}>
+          <View style={[styles.forgotPasswordContainer, isAndroid && styles.androidForgotPasswordContainer]}>
             <TouchableOpacity
               onPress={onForgotPassword}
               style={styles.forgotPasswordLink}
             >
-              <Text style={styles.forgotPasswordText}>Forgot password ?</Text>
+              <Text style={[styles.forgotPasswordText, isAndroid && styles.androidSmallText]}>
+                Forgot password ?
+              </Text>
             </TouchableOpacity>
           </View>
 
           {/* Login Button */}
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[styles.loginButton, isAndroid && styles.androidLoginButton]}
             onPress={handleLogin}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.loginButtonText}>Login</Text>
+              <Text style={[styles.loginButtonText, isAndroid && styles.androidLoginButtonText]}>
+                Login
+              </Text>
             )}
           </TouchableOpacity>
 
           {/* Register Link */}
           <View style={styles.registerLinkContainer}>
-            <Text style={styles.registerLinkText}>Don't have an account yet ? </Text>
+            <Text style={[styles.registerLinkText, isAndroid && styles.androidRegisterText]}>
+              Don't have an account yet ?{' '}
+            </Text>
             <TouchableOpacity onPress={onRegisterPress}>
-              <Text style={styles.registerLink}>Register</Text>
+              <Text style={[styles.registerLink, isAndroid && styles.androidRegisterText]}>
+                Register
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -325,6 +358,19 @@ const styles = StyleSheet.create({
     width: 150,
     height: 160,
   },
+  // I tune Android login spacing to match the iOS proportions without the oversized logo.
+  androidHeader: {
+    paddingTop: 42,
+    paddingBottom: 24,
+  },
+  androidLogo: {
+    width: 128,
+    height: 128,
+  },
+  androidCompactLogo: {
+    width: 112,
+    height: 112,
+  },
   contentContainer: {
     flex: 1,
     backgroundColor: colors.background,
@@ -333,8 +379,20 @@ const styles = StyleSheet.create({
     paddingTop: 30,
     paddingHorizontal: 24,
   },
+  androidContentContainer: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 26,
+    paddingHorizontal: 28,
+  },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  androidScrollContent: {
+    paddingBottom: 34,
   },
   heading: {
     fontSize: 28,
@@ -342,6 +400,10 @@ const styles = StyleSheet.create({
     color: '#167846',
     textAlign: 'center',
     marginBottom: 10,
+  },
+  androidHeading: {
+    fontSize: 25,
+    marginBottom: 8,
   },
   errorMessage: {
     fontSize: 14,
@@ -354,11 +416,19 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 10,
   },
+  androidInputContainer: {
+    marginTop: 8,
+    marginBottom: 18,
+  },
   label: {
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: '#167846',
     marginBottom: 8,
+  },
+  androidLabel: {
+    fontSize: 13,
+    marginBottom: 7,
   },
   input: {
     backgroundColor: '#FFFFFF',
@@ -370,6 +440,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_400Regular',
     color: '#333',
+  },
+  androidInput: {
+    height: 48,
+    borderWidth: 0.6,
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 0,
+    fontSize: 14,
   },
   inputError: {
     borderColor: '#FF0000',
@@ -385,9 +463,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: '#333',
   },
+  androidPasswordInput: {
+    fontSize: 14,
+  },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
     marginBottom: 30,
+  },
+  androidForgotPasswordContainer: {
+    marginBottom: 26,
   },
   forgotPasswordLink: {
     alignSelf: 'flex-end',
@@ -397,6 +481,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: '#167846',
   },
+  androidSmallText: {
+    fontSize: 13,
+  },
   loginButton: {
     backgroundColor: '#167846',
     paddingVertical: 16,
@@ -404,10 +491,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  androidLoginButton: {
+    height: 56,
+    paddingVertical: 0,
+    borderRadius: 28,
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
   loginButtonText: {
     fontSize: 20,
     fontFamily: 'Poppins_600SemiBold',
     color: '#FFFFFF',
+  },
+  androidLoginButtonText: {
+    fontSize: 18,
   },
   registerLinkContainer: {
     flexDirection: 'row',
@@ -424,6 +521,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: '#167846',
+  },
+  androidRegisterText: {
+    fontSize: 14,
   },
 });
 

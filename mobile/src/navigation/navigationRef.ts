@@ -11,6 +11,7 @@ export type RootStackParamList = {
         notificationType?: 'payment_success' | 'payment_failed';
       }
     | undefined;
+  PaymentProcessing: { reference: string };
   NewsDetails:
     | {
         news: NewsArticle;

@@ -15,6 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AppHeader from '../components/AppHeader';
 import CustomToast from '../components/CustomToast';
@@ -54,6 +55,9 @@ const RESOURCE_LEVELS = [100, 200, 300, 400, 500];
  */
 export default function AddResourceScreen() {
   const navigation = useNavigation<AddResourceScreenNavigationProp>();
+  const insets = useSafeAreaInsets();
+  const isAndroid = Platform.OS === 'android';
+  const androidBottomPadding = Math.max(insets.bottom + 22, 34);
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
   const [faculty, setFaculty] = useState('');
@@ -142,62 +146,62 @@ export default function AddResourceScreen() {
         onHide={() => setToastVisible(false)}
       />
 
-      <AppHeader />
+      <AppHeader title="Add Resource" onBackPress={() => navigation.goBack()} />
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
       >
-        <View style={styles.secondaryHeader}>
-          <View style={styles.secondaryHeaderRow}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
-              <Text style={styles.backText}>Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.pageTitle}>Add Resource</Text>
-          </View>
-          <Text style={styles.pageSubtitle}>
+        <View style={[styles.secondaryHeader, isAndroid && styles.androidSecondaryHeader]}>
+          <Text style={[styles.pageSubtitle, isAndroid && styles.androidPageSubtitle]}>
             Upload a polished PDF resource with the exact details the resource library expects.
           </Text>
         </View>
 
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isAndroid && styles.androidScrollContent,
+            isAndroid && { paddingBottom: androidBottomPadding },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.formCard}>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Course Code</Text>
+          <View style={[styles.formCard, isAndroid && styles.androidFormCard]}>
+            <View style={[styles.fieldGroup, isAndroid && styles.androidFieldGroup]}>
+              <Text style={[styles.label, isAndroid && styles.androidLabel]}>Course Code</Text>
               <TextInput
                 value={code}
                 onChangeText={setCode}
                 placeholder="CO321"
                 placeholderTextColor="#9CA3AF"
-                style={styles.input}
+                style={[styles.input, isAndroid && styles.androidInput]}
                 autoCapitalize="characters"
               />
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Title</Text>
+            <View style={[styles.fieldGroup, isAndroid && styles.androidFieldGroup]}>
+              <Text style={[styles.label, isAndroid && styles.androidLabel]}>Title</Text>
               <TextInput
                 value={title}
                 onChangeText={setTitle}
                 placeholder="Programming with UML"
                 placeholderTextColor="#9CA3AF"
-                style={styles.input}
+                style={[styles.input, isAndroid && styles.androidInput]}
               />
             </View>
 
-            <View style={styles.row}>
-              <View style={[styles.fieldGroup, styles.rowField]}>
-                <Text style={styles.label}>Type</Text>
-                <View style={styles.darkPickerShell}>
+            <View style={[styles.row, isAndroid && styles.androidRow]}>
+              <View style={[styles.fieldGroup, styles.rowField, isAndroid && styles.androidFieldGroup]}>
+                <Text style={[styles.label, isAndroid && styles.androidLabel]}>Type</Text>
+                <View style={[styles.darkPickerShell, isAndroid && styles.androidDarkPickerShell]}>
                   <Picker
                     selectedValue={type}
                     onValueChange={(value) => setType(value as ResourceType)}
-                    style={styles.darkPicker}
+                    style={[styles.darkPicker, isAndroid && styles.androidPicker]}
                     dropdownIconColor={colors.white}
                   >
                     <Picker.Item label="Handout" value="handout" color={colors.white} />
@@ -206,13 +210,13 @@ export default function AddResourceScreen() {
                 </View>
               </View>
 
-              <View style={[styles.fieldGroup, styles.rowField]}>
-                <Text style={styles.label}>Level</Text>
-                <View style={styles.darkPickerShell}>
+              <View style={[styles.fieldGroup, styles.rowField, isAndroid && styles.androidFieldGroup]}>
+                <Text style={[styles.label, isAndroid && styles.androidLabel]}>Level</Text>
+                <View style={[styles.darkPickerShell, isAndroid && styles.androidDarkPickerShell]}>
                   <Picker
                     selectedValue={level}
                     onValueChange={(value) => setLevel(Number(value))}
-                    style={styles.darkPicker}
+                    style={[styles.darkPicker, isAndroid && styles.androidPicker]}
                     dropdownIconColor={colors.white}
                   >
                     {RESOURCE_LEVELS.map((levelValue) => (
@@ -228,13 +232,13 @@ export default function AddResourceScreen() {
               </View>
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Faculty</Text>
-              <View style={styles.pickerShell}>
+            <View style={[styles.fieldGroup, isAndroid && styles.androidFieldGroup]}>
+              <Text style={[styles.label, isAndroid && styles.androidLabel]}>Faculty</Text>
+              <View style={[styles.pickerShell, isAndroid && styles.androidPickerShell]}>
                 <Picker
                   selectedValue={faculty}
                   onValueChange={(value) => setFaculty(String(value))}
-                  style={styles.picker}
+                  style={[styles.picker, isAndroid && styles.androidPicker]}
                   dropdownIconColor={colors.textPrimary}
                 >
                   <Picker.Item label="Select Faculty" value="" color="#9CA3AF" />
@@ -250,30 +254,33 @@ export default function AddResourceScreen() {
               </View>
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Description</Text>
+            <View style={[styles.fieldGroup, isAndroid && styles.androidFieldGroup]}>
+              <Text style={[styles.label, isAndroid && styles.androidLabel]}>Description</Text>
               <TextInput
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Add a short note about what this PDF covers."
                 placeholderTextColor="#9CA3AF"
-                style={[styles.input, styles.textArea]}
+                style={[styles.input, styles.textArea, isAndroid && styles.androidInput, isAndroid && styles.androidTextArea]}
                 multiline
                 textAlignVertical="top"
               />
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>PDF File</Text>
-              <TouchableOpacity style={styles.filePickerButton} onPress={handlePickDocument}>
-                <Ionicons name="document-text-outline" size={20} color={colors.white} />
-                <Text style={styles.filePickerButtonText}>
+            <View style={[styles.fieldGroup, isAndroid && styles.androidFieldGroup]}>
+              <Text style={[styles.label, isAndroid && styles.androidLabel]}>PDF File</Text>
+              <TouchableOpacity
+                style={[styles.filePickerButton, isAndroid && styles.androidFilePickerButton]}
+                onPress={handlePickDocument}
+              >
+                <Ionicons name="document-text-outline" size={isAndroid ? 17 : 20} color={colors.white} />
+                <Text style={[styles.filePickerButtonText, isAndroid && styles.androidFilePickerButtonText]}>
                   {selectedDocument ? 'Change PDF' : 'Choose PDF'}
                 </Text>
               </TouchableOpacity>
-              <View style={styles.filePreview}>
-                <Ionicons name="document-attach-outline" size={20} color={colors.primary} />
-                <Text style={styles.filePreviewText} numberOfLines={1}>
+              <View style={[styles.filePreview, isAndroid && styles.androidFilePreview]}>
+                <Ionicons name="document-attach-outline" size={isAndroid ? 17 : 20} color={colors.primary} />
+                <Text style={[styles.filePreviewText, isAndroid && styles.androidFilePreviewText]} numberOfLines={1}>
                   {selectedDocument?.name ?? 'No PDF selected yet'}
                 </Text>
               </View>
@@ -281,7 +288,11 @@ export default function AddResourceScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.submitButton, (!isFormComplete || isSubmitting) && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              isAndroid && styles.androidSubmitButton,
+              (!isFormComplete || isSubmitting) && styles.submitButtonDisabled,
+            ]}
             onPress={handleSubmit}
             disabled={!isFormComplete || isSubmitting}
           >
@@ -289,8 +300,10 @@ export default function AddResourceScreen() {
               <ActivityIndicator size="small" color={colors.white} />
             ) : (
               <>
-                <Text style={styles.submitButtonText}>Upload Resource</Text>
-                <Ionicons name="cloud-upload-outline" size={18} color={colors.white} />
+                <Text style={[styles.submitButtonText, isAndroid && styles.androidSubmitButtonText]}>
+                  Upload Resource
+                </Text>
+                <Ionicons name="cloud-upload-outline" size={isAndroid ? 16 : 18} color={colors.white} />
               </>
             )}
           </TouchableOpacity>
@@ -313,6 +326,11 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
     backgroundColor: colors.background,
+  },
+  androidSecondaryHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
   secondaryHeaderRow: {
     flexDirection: 'row',
@@ -345,12 +363,20 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 22,
   },
+  androidPageSubtitle: {
+    marginTop: 4,
+    fontSize: 11.5,
+    lineHeight: 18,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 36,
+  },
+  androidScrollContent: {
+    paddingHorizontal: 16,
   },
   formCard: {
     backgroundColor: colors.white,
@@ -363,13 +389,29 @@ const styles = StyleSheet.create({
     elevation: 6,
     gap: 18,
   },
+  androidFormCard: {
+    borderRadius: 18,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 0,
+    gap: 14,
+  },
   fieldGroup: {
     gap: 8,
+  },
+  androidFieldGroup: {
+    gap: 6,
   },
   label: {
     fontSize: 13,
     fontFamily: 'Poppins_600SemiBold',
     color: '#374151',
+  },
+  androidLabel: {
+    fontSize: 11.5,
   },
   input: {
     minHeight: 54,
@@ -382,13 +424,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: colors.textPrimary,
   },
+  androidInput: {
+    minHeight: 46,
+    borderRadius: 13,
+    paddingHorizontal: 13,
+    fontSize: 12.5,
+  },
   textArea: {
     minHeight: 120,
     paddingTop: 16,
   },
+  androidTextArea: {
+    minHeight: 96,
+    paddingTop: 12,
+  },
   row: {
     flexDirection: 'row',
     gap: 12,
+  },
+  androidRow: {
+    gap: 10,
   },
   rowField: {
     flex: 1,
@@ -400,8 +455,16 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     overflow: 'hidden',
   },
+  androidPickerShell: {
+    minHeight: 46,
+    borderRadius: 13,
+  },
   picker: {
     color: colors.textPrimary,
+  },
+  androidPicker: {
+    height: 46,
+    fontSize: 12.5,
   },
   darkPickerShell: {
     borderRadius: 16,
@@ -409,6 +472,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.textPrimary,
     overflow: 'hidden',
+  },
+  androidDarkPickerShell: {
+    minHeight: 46,
+    borderRadius: 13,
   },
   darkPicker: {
     color: colors.white,
@@ -422,10 +489,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
+  androidFilePickerButton: {
+    height: 46,
+    borderRadius: 13,
+    gap: 8,
+  },
   filePickerButtonText: {
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.white,
+  },
+  androidFilePickerButtonText: {
+    fontSize: 12.5,
   },
   filePreview: {
     minHeight: 54,
@@ -436,11 +511,20 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 16,
   },
+  androidFilePreview: {
+    minHeight: 46,
+    borderRadius: 13,
+    gap: 8,
+    paddingHorizontal: 13,
+  },
   filePreviewText: {
     flex: 1,
     fontSize: 13,
     fontFamily: 'Poppins_500Medium',
     color: '#1F2937',
+  },
+  androidFilePreviewText: {
+    fontSize: 11.5,
   },
   submitButton: {
     marginTop: 20,
@@ -452,6 +536,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
+  androidSubmitButton: {
+    marginTop: 16,
+    minHeight: 48,
+    borderRadius: 16,
+    gap: 8,
+  },
   submitButtonDisabled: {
     opacity: 0.55,
   },
@@ -459,5 +549,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Poppins_700Bold',
     color: colors.white,
+  },
+  androidSubmitButtonText: {
+    fontSize: 13.5,
   },
 });

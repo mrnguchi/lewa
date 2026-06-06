@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Modal,
   BackHandler,
+  Platform,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
@@ -22,7 +23,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppHeader from '../components/AppHeader';
 import { api } from '../services/api';
-import { showErrorToast } from '../services/toast';
+import { showErrorToast, showSuccessToast } from '../services/toast';
 
 
 type RootStackParamList = {
@@ -32,6 +33,7 @@ type RootStackParamList = {
   ConfirmNumber: { feeInstallment: 'full' | 'half'; amount: number; paymentMethod: string };
   PaymentSummary: { reference: string };
   PaymentProcessing: { reference: string };
+  PaymentSuccessful: { reference: string };
 };
 
 type PaymentSummaryScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PaymentSummary'>;
@@ -88,6 +90,7 @@ const PaymentSummaryScreen: React.FC = () => {
   const navigation = useNavigation<PaymentSummaryScreenNavigationProp>();
   const route = useRoute<PaymentSummaryScreenRouteProp>();
   const { reference } = route.params;
+  const isAndroid = Platform.OS === 'android';
   const allowNavigationRef = useRef(false);
 
   // State
@@ -183,6 +186,46 @@ const PaymentSummaryScreen: React.FC = () => {
     setShowCancelModal(false);
   };
 
+  // If Campay already has the payment, I keep tracking it and let the student leave.
+  const leaveStartedPaymentForTracking = async () => {
+    try {
+      const response = await api.post(
+        `/api/payments/${reference}/pending-reminder`,
+        undefined,
+        {
+          timeout: 12000,
+          suppressErrorToast: true,
+        } as any
+      );
+      const payment = response.data?.data?.payment;
+
+      setShowCancelModal(false);
+      allowNavigationRef.current = true;
+
+      if (payment?.status === 'successful') {
+        navigation.replace('PaymentSuccessful', { reference });
+        return;
+      }
+
+      if (payment?.status === 'failed') {
+        showErrorToast(
+          payment.failureReason ||
+            'Payment failed. No money was received. Please try again.'
+        );
+        navigation.navigate('MainTabs', { screen: 'Home' });
+        return;
+      }
+
+      showSuccessToast("We'll keep tracking this payment. Check notifications for updates.");
+      navigation.navigate('MainTabs', { screen: 'Home' });
+    } catch {
+      setShowCancelModal(false);
+      allowNavigationRef.current = true;
+      showErrorToast('This payment has started. You can check its status later.');
+      navigation.navigate('MainTabs', { screen: 'Home' });
+    }
+  };
+
   // Handler for confirming cancellation
   const handleConfirmCancel = async () => {
     setIsCancellingPayment(true);
@@ -195,10 +238,13 @@ const PaymentSummaryScreen: React.FC = () => {
       allowNavigationRef.current = true;
       navigation.goBack();
     } catch (error: any) {
+      if (error.response?.status === 409) {
+        await leaveStartedPaymentForTracking();
+        return;
+      }
+
       const message =
-        error.response?.status === 409
-          ? 'This payment has already started. Please check the payment status instead.'
-          : error.userMessage || 'Unable to cancel this payment right now.';
+        error.userMessage || 'Unable to cancel this payment right now.';
 
       showErrorToast(message);
     } finally {
@@ -248,55 +294,50 @@ const PaymentSummaryScreen: React.FC = () => {
   return (
       <View style={styles.container}>
         
-        <AppHeader />
+        <AppHeader title="Payment summary" onBackPress={handleBackPress} />
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, isAndroid && styles.androidScrollContent]}
         >
-        {/* Header */}
-        <View style={styles.header}>
-          
-
-          {/* Back Button */}
-          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-            <Ionicons name="arrow-back" size={24} color="#1F2933" />
-            <Text style={styles.backText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Amount and Status */}
-        <View style={styles.paymentHeroCard}>
+        <View style={[styles.paymentHeroCard, isAndroid && styles.androidPaymentHeroCard]}>
           <View style={styles.paymentHeroTopRow}>
             <View style={styles.paymentHeroTitleBlock}>
-              <Text style={styles.paymentHeroEyebrow}>
+              <Text style={[styles.paymentHeroEyebrow, isAndroid && styles.androidPaymentHeroEyebrow]}>
                 {isSubscription ? 'Subscription checkout' : 'Fee checkout'}
               </Text>
             </View>
-            <View style={styles.statusBadge}>
-              <Ionicons name="time-outline" size={14} color="#F59E0B" />
-              <Text style={styles.statusText}>Pending</Text>
+            <View style={[styles.statusBadge, isAndroid && styles.androidStatusBadge]}>
+              <Ionicons name="time-outline" size={isAndroid ? 12 : 14} color="#F59E0B" />
+              <Text style={[styles.statusText, isAndroid && styles.androidStatusText]}>Pending</Text>
             </View>
           </View>
 
           <View style={styles.amountSection}>
-            <Text style={styles.amountValue} numberOfLines={1} adjustsFontSizeToFit>
+            <Text
+              style={[styles.amountValue, isAndroid && styles.androidAmountValue]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
               {formatXafAmount(amount)}
             </Text>
-            <Text style={styles.currency}>XAF</Text>
+            <Text style={[styles.currency, isAndroid && styles.androidCurrency]}>XAF</Text>
           </View>
 
-          <View style={styles.paymentHeroFooter}>
+          <View style={[styles.paymentHeroFooter, isAndroid && styles.androidPaymentHeroFooter]}>
             <View style={styles.paymentHeroMiniItem}>
-              <Text style={styles.paymentHeroMiniLabel}>Payment type</Text>
-              <Text style={styles.paymentHeroMiniValue} numberOfLines={1}>
+              <Text style={[styles.paymentHeroMiniLabel, isAndroid && styles.androidMiniLabel]}>
+                Payment type
+              </Text>
+              <Text style={[styles.paymentHeroMiniValue, isAndroid && styles.androidMiniValue]} numberOfLines={1}>
                 {isSubscription ? 'Subscription' : 'Fees'}
               </Text>
             </View>
             <View style={styles.paymentHeroMiniDivider} />
             <View style={styles.paymentHeroMiniItem}>
-              <Text style={styles.paymentHeroMiniLabel}>Status</Text>
-              <Text style={styles.paymentHeroMiniValue} numberOfLines={1}>
+              <Text style={[styles.paymentHeroMiniLabel, isAndroid && styles.androidMiniLabel]}>Status</Text>
+              <Text style={[styles.paymentHeroMiniValue, isAndroid && styles.androidMiniValue]} numberOfLines={1}>
                 Awaiting confirmation
               </Text>
             </View>
@@ -304,14 +345,18 @@ const PaymentSummaryScreen: React.FC = () => {
         </View>
 
         {/* Payment Summary Card */}
-        <View style={styles.summaryCard}>
+        <View style={[styles.summaryCard, isAndroid && styles.androidSummaryCard]}>
           <View style={styles.summaryHeader}>
             <View>
-              <Text style={styles.summaryTitle}>Payment details</Text>
-              <Text style={styles.summarySubtitle}>Confirm every detail carefully</Text>
+              <Text style={[styles.summaryTitle, isAndroid && styles.androidSummaryTitle]}>
+                Payment details
+              </Text>
+              <Text style={[styles.summarySubtitle, isAndroid && styles.androidSummarySubtitle]}>
+                Confirm every detail carefully
+              </Text>
             </View>
-            <View style={styles.summaryIcon}>
-              <Ionicons name="receipt-outline" size={20} color={colors.primary} />
+            <View style={[styles.summaryIcon, isAndroid && styles.androidSummaryIcon]}>
+              <Ionicons name="receipt-outline" size={isAndroid ? 17 : 20} color={colors.primary} />
             </View>
           </View>
 
@@ -359,16 +404,22 @@ const PaymentSummaryScreen: React.FC = () => {
 
         {/* Confirm Button */}
         <TouchableOpacity
-          style={[styles.confirmButton, isConfirmingPayment && styles.confirmButtonDisabled]}
+          style={[
+            styles.confirmButton,
+            isAndroid && styles.androidConfirmButton,
+            isConfirmingPayment && styles.confirmButtonDisabled,
+          ]}
           onPress={handleConfirm}
           disabled={isConfirmingPayment}
         >
-          <Text style={styles.confirmButtonText}>Confirm and pay</Text>
-          <View style={styles.confirmIconContainer}>
+          <Text style={[styles.confirmButtonText, isAndroid && styles.androidConfirmButtonText]}>
+            Confirm and pay
+          </Text>
+          <View style={[styles.confirmIconContainer, isAndroid && styles.androidConfirmIconContainer]}>
             {isConfirmingPayment ? (
               <ActivityIndicator color={colors.white} />
             ) : (
-              <Ionicons name="arrow-forward" size={24} color={colors.white} />
+              <Ionicons name="arrow-forward" size={isAndroid ? 20 : 24} color={colors.white} />
             )}
           </View>
         </TouchableOpacity>
@@ -382,39 +433,53 @@ const PaymentSummaryScreen: React.FC = () => {
         onRequestClose={handleCloseModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, isAndroid && styles.androidModalContent]}>
             {/* Icon */}
-            <View style={styles.modalIconContainer}>
-              <Ionicons name="alert-circle" size={60} color={colors.primary} />
+            <View style={[styles.modalIconContainer, isAndroid && styles.androidModalIconContainer]}>
+              <Ionicons name="alert-circle" size={isAndroid ? 46 : 60} color={colors.primary} />
             </View>
 
             {/* Title */}
-            <Text style={styles.modalTitle}>Cancel payment?</Text>
+            <Text style={[styles.modalTitle, isAndroid && styles.androidModalTitle]}>
+              Cancel payment?
+            </Text>
 
             {/* Message */}
-            <Text style={styles.modalMessage}>
-              This will delete the initialized payment and take you back.
+            <Text style={[styles.modalMessage, isAndroid && styles.androidModalMessage]}>
+              If this payment has already reached your phone, we will keep tracking it and notify you.
             </Text>
 
             {/* Buttons */}
-            <View style={styles.modalButtons}>
+            <View style={[styles.modalButtons, isAndroid && styles.androidModalButtons]}>
               <TouchableOpacity
-                style={[styles.modalButtonNo, isCancellingPayment && styles.modalButtonDisabled]}
+                style={[
+                  styles.modalButtonNo,
+                  isAndroid && styles.androidModalButton,
+                  isCancellingPayment && styles.modalButtonDisabled,
+                ]}
                 onPress={handleCloseModal}
                 disabled={isCancellingPayment}
               >
-                <Text style={styles.modalButtonNoText}>No, Continue</Text>
+                <Text style={[styles.modalButtonNoText, isAndroid && styles.androidModalButtonText]}>
+                  No, Continue
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButtonYes, isCancellingPayment && styles.modalButtonDisabled]}
+                style={[
+                  styles.modalButtonYes,
+                  isAndroid && styles.androidModalButton,
+                  isCancellingPayment && styles.modalButtonDisabled,
+                ]}
                 onPress={handleConfirmCancel}
                 disabled={isCancellingPayment}
               >
                 {isCancellingPayment ? (
                   <ActivityIndicator color={colors.white} />
                 ) : (
-                  <Text style={styles.modalButtonYesText}>Yes, Cancel</Text>
+                  <Text style={[styles.modalButtonYesText, isAndroid && styles.androidModalButtonText]}>
+                    Yes, Cancel
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -437,6 +502,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 40,
+  },
+  androidScrollContent: {
+    paddingBottom: 30,
   },
   header: {
     paddingHorizontal: 20,
@@ -472,6 +540,16 @@ const styles = StyleSheet.create({
     shadowRadius: 22,
     elevation: 6,
   },
+  androidPaymentHeroCard: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    borderRadius: 18,
+    padding: 16,
+    shadowOpacity: 0.05,
+    shadowRadius: 9,
+    elevation: 1,
+  },
   paymentHeroTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -488,6 +566,10 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.58)',
     marginBottom: 4,
   },
+  androidPaymentHeroEyebrow: {
+    fontSize: 10.5,
+    marginBottom: 2,
+  },
   amountSection: {
     flexDirection: 'row',
     alignItems: 'baseline',
@@ -500,10 +582,17 @@ const styles = StyleSheet.create({
     color: colors.white,
     letterSpacing: 0,
   },
+  androidAmountValue: {
+    fontSize: 31,
+    lineHeight: 38,
+  },
   currency: {
     fontSize: 15,
     fontFamily: 'Poppins_600SemiBold',
     color: 'rgba(255, 255, 255, 0.72)',
+  },
+  androidCurrency: {
+    fontSize: 12.5,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -514,10 +603,17 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
   },
+  androidStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
   statusText: {
     fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
     color: '#F59E0B',
+  },
+  androidStatusText: {
+    fontSize: 10.5,
   },
   paymentHeroFooter: {
     flexDirection: 'row',
@@ -526,6 +622,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 12,
+  },
+  androidPaymentHeroFooter: {
+    borderRadius: 13,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
   },
   paymentHeroMiniItem: {
     flex: 1,
@@ -542,10 +643,18 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.52)',
     marginBottom: 3,
   },
+  androidMiniLabel: {
+    fontSize: 10,
+    marginBottom: 2,
+  },
   paymentHeroMiniValue: {
     fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.white,
+  },
+  androidMiniValue: {
+    fontSize: 11,
+    lineHeight: 15,
   },
   summaryCard: {
     backgroundColor: colors.white,
@@ -557,6 +666,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 18,
     elevation: 4,
+  },
+  androidSummaryCard: {
+    marginHorizontal: 16,
+    borderRadius: 18,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 0,
   },
   summaryHeader: {
     flexDirection: 'row',
@@ -572,11 +691,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
   },
+  androidSummaryTitle: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
   summarySubtitle: {
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     marginTop: 2,
+  },
+  androidSummarySubtitle: {
+    fontSize: 10.5,
   },
   summaryIcon: {
     width: 36,
@@ -585,6 +711,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  androidSummaryIcon: {
+    width: 31,
+    height: 31,
+    borderRadius: 16,
   },
   summaryItems: {
     gap: 14,
@@ -625,6 +756,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  androidConfirmButton: {
+    marginHorizontal: 16,
+    marginTop: 26,
+    minHeight: 49,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 0,
+  },
   confirmButtonDisabled: {
     opacity: 0.75,
   },
@@ -633,6 +777,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: colors.primary,
   },
+  androidConfirmButtonText: {
+    fontSize: 14,
+  },
   confirmIconContainer: {
     width: 44,
     height: 44,
@@ -640,6 +787,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  androidConfirmIconContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
   // Modal styles
   modalOverlay: {
@@ -662,6 +814,15 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
+  androidModalContent: {
+    borderRadius: 20,
+    paddingVertical: 22,
+    paddingHorizontal: 20,
+    maxWidth: 342,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 1,
+  },
   modalIconContainer: {
     width: 80,
     height: 80,
@@ -671,12 +832,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  androidModalIconContainer: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    marginBottom: 14,
+  },
   modalTitle: {
     fontSize: 22,
     fontFamily: 'Poppins_700Bold',
     color: colors.textPrimary,
     marginBottom: 12,
     textAlign: 'center',
+  },
+  androidModalTitle: {
+    fontSize: 17,
+    lineHeight: 23,
+    marginBottom: 8,
   },
   modalMessage: {
     fontSize: 15,
@@ -686,32 +858,50 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 30,
   },
+  androidModalMessage: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 20,
+  },
   modalButtons: {
     flexDirection: 'row',
     gap: 12,
     width: '100%',
   },
+  androidModalButtons: {
+    gap: 10,
+  },
   modalButtonNo: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 30,
-    backgroundColor: colors.white,
+    backgroundColor: colors.primary,
     borderWidth: 1.5,
-    borderColor: colors.border1,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
   },
+  androidModalButton: {
+    paddingVertical: 9,
+    borderRadius: 20,
+    minHeight: 44,
+  },
   modalButtonNoText: {
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
-    color: colors.textPrimary,
+    color: colors.white,
+  },
+  androidModalButtonText: {
+    fontSize: 12.5,
   },
   modalButtonYes: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 30,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.error,
+    borderWidth: 1.5,
+    borderColor: colors.error,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,

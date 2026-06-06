@@ -14,6 +14,7 @@ import {
   TextInput,
   Modal,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -44,6 +45,7 @@ const EMPTY_LEVEL = 'All';
  */
 const ResourcesScreen: React.FC = () => {
   const navigation = useNavigation<ResourcesScreenNavigationProp>();
+  const isAndroid = Platform.OS === 'android';
   const [activeTab, setActiveTab] = useState<ResourceType>('handout');
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -181,67 +183,93 @@ const ResourcesScreen: React.FC = () => {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, isAndroid && styles.androidScrollContent]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Handouts{'\n'}& past questions</Text>
+        <View style={[styles.header, isAndroid && styles.androidHeader]}>
+          <Text style={[styles.title, isAndroid && styles.androidTitle]}>
+            Handouts{'\n'}& past questions
+          </Text>
 
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+          <View style={[styles.searchContainer, isAndroid && styles.androidSearchContainer]}>
+            <Ionicons name="search" size={isAndroid ? 18 : 20} color="#9CA3AF" style={styles.searchIcon} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, isAndroid && styles.androidSearchInput]}
               placeholder="Resources"
               placeholderTextColor="#9CA3AF"
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             <TouchableOpacity
-              style={styles.filterButton}
+              style={[styles.filterButton, isAndroid && styles.androidFilterButton]}
               onPress={() => setShowFilterModal(true)}
             >
-              <MaterialCommunityIcons name="filter-variant" size={24} color={colors.primary} />
+              <MaterialCommunityIcons name="filter-variant" size={isAndroid ? 21 : 24} color={colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.tabsContainer}>
+        <View style={[styles.tabsContainer, isAndroid && styles.androidTabsContainer]}>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'handout' && styles.tabActive]}
+            style={[
+              styles.tab,
+              isAndroid && styles.androidTab,
+              activeTab === 'handout' && styles.tabActive,
+            ]}
             onPress={() => setActiveTab('handout')}
           >
-            <Text style={[styles.tabText, activeTab === 'handout' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                isAndroid && styles.androidTabText,
+                activeTab === 'handout' && styles.tabTextActive,
+              ]}
+            >
               Handouts
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'pastQuestion' && styles.tabActive]}
+            style={[
+              styles.tab,
+              isAndroid && styles.androidTab,
+              activeTab === 'pastQuestion' && styles.tabActive,
+            ]}
             onPress={() => setActiveTab('pastQuestion')}
           >
-            <Text style={[styles.tabText, activeTab === 'pastQuestion' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                isAndroid && styles.androidTabText,
+                activeTab === 'pastQuestion' && styles.tabTextActive,
+              ]}
+            >
               Past questions
             </Text>
           </TouchableOpacity>
         </View>
 
         {isLoading ? (
-          <View style={styles.loaderSection}>
-            <SpinningLoader size={76} />
-            <Text style={styles.loaderText}>Loading your resources...</Text>
+          <View style={[styles.loaderSection, isAndroid && styles.androidLoaderSection]}>
+            <SpinningLoader size={isAndroid ? 64 : 76} />
+            <Text style={[styles.loaderText, isAndroid && styles.androidLoaderText]}>
+              Loading your resources...
+            </Text>
           </View>
         ) : filteredData.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={42} color={colors.primary} />
-            <Text style={styles.emptyTitle}>No resources found</Text>
-            <Text style={styles.emptyText}>
+          <View style={[styles.emptyState, isAndroid && styles.androidEmptyState]}>
+            <Ionicons name="document-text-outline" size={isAndroid ? 36 : 42} color={colors.primary} />
+            <Text style={[styles.emptyTitle, isAndroid && styles.androidEmptyTitle]}>
+              No resources found
+            </Text>
+            <Text style={[styles.emptyText, isAndroid && styles.androidEmptyText]}>
               Try a different search term or reset the current filters.
             </Text>
           </View>
         ) : (
-          <View style={styles.cardsGrid}>
+          <View style={[styles.cardsGrid, isAndroid && styles.androidCardsGrid]}>
             {filteredData.map((resource) => (
               <ResourceCard
                 key={resource.id}
@@ -266,73 +294,96 @@ const ResourcesScreen: React.FC = () => {
           activeOpacity={1}
           onPress={() => setShowFilterModal(false)}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.filterModal}>
+          <TouchableOpacity activeOpacity={1} style={[styles.filterModal, isAndroid && styles.androidFilterModal]}>
             <View style={styles.filterHeader}>
-              <Text style={styles.filterTitle}>Filters</Text>
+              <Text style={[styles.filterTitle, isAndroid && styles.androidFilterTitle]}>
+                Filters
+              </Text>
               <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                <Ionicons name="close" size={24} color={colors.textPrimary} />
+                <Ionicons name="close" size={isAndroid ? 21 : 24} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Faculty</Text>
-              <View style={styles.filterOptions}>
-                {faculties.map((faculty) => (
-                  <TouchableOpacity
-                    key={faculty}
-                    style={[
-                      styles.filterChip,
-                      selectedFaculty === faculty && styles.filterChipActive,
-                    ]}
-                    onPress={() => setSelectedFaculty(faculty)}
-                  >
-                    <Text
+            <ScrollView
+              style={styles.filterModalScroll}
+              contentContainerStyle={[styles.filterModalBody, isAndroid && styles.androidFilterModalBody]}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.filterSection}>
+                <Text style={[styles.filterLabel, isAndroid && styles.androidFilterLabel]}>
+                  Faculty
+                </Text>
+                <View style={[styles.filterOptions, isAndroid && styles.androidFilterOptions]}>
+                  {faculties.map((faculty) => (
+                    <TouchableOpacity
+                      key={faculty}
                       style={[
-                        styles.filterChipText,
-                        selectedFaculty === faculty && styles.filterChipTextActive,
+                        styles.filterChip,
+                        isAndroid && styles.androidFilterChip,
+                        selectedFaculty === faculty && styles.filterChipActive,
                       ]}
+                      onPress={() => setSelectedFaculty(faculty)}
                     >
-                      {faculty}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          styles.filterChipText,
+                          isAndroid && styles.androidFilterChipText,
+                          selectedFaculty === faculty && styles.filterChipTextActive,
+                        ]}
+                      >
+                        {faculty}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
 
-            <View style={styles.filterSection}>
-              <Text style={styles.filterLabel}>Level</Text>
-              <View style={styles.filterOptions}>
-                {levels.map((level) => (
-                  <TouchableOpacity
-                    key={level}
-                    style={[
-                      styles.filterChip,
-                      selectedLevel === level && styles.filterChipActive,
-                    ]}
-                    onPress={() => setSelectedLevel(level)}
-                  >
-                    <Text
+              <View style={styles.filterSection}>
+                <Text style={[styles.filterLabel, isAndroid && styles.androidFilterLabel]}>
+                  Level
+                </Text>
+                <View style={[styles.filterOptions, isAndroid && styles.androidFilterOptions]}>
+                  {levels.map((level) => (
+                    <TouchableOpacity
+                      key={level}
                       style={[
-                        styles.filterChipText,
-                        selectedLevel === level && styles.filterChipTextActive,
+                        styles.filterChip,
+                        isAndroid && styles.androidFilterChip,
+                        selectedLevel === level && styles.filterChipActive,
                       ]}
+                      onPress={() => setSelectedLevel(level)}
                     >
-                      {level}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={[
+                          styles.filterChipText,
+                          isAndroid && styles.androidFilterChipText,
+                          selectedLevel === level && styles.filterChipTextActive,
+                        ]}
+                      >
+                        {level}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-            </View>
+            </ScrollView>
 
-            <View style={styles.filterActions}>
-              <TouchableOpacity style={styles.secondaryButton} onPress={handleResetFilters}>
-                <Text style={styles.secondaryButtonText}>Reset</Text>
+            <View style={[styles.filterActions, isAndroid && styles.androidFilterActions]}>
+              <TouchableOpacity
+                style={[styles.secondaryButton, isAndroid && styles.androidFilterActionButton]}
+                onPress={handleResetFilters}
+              >
+                <Text style={[styles.secondaryButtonText, isAndroid && styles.androidFilterActionText]}>
+                  Reset
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.primaryButton}
+                style={[styles.primaryButton, isAndroid && styles.androidFilterActionButton]}
                 onPress={() => setShowFilterModal(false)}
               >
-                <Text style={styles.primaryButtonText}>Apply</Text>
+                <Text style={[styles.primaryButtonText, isAndroid && styles.androidFilterActionText]}>
+                  Apply
+                </Text>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -353,10 +404,18 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 36,
   },
+  androidScrollContent: {
+    paddingBottom: 28,
+  },
   header: {
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 20,
+  },
+  androidHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 14,
   },
   title: {
     fontSize: 28,
@@ -364,6 +423,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: colors.textPrimary,
     marginBottom: 20,
+  },
+  androidTitle: {
+    fontSize: 24,
+    lineHeight: 31,
+    marginBottom: 14,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -379,6 +443,16 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  androidSearchContainer: {
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#EEF2F5',
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 0,
+  },
   searchIcon: {
     marginRight: 8,
   },
@@ -388,8 +462,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: colors.textPrimary,
   },
+  androidSearchInput: {
+    fontSize: 13,
+    paddingVertical: 2,
+  },
   filterButton: {
     padding: 4,
+  },
+  androidFilterButton: {
+    padding: 3,
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -398,11 +479,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: -10,
   },
+  androidTabsContainer: {
+    paddingHorizontal: 16,
+    gap: 8,
+    marginTop: -6,
+    marginBottom: 15,
+  },
   tab: {
     paddingHorizontal: 24,
     paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: '#E5E7EB',
+  },
+  androidTab: {
+    paddingHorizontal: 17,
+    paddingVertical: 8,
+    borderRadius: 18,
   },
   tabActive: {
     backgroundColor: colors.textPrimary,
@@ -412,6 +504,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
     color: '#6B7280',
   },
+  androidTabText: {
+    fontSize: 12.5,
+  },
   tabTextActive: {
     color: colors.white,
   },
@@ -420,10 +515,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 18,
   },
+  androidLoaderSection: {
+    paddingTop: 64,
+    gap: 14,
+  },
   loaderText: {
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: '#6B7280',
+  },
+  androidLoaderText: {
+    fontSize: 12.5,
   },
   emptyState: {
     paddingHorizontal: 32,
@@ -431,10 +533,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  androidEmptyState: {
+    paddingHorizontal: 26,
+    paddingTop: 48,
+    gap: 8,
+  },
   emptyTitle: {
     fontSize: 18,
     fontFamily: 'Poppins_700Bold',
     color: colors.textPrimary,
+  },
+  androidEmptyTitle: {
+    fontSize: 16,
   },
   emptyText: {
     fontSize: 14,
@@ -443,11 +553,18 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
+  androidEmptyText: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
   cardsGrid: {
     paddingHorizontal: 20,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+  },
+  androidCardsGrid: {
+    paddingHorizontal: 16,
   },
   modalOverlay: {
     flex: 1,
@@ -459,6 +576,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: 24,
     padding: 20,
+    maxHeight: '82%',
+  },
+  androidFilterModal: {
+    borderRadius: 20,
+    padding: 16,
+    maxHeight: '78%',
   },
   filterHeader: {
     flexDirection: 'row',
@@ -471,6 +594,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: colors.textPrimary,
   },
+  androidFilterTitle: {
+    fontSize: 16,
+  },
+  filterModalScroll: {
+    flexGrow: 0,
+  },
+  filterModalBody: {
+    paddingBottom: 2,
+  },
+  androidFilterModalBody: {
+    paddingBottom: 0,
+  },
   filterSection: {
     marginBottom: 18,
   },
@@ -480,16 +615,27 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 10,
   },
+  androidFilterLabel: {
+    fontSize: 12,
+    marginBottom: 8,
+  },
   filterOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+  },
+  androidFilterOptions: {
+    gap: 8,
   },
   filterChip: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
     backgroundColor: '#F3F4F6',
+  },
+  androidFilterChip: {
+    paddingHorizontal: 11,
+    paddingVertical: 7,
   },
   filterChipActive: {
     backgroundColor: colors.primary,
@@ -499,6 +645,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
     color: '#4B5563',
   },
+  androidFilterChipText: {
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
   filterChipTextActive: {
     color: colors.white,
   },
@@ -506,6 +656,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginTop: 8,
+  },
+  androidFilterActions: {
+    gap: 10,
+    marginTop: 6,
   },
   secondaryButton: {
     flex: 1,
@@ -515,10 +669,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  androidFilterActionButton: {
+    minHeight: 44,
+    borderRadius: 14,
+  },
   secondaryButtonText: {
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
     color: '#374151',
+  },
+  androidFilterActionText: {
+    fontSize: 12.5,
   },
   primaryButton: {
     flex: 1,
