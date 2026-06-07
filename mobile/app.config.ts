@@ -54,6 +54,14 @@ export default {
           cameraPermission: "Allow Lewa to take a profile picture with your camera.",
         },
       ],
+      [
+        "@sentry/react-native/expo",
+        {
+          url: "https://sentry.io/",
+          project: "lewa-mobile",
+          organization: "lewa",
+        },
+      ],
     ],
     extra: projectId
       ? {

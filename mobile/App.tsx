@@ -25,6 +25,28 @@ import {
   syncStudentPushToken,
 } from "./src/services/notifications";
 import { navigationRef } from "./src/navigation/navigationRef";
+import * as Sentry from "@sentry/react-native";
+
+Sentry.init({
+  dsn:
+    process.env.EXPO_PUBLIC_SENTRY_DSN ??
+    "https://116e05bbb827c22fbb9594bd14c9d7ca@o4511523389374464.ingest.us.sentry.io/4511523409494016",
+  environment: __DEV__ ? "development" : "production",
+  sendDefaultPii: false,
+  enableLogs: false,
+
+  // Keep student, authentication, and payment details out of crash reports.
+  beforeSend(event) {
+    if (event.request) {
+      event.request.data = undefined;
+      event.request.cookies = undefined;
+      event.request.headers = undefined;
+    }
+
+    event.user = event.user?.id ? { id: event.user.id } : undefined;
+    return event;
+  },
+});
 
 // Keep the native splash screen visible while we fetch resources
 ExpoSplashScreen.preventAutoHideAsync();
@@ -251,7 +273,7 @@ function AppContent() {
   );
 }
 
-export default function App() {
+export default Sentry.wrap(function App() {
   return (
     <SafeAreaProvider>
       <AppQueryProvider>
@@ -263,4 +285,4 @@ export default function App() {
       </AppQueryProvider>
     </SafeAreaProvider>
   );
-}
+});
