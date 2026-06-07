@@ -59,6 +59,31 @@ export const createNewsPosterUploadSignature = (input: CreateNewsPosterSignature
 };
 
 /**
+ * Builds a signed image upload that is scoped to the authenticated student.
+ */
+export const createProfileImageUploadSignature = (studentId: string) => {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const publicId = `lewa/profile-images/${studentId}/profile-${Date.now()}`;
+
+  const paramsToSign = {
+    public_id: publicId,
+    timestamp,
+  };
+
+  const signature = signCloudinaryParams(paramsToSign);
+
+  return {
+    cloudName: env.cloudinaryCloudName,
+    apiKey: env.cloudinaryApiKey,
+    timestamp,
+    signature,
+    publicId,
+    resourceType: "image" as const,
+    uploadUrl: `https://api.cloudinary.com/v1_1/${env.cloudinaryCloudName}/image/upload`,
+  };
+};
+
+/**
  * Builds a signed Cloudinary upload payload for raw PDF resource files.
  */
 export const createResourceFileUploadSignature = (input: CreateResourceFileSignatureInput) => {

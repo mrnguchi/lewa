@@ -31,7 +31,8 @@ import {
   markNotificationRead,
   syncStudentPushToken,
 } from '../services/notifications';
-import { showErrorToast } from '../services/toast';
+import { uploadStudentProfileImage } from '../services/profile';
+import { showErrorToast, showSuccessToast } from '../services/toast';
 
 interface AppHeaderProps {
   variant?: 'default' | 'hero' | 'home';
@@ -212,7 +213,10 @@ export default function AppHeader({
   // State for profile modal
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notifications_enabled ?? true);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(
+    user?.profile_image_url?.trim() || null
+  );
+  const [isProfileImageUploading, setIsProfileImageUploading] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<ProfileReceipt[]>([]);
   const [isReceiptsLoading, setIsReceiptsLoading] = useState(false);
   const [languageMenuVisible, setLanguageMenuVisible] = useState(false);
@@ -232,6 +236,10 @@ export default function AppHeader({
       setNotificationsEnabled(user.notifications_enabled);
     }
   }, [user]);
+
+  useEffect(() => {
+    setProfileImage(user?.profile_image_url?.trim() || null);
+  }, [user?.profile_image_url]);
 
   useEffect(() => {
     if (!profileModalVisible) {
@@ -317,6 +325,10 @@ export default function AppHeader({
 
   // Handle profile image selection
   const handleEditProfileImage = async () => {
+    if (isProfileImageUploading) {
+      return;
+    }
+
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
@@ -344,6 +356,28 @@ export default function AppHeader({
     }
   };
 
+  // Upload the selected picture before replacing the current profile image.
+  const saveProfileImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    if (!user?.id) {
+      showErrorToast('Please log in again before changing your profile picture.');
+      return;
+    }
+
+    try {
+      setIsProfileImageUploading(true);
+      const updatedUser = await uploadStudentProfileImage(user.id, asset);
+      await updateUser(updatedUser);
+      setProfileImage(updatedUser.profile_image_url?.trim() || null);
+      showSuccessToast('Profile picture updated.');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to update your profile picture right now.';
+      showErrorToast(message);
+    } finally {
+      setIsProfileImageUploading(false);
+    }
+  };
+
   // Take photo with camera
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -360,9 +394,7 @@ export default function AppHeader({
     });
 
     if (!result.canceled && result.assets[0]) {
-      setProfileImage(result.assets[0].uri);
-      // TODO: Upload to backend
-      console.log('Photo taken:', result.assets[0].uri);
+      await saveProfileImage(result.assets[0]);
     }
   };
 
@@ -382,9 +414,7 @@ export default function AppHeader({
     });
 
     if (!result.canceled && result.assets[0]) {
-      setProfileImage(result.assets[0].uri);
-      // TODO: Upload to backend
-      console.log('Image selected:', result.assets[0].uri);
+      await saveProfileImage(result.assets[0]);
     }
   };
 
@@ -1119,8 +1149,13 @@ export default function AppHeader({
                   style={styles.editProfileButton}
                   onPress={handleEditProfileImage}
                   activeOpacity={0.82}
+                  disabled={isProfileImageUploading}
                 >
-                  <MaterialCommunityIcons name="pencil-outline" size={16} color={colors.textPrimary} />
+                  {isProfileImageUploading ? (
+                    <ActivityIndicator size="small" color={colors.textPrimary} />
+                  ) : (
+                    <MaterialCommunityIcons name="pencil-outline" size={16} color={colors.textPrimary} />
+                  )}
                 </TouchableOpacity>
               </View>
               <Text style={styles.profileName} numberOfLines={1}>

@@ -1,5 +1,6 @@
 import { prisma } from "../../database/prisma";
 import { ApiError } from "../../utils/api-error";
+import { env } from "../../config/env";
 
 const studentPublicSelect = {
   id: true,
@@ -86,6 +87,55 @@ export const updateStudentNotifications = async (
       id: true,
       notifications_enabled: true,
     },
+  });
+};
+
+/**
+ * Saves a profile image only when it came from this student's signed Cloudinary path.
+ */
+export const updateStudentProfileImage = async (
+  studentId: string,
+  profileImageUrl: string,
+  publicId: string
+) => {
+  const expectedPublicIdPrefix = `lewa/profile-images/${studentId}/`;
+  let parsedImageUrl: URL;
+
+  try {
+    parsedImageUrl = new URL(profileImageUrl);
+  } catch {
+    throw new ApiError(400, "Invalid profile image URL");
+  }
+
+  const expectedCloudPath = `/${env.cloudinaryCloudName}/image/upload/`;
+  const isTrustedCloudinaryUrl =
+    parsedImageUrl.protocol === "https:" &&
+    parsedImageUrl.hostname === "res.cloudinary.com" &&
+    parsedImageUrl.pathname.startsWith(expectedCloudPath);
+  const belongsToStudent =
+    publicId.startsWith(expectedPublicIdPrefix) &&
+    parsedImageUrl.pathname.includes(`/${publicId}.`);
+
+  if (!isTrustedCloudinaryUrl || !belongsToStudent) {
+    throw new ApiError(400, "Profile image did not come from a valid Lewa upload");
+  }
+
+  const student = await prisma.students.findUnique({
+    where: { id: studentId },
+    select: { id: true },
+  });
+
+  if (!student) {
+    throw new ApiError(404, "Student not found");
+  }
+
+  return prisma.students.update({
+    where: { id: studentId },
+    data: {
+      profile_image_url: profileImageUrl,
+      updated_at: new Date(),
+    },
+    select: studentPublicSelect,
   });
 };
 

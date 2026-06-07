@@ -11,6 +11,7 @@ export interface UserData {
   faculty: string;
   department: string;
   level: number;
+  profile_image_url?: string | null;
   fee_status: 'PAID' | 'PARTIAL' | 'REQUIRED' | 'NOT_PAID';
   notifications_enabled: boolean;
   is_active: boolean;

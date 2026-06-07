@@ -47,6 +47,13 @@ export default {
           color: "#167846",
         },
       ],
+      [
+        "expo-image-picker",
+        {
+          photosPermission: "Allow Lewa to choose a profile picture from your photos.",
+          cameraPermission: "Allow Lewa to take a profile picture with your camera.",
+        },
+      ],
     ],
     extra: projectId
       ? {

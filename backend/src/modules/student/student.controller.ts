@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import * as studentService from "./student.service";
 import {
+  updateStudentProfileImageSchema,
   updateStudentNotificationsSchema,
   updateStudentPushTokenSchema,
 } from "./student.schema";
@@ -77,6 +78,27 @@ export const updateStudentNotifications = async (req: Request, res: Response) =>
   res.status(200).json({
     success: true,
     message: "Notification settings updated successfully",
+    data: student,
+  });
+};
+
+/**
+ * Saves the authenticated student's uploaded profile picture.
+ */
+export const updateStudentProfileImage = async (req: Request, res: Response) => {
+  const studentId = req.params.id as string;
+  ensureStudentOwnsProfile(req, studentId);
+
+  const payload = updateStudentProfileImageSchema.parse(req.body);
+  const student = await studentService.updateStudentProfileImage(
+    studentId,
+    payload.profile_image_url,
+    payload.public_id
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Profile picture updated successfully",
     data: student,
   });
 };
