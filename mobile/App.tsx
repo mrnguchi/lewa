@@ -15,6 +15,7 @@ import ResetPasswordScreen from "./src/screens/ResetPasswordScreen";
 import { AppSyncProvider } from "./src/contexts/AppSyncContext";
 import { AuthProvider } from "./src/contexts/AuthContext";
 import { ToastProvider } from "./src/contexts/ToastContext";
+import { AppQueryProvider } from "./src/query/QueryProvider";
 import { useAuth } from "./src/hooks/useAuth";
 import {
   consumePendingNotificationTarget,
@@ -23,7 +24,6 @@ import {
   processLastNotificationResponse,
   syncStudentPushToken,
 } from "./src/services/notifications";
-import { clearNewsSessionCache } from "./src/utils/newsSessionStorage";
 import { navigationRef } from "./src/navigation/navigationRef";
 
 // Keep the native splash screen visible while we fetch resources
@@ -50,11 +50,6 @@ function AppContent() {
   useEffect(() => {
     // Hide the native splash screen immediately when app loads
     ExpoSplashScreen.hideAsync();
-  }, []);
-
-  useEffect(() => {
-    // Reset session-scoped news cache when a new app launch begins.
-    clearNewsSessionCache().catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -259,11 +254,13 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <ToastProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </ToastProvider>
+      <AppQueryProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </ToastProvider>
+      </AppQueryProvider>
     </SafeAreaProvider>
   );
 }

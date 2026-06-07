@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import {
   Poppins_600SemiBold,
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -28,16 +28,15 @@ import ResourceCard from '../components/ResourceCard';
 import { CURRENT_ACADEMIC_YEAR_LABEL } from '../constants/payment';
 import { useAuth } from '../hooks/useAuth';
 import {
-  fetchLatestNewsArticles,
   formatNewsPublishedDate,
   formatNewsRelativeTime,
   NewsArticle,
 } from '../services/news';
-import { downloadResourceFile, getResources } from '../services/resources';
+import { downloadResourceFile } from '../services/resources';
 import { showErrorToast, showSuccessToast } from '../services/toast';
 import { colors } from '../theme/colors';
 import { ResourceItem } from '../types/resources';
-import { getCachedNewsArticles } from '../utils/newsSessionStorage';
+import { useLatestNewsQuery, useResourcesQuery } from '../query/contentQueries';
 
 type RootStackParamList = {
   MainTabs: { screen?: string };
@@ -70,10 +69,18 @@ export default function HomeScreen() {
     Poppins_700Bold,
   });
 
-  const [latestNewsArticles, setLatestNewsArticles] = useState<NewsArticle[]>([]);
-  const [isNewsLoading, setIsNewsLoading] = useState(true);
-  const [homeResources, setHomeResources] = useState<ResourceItem[]>([]);
-  const [isResourcesLoading, setIsResourcesLoading] = useState(true);
+  const {
+    data: newsArticles = [],
+    isPending: isNewsPending,
+  } = useLatestNewsQuery();
+  const {
+    data: resources = [],
+    isPending: isResourcesPending,
+  } = useResourcesQuery();
+  const latestNewsArticles = newsArticles.slice(0, HOME_NEWS_LIMIT);
+  const homeResources = resources.slice(0, HOME_RESOURCE_LIMIT);
+  const isNewsLoading = isNewsPending && latestNewsArticles.length === 0;
+  const isResourcesLoading = isResourcesPending && homeResources.length === 0;
 
   // Toast state
   const [toastVisible, setToastVisible] = useState(false);
@@ -128,50 +135,6 @@ export default function HomeScreen() {
       });
     }, 2000);
   };
-
-  /**
-   * Loads cached latest news first so the home feed feels responsive on revisit.
-   */
-  const loadCachedLatestNews = useCallback(async () => {
-    const cachedArticles = await getCachedNewsArticles();
-
-    if (cachedArticles.length) {
-      setLatestNewsArticles(cachedArticles.slice(0, HOME_NEWS_LIMIT));
-      setIsNewsLoading(false);
-    }
-  }, []);
-
-  /**
-   * Refreshes the home news preview from the backend and limits it to four articles.
-   */
-  const refreshLatestNews = useCallback(async () => {
-    try {
-      const latestArticles = await fetchLatestNewsArticles(HOME_NEWS_LIMIT);
-      setLatestNewsArticles(latestArticles.slice(0, HOME_NEWS_LIMIT));
-    } finally {
-      setIsNewsLoading(false);
-    }
-  }, []);
-
-  /**
-   * Loads the newest four resources for the compact home preview.
-   */
-  const refreshHomeResources = useCallback(async () => {
-    try {
-      const latestResources = await getResources({ limit: HOME_RESOURCE_LIMIT });
-      setHomeResources(latestResources.slice(0, HOME_RESOURCE_LIMIT));
-    } finally {
-      setIsResourcesLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadCachedLatestNews().catch(() => undefined);
-      refreshLatestNews().catch(() => undefined);
-      refreshHomeResources().catch(() => undefined);
-    }, [loadCachedLatestNews, refreshHomeResources, refreshLatestNews])
-  );
 
   /**
    * Handles navigation into the fee payment flow.

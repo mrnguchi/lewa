@@ -16,12 +16,14 @@ import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 
 import AppHeader from '../components/AppHeader';
 import CustomToast from '../components/CustomToast';
 import { colors } from '../theme/colors';
 import { createResource, uploadResourceFile } from '../services/resources';
 import { ResourceType } from '../types/resources';
+import { contentQueryKeys } from '../query/contentQueries';
 
 type RootStackParamList = {
   AddResource: undefined;
@@ -55,6 +57,7 @@ const RESOURCE_LEVELS = [100, 200, 300, 400, 500];
  */
 export default function AddResourceScreen() {
   const navigation = useNavigation<AddResourceScreenNavigationProp>();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const isAndroid = Platform.OS === 'android';
   const androidBottomPadding = Math.max(insets.bottom + 22, 34);
@@ -125,6 +128,9 @@ export default function AddResourceScreen() {
         file_url: fileUrl,
         description: description.trim() || undefined,
       });
+
+      // I invalidate the shared catalogue only after the upload is fully saved.
+      await queryClient.invalidateQueries({ queryKey: contentQueryKeys.resources });
 
       showToast('Resource uploaded successfully.', 'success');
       setTimeout(() => {

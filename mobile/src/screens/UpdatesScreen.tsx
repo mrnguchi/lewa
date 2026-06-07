@@ -9,7 +9,7 @@ import {
   TextInput,
   RefreshControl,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,16 +19,12 @@ import CustomToast from '../components/CustomToast';
 import SpinningLoader from '../components/SpinningLoader';
 import { colors } from '../theme/colors';
 import {
-  fetchLatestNewsArticles,
   formatNewsPublishedDate,
   formatNewsRelativeTime,
   NEWS_CATEGORIES,
   NewsArticle,
 } from '../services/news';
-import {
-  cacheNewsArticles,
-  getCachedNewsArticles,
-} from '../utils/newsSessionStorage';
+import { useLatestNewsQuery } from '../query/contentQueries';
 
 type RootStackParamList = {
   MainTabs: { screen: string };
@@ -37,18 +33,19 @@ type RootStackParamList = {
 
 type UpdatesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const NEWS_FETCH_LIMIT = 10;
-
 /**
  * Renders the Lewa News feed with live backend data and pull-to-refresh support.
  */
 export default function UpdatesScreen() {
   const navigation = useNavigation<UpdatesScreenNavigationProp>();
-  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const {
+    data: articles = [],
+    isPending: isInitialLoading,
+    refetch: refetchNews,
+  } = useLatestNewsQuery();
   const [selectedCategory, setSelectedCategory] = useState<(typeof NEWS_CATEGORIES)[number]>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [visibleNewsCount, setVisibleNewsCount] = useState(4);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -64,76 +61,25 @@ export default function UpdatesScreen() {
   }, []);
 
   /**
-   * Loads the current session cache so revisits feel immediate.
-   */
-  const loadCachedNews = useCallback(async () => {
-    const cachedArticles = await getCachedNewsArticles();
-
-    if (cachedArticles.length) {
-      setArticles(cachedArticles);
-      setIsInitialLoading(false);
-    }
-
-    return cachedArticles;
-  }, []);
-
-  /**
-   * Fetches the latest news from the backend and refreshes the session cache.
-   */
-  const fetchAndStoreLatestNews = useCallback(
-    async (options?: { isUserRefresh?: boolean }) => {
-      const latestArticles = await fetchLatestNewsArticles(NEWS_FETCH_LIMIT);
-      setArticles(latestArticles);
-      await cacheNewsArticles(latestArticles);
-      setIsInitialLoading(false);
-
-      if (options?.isUserRefresh) {
-        showToast('News feed updated with the latest articles.', 'success');
-      }
-    },
-    [showToast]
-  );
-
-  /**
-   * Loads cached news first, then refreshes from the backend whenever the screen gains focus.
-   */
-  const loadNewsOnFocus = useCallback(async () => {
-    try {
-      await loadCachedNews();
-      await fetchAndStoreLatestNews();
-    } catch (error) {
-      setIsInitialLoading(false);
-
-      const cachedArticles = await getCachedNewsArticles();
-
-      if (!cachedArticles.length) {
-        showToast('Unable to load Lewa News right now. Pull down to try again.', 'error');
-      } else {
-        showToast('Latest news could not be refreshed. Showing cached articles instead.', 'error');
-      }
-    }
-  }, [fetchAndStoreLatestNews, loadCachedNews, showToast]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadNewsOnFocus();
-    }, [loadNewsOnFocus])
-  );
-
-  /**
    * Refreshes the news feed when the user pulls down on the scrollable content.
    */
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
 
     try {
-      await fetchAndStoreLatestNews({ isUserRefresh: true });
-    } catch (error) {
+      const result = await refetchNews();
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      showToast('News feed updated with the latest articles.', 'success');
+    } catch {
       showToast('Unable to refresh Lewa News right now.', 'error');
     } finally {
       setIsRefreshing(false);
     }
-  }, [fetchAndStoreLatestNews, showToast]);
+  }, [refetchNews, showToast]);
 
   /**
    * Updates the search query and resets the visible list window.

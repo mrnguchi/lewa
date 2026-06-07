@@ -19,6 +19,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useQueryClient } from '@tanstack/react-query';
 
 import AppHeader from '../components/AppHeader';
 import CustomToast from '../components/CustomToast';
@@ -30,7 +31,7 @@ import {
   NewsCategory,
   uploadNewsPoster,
 } from '../services/news';
-import { upsertPublishedArticleInCache } from '../utils/newsSessionStorage';
+import { contentQueryKeys } from '../query/contentQueries';
 
 type RootStackParamList = {
   AddNews: undefined;
@@ -63,6 +64,7 @@ const getCurrentTime = () => {
  */
 export default function AddNewsScreen() {
   const navigation = useNavigation<AddNewsScreenNavigationProp>();
+  const queryClient = useQueryClient();
 
   const [title, setTitle] = useState('');
   const [intro, setIntro] = useState('');
@@ -197,7 +199,8 @@ export default function AddNewsScreen() {
         published_at: publishedAt,
       });
 
-      await upsertPublishedArticleInCache(createdArticle);
+      // I refresh the shared feed only after the backend accepts the article.
+      await queryClient.invalidateQueries({ queryKey: contentQueryKeys.news });
 
       showToast('News article published successfully.', 'success');
 

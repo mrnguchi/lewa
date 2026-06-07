@@ -4,7 +4,7 @@
  * Displays handouts and past questions with embedded viewing and download actions.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -25,8 +25,9 @@ import CustomToast from '../components/CustomToast';
 import ResourceCard from '../components/ResourceCard';
 import SpinningLoader from '../components/SpinningLoader';
 import { colors } from '../theme/colors';
-import { downloadResourceFile, getResources } from '../services/resources';
+import { downloadResourceFile } from '../services/resources';
 import { ResourceItem, ResourceType } from '../types/resources';
+import { useResourcesQuery } from '../query/contentQueries';
 
 type RootStackParamList = {
   ResourceViewer: {
@@ -47,12 +48,15 @@ const ResourcesScreen: React.FC = () => {
   const navigation = useNavigation<ResourcesScreenNavigationProp>();
   const isAndroid = Platform.OS === 'android';
   const [activeTab, setActiveTab] = useState<ResourceType>('handout');
-  const [resources, setResources] = useState<ResourceItem[]>([]);
+  const {
+    data: resources = [],
+    isPending: isLoading,
+    refetch: refetchResources,
+  } = useResourcesQuery();
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedFaculty, setSelectedFaculty] = useState<string>(EMPTY_FACULTY);
   const [selectedLevel, setSelectedLevel] = useState<string>(EMPTY_LEVEL);
-  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -102,37 +106,22 @@ const ResourcesScreen: React.FC = () => {
   };
 
   /**
-   * Fetches the latest resource list from the backend.
-   */
-  const loadResources = useCallback(async (isPullRefresh = false) => {
-    try {
-      if (isPullRefresh) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-
-      const payload = await getResources();
-      setResources(payload);
-    } catch (error) {
-      showToast('Unable to load resources right now.', 'error');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void loadResources();
-    }, [loadResources])
-  );
-
-  /**
    * Refreshes the catalogue when the user pulls the scrollable content down.
    */
   const handleRefresh = async () => {
-    await loadResources(true);
+    setIsRefreshing(true);
+
+    try {
+      const result = await refetchResources();
+
+      if (result.error) {
+        throw result.error;
+      }
+    } catch {
+      showToast('Unable to refresh resources right now.', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   /**
