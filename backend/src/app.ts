@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
+import * as Sentry from "@sentry/node";
+import { ZodError } from "zod";
 
 import { env, isCorsOriginAllowed } from "./config/env";
 import { prisma } from "./database/prisma";
@@ -95,6 +97,21 @@ app.use("/api", routes);
 ----------------------------------------------------- */
 app.use((_req, _res, next) => {
   next(new ApiError(404, "Route not found"));
+});
+
+// I report unexpected server failures while keeping normal validation and client errors out of Sentry.
+Sentry.setupExpressErrorHandler(app, {
+  shouldHandleError(error) {
+    if (error instanceof ZodError) {
+      return false;
+    }
+
+    if (error instanceof ApiError) {
+      return error.statusCode >= 500;
+    }
+
+    return true;
+  },
 });
 
 /* -----------------------------------------------------
