@@ -3,7 +3,13 @@ import { authStorage } from "../utils/authStorage";
 import { showErrorToast } from "./toast";
 import { getFriendlyErrorMessage } from "../utils/errorMessages";
 
-export const API_BASE_URL = "http://172.20.10.3:4000";
+const DEFAULT_API_BASE_URL = "https://lewa-backend-pzh6.onrender.com";
+
+// I can override this in .env.local when I want the app to use my local backend.
+export const API_BASE_URL = (
+  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || DEFAULT_API_BASE_URL
+).replace(/\/+$/, "");
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // Increased to 30 seconds for registration/login with password hashing

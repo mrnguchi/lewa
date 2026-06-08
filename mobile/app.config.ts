@@ -14,7 +14,7 @@ export default {
     scheme: "lewa",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/logo-3.png",
+    icon: "./assets/app-icon.png",
     userInterfaceStyle: "light",
     newArchEnabled: true,
     splash: {
@@ -29,7 +29,7 @@ export default {
     android: {
       package: "com.mrnguchi.lewa",
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
+        foregroundImage: "./assets/adaptive-foreground.png",
         backgroundColor: "#167846",
       },
       edgeToEdgeEnabled: true,
