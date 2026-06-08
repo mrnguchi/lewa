@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +25,7 @@ type ResourceViewerNavigationProp = NativeStackNavigationProp<RootStackParamList
  */
 export default function ResourceViewerScreen() {
   const navigation = useNavigation<ResourceViewerNavigationProp>();
+  const isAndroid = Platform.OS === 'android';
   const route = useRoute<ResourceViewerRouteProp>();
   const { resource } = route.params;
   const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +35,7 @@ export default function ResourceViewerScreen() {
     <View style={styles.container}>
       <AppHeader title={resource.title} onBackPress={() => navigation.goBack()} />
 
-      <View style={styles.viewerShell}>
+      <View style={[styles.viewerShell, isAndroid && styles.viewerShellAndroid]}>
         {hasError ? (
           <View style={styles.errorState}>
             <Ionicons name="document-text-outline" size={42} color={colors.primary} />
@@ -63,7 +64,9 @@ export default function ResourceViewerScreen() {
             {isLoading && (
               <View style={styles.loaderOverlay}>
                 <SpinningLoader size={74} />
-                <Text style={styles.loaderText}>Opening resource...</Text>
+                <Text style={[styles.loaderText, isAndroid && styles.loaderTextAndroid]}>
+                  Opening resource...
+                </Text>
               </View>
             )}
           </>
@@ -126,6 +129,16 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 8,
   },
+  // Android keeps the document viewer close to the screen edge with a mild shadow.
+  viewerShellAndroid: {
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: 14,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   webView: {
     flex: 1,
     backgroundColor: colors.white,
@@ -141,6 +154,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: '#374151',
+  },
+  loaderTextAndroid: {
+    fontSize: 13,
   },
   errorState: {
     flex: 1,

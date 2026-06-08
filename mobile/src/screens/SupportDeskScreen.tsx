@@ -26,6 +26,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../hooks/useAuth';
 import { createComplaintConversation } from '../services/lewaChat';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 // FAQ data
@@ -97,6 +98,8 @@ type SupportDeskScreenNavigationProp = NativeStackNavigationProp<RootStackParamL
 
 const SupportDeskScreen: React.FC = () => {
   const navigation = useNavigation<SupportDeskScreenNavigationProp>();
+  const insets = useSafeAreaInsets();
+  const isAndroid = Platform.OS === 'android';
   const { user } = useAuth();
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
@@ -278,20 +281,33 @@ const SupportDeskScreen: React.FC = () => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isAndroid && styles.scrollContentAndroid,
+        ]}
       >
         
 
         {/* FAQ Accordion */}
-        <View style={styles.faqContainer}>
+        <View style={[styles.faqContainer, isAndroid && styles.faqContainerAndroid]}>
           {faqs.map((faq, index) => (
-            <View key={faq.id} style={styles.faqItem}>
+            <View
+              key={faq.id}
+              style={[styles.faqItem, isAndroid && styles.faqItemAndroid]}
+            >
               <TouchableOpacity
-                style={styles.faqQuestion}
+                style={[styles.faqQuestion, isAndroid && styles.faqQuestionAndroid]}
                 onPress={() => toggleFAQ(index)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.faqQuestionText}>{faq.question}</Text>
+                <Text
+                  style={[
+                    styles.faqQuestionText,
+                    isAndroid && styles.faqQuestionTextAndroid,
+                  ]}
+                >
+                  {faq.question}
+                </Text>
                 <Ionicons
                   name="chevron-forward"
                   size={24}
@@ -305,7 +321,14 @@ const SupportDeskScreen: React.FC = () => {
 
               {expandedIndex === index && (
                 <View style={styles.faqAnswer}>
-                  <Text style={styles.faqAnswerText}>{faq.answer}</Text>
+                  <Text
+                    style={[
+                      styles.faqAnswerText,
+                      isAndroid && styles.faqAnswerTextAndroid,
+                    ]}
+                  >
+                    {faq.answer}
+                  </Text>
                 </View>
               )}
             </View>
@@ -318,12 +341,20 @@ const SupportDeskScreen: React.FC = () => {
       </ScrollView>
 
       {/* Submit Complaint Button */}
-        <View style = {styles.submitButtonContainer}>
+        <View
+          style={[
+            styles.submitButtonContainer,
+            isAndroid && styles.submitButtonContainerAndroid,
+            isAndroid && { paddingBottom: Math.max(insets.bottom + 10, 20) },
+          ]}
+        >
           <TouchableOpacity
-          style={styles.submitButton}
+          style={[styles.submitButton, isAndroid && styles.submitButtonAndroid]}
           onPress={() => setShowComplaintModal(true)}
         >
-          <Text style={styles.submitButtonText}>Submit a complaint</Text>
+          <Text style={[styles.submitButtonText, isAndroid && styles.submitButtonTextAndroid]}>
+            Submit a complaint
+          </Text>
           <Ionicons name="arrow-forward" size={24} color={colors.white} />
         </TouchableOpacity>
         </View>
@@ -340,20 +371,40 @@ const SupportDeskScreen: React.FC = () => {
           activeOpacity={1}
           onPress={handleCloseModal}
         >
-          <View style={styles.complaintModal}>
+          <View
+            style={[
+              styles.complaintModal,
+              isAndroid && styles.complaintModalAndroid,
+              isAndroid && { paddingBottom: Math.max(insets.bottom + 14, 24) },
+            ]}
+          >
             <TouchableOpacity activeOpacity={1}>
               <View style={styles.complaintHeader}>
-                <Text style={styles.complaintTitle}>Submit a Complaint</Text>
+                <Text
+                  style={[
+                    styles.complaintTitle,
+                    isAndroid && styles.complaintTitleAndroid,
+                  ]}
+                >
+                  Submit a Complaint
+                </Text>
                 <TouchableOpacity onPress={handleCloseModal}>
                   <Ionicons name="close" size={24} color={colors.textPrimary} />
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.complaintSubtitle}>We'll get back to you soon</Text>
+              <Text
+                style={[
+                  styles.complaintSubtitle,
+                  isAndroid && styles.complaintSubtitleAndroid,
+                ]}
+              >
+                We'll get back to you soon
+              </Text>
 
               {/* Scrollable Form Content */}
               <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
               >
@@ -363,10 +414,16 @@ const SupportDeskScreen: React.FC = () => {
                   style={styles.formScrollContainer}
                 >
                     {/* Student Name */}
-                    <View style={styles.formGroup}>
-                      <Text style={styles.label}>Student Name</Text>
+                    <View style={[styles.formGroup, isAndroid && styles.formGroupAndroid]}>
+                      <Text style={[styles.label, isAndroid && styles.labelAndroid]}>
+                        Student Name
+                      </Text>
                       <TextInput
-                        style={[styles.input, errors.studentName && styles.inputError]}
+                        style={[
+                          styles.input,
+                          isAndroid && styles.inputAndroid,
+                          errors.studentName && styles.inputError,
+                        ]}
                         placeholder="Enter your full name"
                         placeholderTextColor="#9CA3AF"
                         value={studentName}
@@ -378,10 +435,16 @@ const SupportDeskScreen: React.FC = () => {
                     </View>
 
                     {/* Phone Number */}
-                    <View style={styles.formGroup}>
-                      <Text style={styles.label}>Phone Number</Text>
+                    <View style={[styles.formGroup, isAndroid && styles.formGroupAndroid]}>
+                      <Text style={[styles.label, isAndroid && styles.labelAndroid]}>
+                        Phone Number
+                      </Text>
                       <TextInput
-                        style={[styles.input, errors.phoneNumber && styles.inputError]}
+                        style={[
+                          styles.input,
+                          isAndroid && styles.inputAndroid,
+                          errors.phoneNumber && styles.inputError,
+                        ]}
                         placeholder="671234567"
                         placeholderTextColor="#9CA3AF"
                         value={phoneNumber}
@@ -397,10 +460,16 @@ const SupportDeskScreen: React.FC = () => {
                     </View>
 
                     {/* Matricule */}
-                    <View style={styles.formGroup}>
-                      <Text style={styles.label}>Matricule</Text>
+                    <View style={[styles.formGroup, isAndroid && styles.formGroupAndroid]}>
+                      <Text style={[styles.label, isAndroid && styles.labelAndroid]}>
+                        Matricule
+                      </Text>
                       <TextInput
-                        style={[styles.input, errors.matricule && styles.inputError]}
+                        style={[
+                          styles.input,
+                          isAndroid && styles.inputAndroid,
+                          errors.matricule && styles.inputError,
+                        ]}
                         placeholder="CT24A456"
                         placeholderTextColor="#9CA3AF"
                         value={matricule}
@@ -414,11 +483,14 @@ const SupportDeskScreen: React.FC = () => {
                     </View>
 
                     {/* Faculty */}
-                    <View style={styles.formGroup}>
-                      <Text style={styles.label}>Faculty</Text>
+                    <View style={[styles.formGroup, isAndroid && styles.formGroupAndroid]}>
+                      <Text style={[styles.label, isAndroid && styles.labelAndroid]}>
+                        Faculty
+                      </Text>
                       <TouchableOpacity
                         style={[
                           styles.input,
+                          isAndroid && styles.inputAndroid,
                           styles.dropdownInput,
                           errors.faculty && styles.inputError,
                         ]}
@@ -436,7 +508,12 @@ const SupportDeskScreen: React.FC = () => {
 
                       {/* Dropdown menu */}
                       {showFacultyDropdown && (
-                        <View style={styles.dropdownMenu}>
+                        <View
+                          style={[
+                            styles.dropdownMenu,
+                            isAndroid && styles.dropdownMenuAndroid,
+                          ]}
+                        >
                           <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
                             {faculties.slice(1).map((fac, index) => (
                               <TouchableOpacity
@@ -461,10 +538,16 @@ const SupportDeskScreen: React.FC = () => {
                     </View>
 
                     {/* Description */}
-                    <View style={styles.formGroup}>
-                      <Text style={styles.label}>Description (Max 30 words)</Text>
+                    <View style={[styles.formGroup, isAndroid && styles.formGroupAndroid]}>
+                      <Text style={[styles.label, isAndroid && styles.labelAndroid]}>
+                        Description (Max 30 words)
+                      </Text>
                       <TextInput
-                        style={[styles.textArea, errors.description && styles.inputError]}
+                        style={[
+                          styles.textArea,
+                          isAndroid && styles.textAreaAndroid,
+                          errors.description && styles.inputError,
+                        ]}
                         placeholder="Describe your complaint..."
                         placeholderTextColor="#9CA3AF"
                         value={description}
@@ -483,7 +566,11 @@ const SupportDeskScreen: React.FC = () => {
 
                 {/* Submit Button */}
                 <TouchableOpacity
-                  style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                  style={[
+                    styles.submitButton,
+                    isAndroid && styles.submitButtonAndroid,
+                    isSubmitting && styles.submitButtonDisabled,
+                  ]}
                   onPress={handleSubmitComplaint}
                   disabled={isSubmitting}
                 >
@@ -491,7 +578,14 @@ const SupportDeskScreen: React.FC = () => {
                     <ActivityIndicator size="small" color={colors.white} />
                   ) : (
                     <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center', alignItems: 'center' }}>
-                      <Text style={styles.submitButtonText}>Submit Complaint</Text>
+                      <Text
+                        style={[
+                          styles.submitButtonText,
+                          isAndroid && styles.submitButtonTextAndroid,
+                        ]}
+                      >
+                        Submit Complaint
+                      </Text>
                       <Ionicons name="send-sharp" size={24} color={colors.white} />
                     </View>
                     
@@ -506,9 +600,16 @@ const SupportDeskScreen: React.FC = () => {
 
       {/* Success Notification */}
       {showSuccessNotification && (
-        <View style={styles.notification}>
+        <View style={[styles.notification, isAndroid && styles.notificationAndroid]}>
           <Ionicons name="checkmark-circle" size={24} color={colors.success} />
-          <Text style={styles.notificationText}>Your complaint has been submitted successfully</Text>
+          <Text
+            style={[
+              styles.notificationText,
+              isAndroid && styles.notificationTextAndroid,
+            ]}
+          >
+            Your complaint has been submitted successfully
+          </Text>
         </View>
       )}
     </View>
@@ -561,6 +662,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
+  scrollContentAndroid: {
+    paddingBottom: 28,
+  },
   header: {
     paddingHorizontal: 20,
     paddingTop: 10,
@@ -607,6 +711,14 @@ const styles = StyleSheet.create({
     elevation: 3,
 
   },
+  // Android FAQ cards stay almost flat so the list feels light and easy to scan.
+  faqContainerAndroid: {
+    paddingHorizontal: 16,
+    marginBottom: 18,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
   faqItem: {
     backgroundColor: colors.white,
     borderRadius: 12,
@@ -618,11 +730,25 @@ const styles = StyleSheet.create({
     // elevation: 3,
     // overflow: 'hidden',
   },
+  faqItemAndroid: {
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#EEF1F3',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.015,
+    shadowRadius: 2,
+    elevation: 1,
+  },
   faqQuestion: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
+  },
+  faqQuestionAndroid: {
+    padding: 14,
   },
   faqQuestionText: {
     flex: 1,
@@ -630,6 +756,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
     color: colors.textPrimary,
     marginRight: 12,
+  },
+  faqQuestionTextAndroid: {
+    fontSize: 14,
   },
   chevronIcon: {
     // Rotation handled by transform in chevronIconExpanded
@@ -648,6 +777,10 @@ const styles = StyleSheet.create({
     color: colors.textBody,
     lineHeight: 22,
   },
+  faqAnswerTextAndroid: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
   submitButtonContainer: {
     position: 'relative',
     bottom: 20,
@@ -657,6 +790,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  submitButtonContainerAndroid: {
+    bottom: 0,
+    paddingTop: 10,
   },
   submitButton: {
     flexDirection: 'row',
@@ -671,10 +808,20 @@ const styles = StyleSheet.create({
     
     marginTop: 8,
   },
+  submitButtonAndroid: {
+    minHeight: 50,
+    borderRadius: 25,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginHorizontal: 24,
+  },
   submitButtonText: {
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.white,
+  },
+  submitButtonTextAndroid: {
+    fontSize: 14,
   },
   // Modal styles (matching Resources screen)
   modalOverlay: {
@@ -691,6 +838,13 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     maxHeight: '95%',
   },
+  complaintModalAndroid: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    maxHeight: '90%',
+  },
   complaintHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -702,11 +856,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
   },
+  complaintTitleAndroid: {
+    fontSize: 18,
+  },
   complaintSubtitle: {
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     marginBottom: 20,
+  },
+  complaintSubtitleAndroid: {
+    fontSize: 12.5,
+    marginBottom: 14,
   },
   formScrollContainer: {
     height: '100%',
@@ -716,11 +877,18 @@ const styles = StyleSheet.create({
   formGroup: {
     marginBottom: 20,
   },
+  formGroupAndroid: {
+    marginBottom: 14,
+  },
   label: {
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.primary,
     marginBottom: 8,
+  },
+  labelAndroid: {
+    fontSize: 12.5,
+    marginBottom: 6,
   },
   input: {
     borderWidth: 1,
@@ -732,6 +900,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: colors.textPrimary,
     backgroundColor: colors.white,
+  },
+  inputAndroid: {
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
   },
   inputError: {
     borderColor: colors.error,
@@ -761,6 +935,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     minHeight: 100,
   },
+  textAreaAndroid: {
+    minHeight: 90,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+  },
   dropdownMenu: {
     position: 'absolute',
     top: 85,
@@ -780,6 +961,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 5,
+  },
+  dropdownMenuAndroid: {
+    top: 76,
+    borderRadius: 10,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.025,
+    shadowRadius: 4,
+    elevation: 2,
   },
   dropdownScroll: {
     maxHeight: 200,
@@ -829,11 +1018,22 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  notificationAndroid: {
+    bottom: 84,
+    padding: 13,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 2,
+  },
   notificationText: {
     flex: 1,
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: colors.textPrimary,
+  },
+  notificationTextAndroid: {
+    fontSize: 12.5,
   },
 });
 

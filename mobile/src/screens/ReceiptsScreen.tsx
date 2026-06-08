@@ -12,6 +12,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
@@ -93,6 +94,7 @@ const formatReceiptAmount = (amount: string) => {
 
 const ReceiptsScreen: React.FC = () => {
   const navigation = useNavigation<ReceiptsScreenNavigationProp>();
+  const isAndroid = Platform.OS === 'android';
   const [selectedTab, setSelectedTab] = useState<'school_fee' | 'subscription'>('school_fee');
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,26 +143,49 @@ const ReceiptsScreen: React.FC = () => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isAndroid && styles.scrollContentAndroid,
+        ]}
       >
         
 
         {/* Tabs */}
-        <View style={styles.tabsContainer}>
+        <View style={[styles.tabsContainer, isAndroid && styles.tabsContainerAndroid]}>
           <TouchableOpacity
-            style={[styles.tab, selectedTab === 'school_fee' && styles.tabActive]}
+            style={[
+              styles.tab,
+              isAndroid && styles.tabAndroid,
+              selectedTab === 'school_fee' && styles.tabActive,
+            ]}
             onPress={() => setSelectedTab('school_fee')}
           >
-            <Text style={[styles.tabText, selectedTab === 'school_fee' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                isAndroid && styles.tabTextAndroid,
+                selectedTab === 'school_fee' && styles.tabTextActive,
+              ]}
+            >
               Fee Payment
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.tab, selectedTab === 'subscription' && styles.tabActive]}
+            style={[
+              styles.tab,
+              isAndroid && styles.tabAndroid,
+              selectedTab === 'subscription' && styles.tabActive,
+            ]}
             onPress={() => setSelectedTab('subscription')}
           >
-            <Text style={[styles.tabText, selectedTab === 'subscription' && styles.tabTextActive]}>
+            <Text
+              style={[
+                styles.tabText,
+                isAndroid && styles.tabTextAndroid,
+                selectedTab === 'subscription' && styles.tabTextActive,
+              ]}
+            >
               Subscription
             </Text>
           </TouchableOpacity>
@@ -180,16 +205,24 @@ const ReceiptsScreen: React.FC = () => {
           </View>
         ) : (
           /* Receipt Cards */
-          <View style={styles.receiptsContainer}>
+          <View
+            style={[
+              styles.receiptsContainer,
+              isAndroid && styles.receiptsContainerAndroid,
+            ]}
+          >
             {filteredReceipts.map((receipt) => (
               <TouchableOpacity
                 key={receipt.id}
-                style={styles.receiptCard}
+                style={[styles.receiptCard, isAndroid && styles.receiptCardAndroid]}
                 onPress={() => handleReceiptPress(receipt)}
                 activeOpacity={0.7}
               >
                 <View style={styles.receiptContent}>
-                  <Text style={styles.receiptTitle} numberOfLines={1}>
+                  <Text
+                    style={[styles.receiptTitle, isAndroid && styles.receiptTitleAndroid]}
+                    numberOfLines={1}
+                  >
                     {getReceiptTitle(receipt)}
                   </Text>
                   <Text style={styles.receiptDate}>{formatReceiptDate(receipt.paidAt || receipt.issuedAt)}</Text>
@@ -197,7 +230,11 @@ const ReceiptsScreen: React.FC = () => {
                     Transaction type: {getTransactionType(receipt)}
                   </Text>
                 </View>
-                <Text style={styles.receiptAmount}>{formatReceiptAmount(receipt.amount)}</Text>
+                <Text
+                  style={[styles.receiptAmount, isAndroid && styles.receiptAmountAndroid]}
+                >
+                  {formatReceiptAmount(receipt.amount)}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -221,6 +258,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
+  },
+  scrollContentAndroid: {
+    paddingBottom: 28,
   },
   header: {
     paddingHorizontal: 20,
@@ -264,11 +304,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
+  // Android receipt controls are kept compact so more records stay visible.
+  tabsContainerAndroid: {
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 18,
+  },
   tab: {
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 30,
     backgroundColor: colors.background,
+  },
+  tabAndroid: {
+    paddingVertical: 9,
+    paddingHorizontal: 18,
   },
   tabActive: {
     backgroundColor: colors.textPrimary,
@@ -278,12 +328,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
     color: colors.textBody,
   },
+  tabTextAndroid: {
+    fontSize: 13,
+  },
   tabTextActive: {
     color: colors.white,
   },
   receiptsContainer: {
     paddingHorizontal: 20,
     gap: 20,
+  },
+  receiptsContainerAndroid: {
+    paddingHorizontal: 16,
+    gap: 12,
   },
   receiptCard: {
     flexDirection: 'row',
@@ -300,6 +357,16 @@ const styles = StyleSheet.create({
     elevation: 4,
     minHeight: 96,
   },
+  receiptCardAndroid: {
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 13,
+    minHeight: 80,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   receiptContent: {
     flex: 1,
     paddingRight: 12,
@@ -309,6 +376,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: '#111827',
     marginBottom: 2,
+  },
+  receiptTitleAndroid: {
+    fontSize: 14,
   },
   receiptDate: {
     fontSize: 12,
@@ -327,6 +397,9 @@ const styles = StyleSheet.create({
     color: colors.success,
     textAlign: 'right',
     paddingTop: 2,
+  },
+  receiptAmountAndroid: {
+    fontSize: 13,
   },
   centerContainer: {
     flex: 1,

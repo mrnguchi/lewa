@@ -19,6 +19,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 
 import AppHeader from '../components/AppHeader';
@@ -65,6 +66,8 @@ const getCurrentTime = () => {
 export default function AddNewsScreen() {
   const navigation = useNavigation<AddNewsScreenNavigationProp>();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const isAndroid = Platform.OS === 'android';
 
   const [title, setTitle] = useState('');
   const [intro, setIntro] = useState('');
@@ -227,22 +230,37 @@ export default function AddNewsScreen() {
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.secondaryHeader}>
-          <Text style={styles.pageSubtitle}>
+        <View
+          style={[
+            styles.secondaryHeader,
+            isAndroid && styles.secondaryHeaderAndroid,
+          ]}
+        >
+          <Text style={[styles.pageSubtitle, isAndroid && styles.pageSubtitleAndroid]}>
             Create a polished update with the right story details, category, and poster preview.
           </Text>
         </View>
 
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.contentContainer}
+          contentContainerStyle={[
+            styles.contentContainer,
+            isAndroid && styles.contentContainerAndroid,
+          ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Story Details</Text>
-            <Text style={styles.sectionDescription}>
+          <View style={[styles.sectionCard, isAndroid && styles.sectionCardAndroid]}>
+            <Text style={[styles.sectionTitle, isAndroid && styles.sectionTitleAndroid]}>
+              Story Details
+            </Text>
+            <Text
+              style={[
+                styles.sectionDescription,
+                isAndroid && styles.sectionDescriptionAndroid,
+              ]}
+            >
               These fields map directly to the news content students will read in the app.
             </Text>
 
@@ -253,7 +271,7 @@ export default function AddNewsScreen() {
                 onChangeText={setTitle}
                 placeholder="Enter a clear, compelling headline"
                 placeholderTextColor="#9CA3AF"
-                style={styles.input}
+                style={[styles.input, isAndroid && styles.inputAndroid]}
                 maxLength={255}
               />
             </View>
@@ -265,7 +283,12 @@ export default function AddNewsScreen() {
                 onChangeText={setIntro}
                 placeholder="Write a short summary for the featured card"
                 placeholderTextColor="#9CA3AF"
-                style={[styles.input, styles.textAreaSm]}
+                style={[
+                  styles.input,
+                  isAndroid && styles.inputAndroid,
+                  styles.textAreaSm,
+                  isAndroid && styles.textAreaSmAndroid,
+                ]}
                 multiline
                 textAlignVertical="top"
                 maxLength={220}
@@ -279,22 +302,39 @@ export default function AddNewsScreen() {
                 onChangeText={setDescription}
                 placeholder="Add the full story exactly as you want it to appear in the details page"
                 placeholderTextColor="#9CA3AF"
-                style={[styles.input, styles.textAreaLg]}
+                style={[
+                  styles.input,
+                  isAndroid && styles.inputAndroid,
+                  styles.textAreaLg,
+                  isAndroid && styles.textAreaLgAndroid,
+                ]}
                 multiline
                 textAlignVertical="top"
               />
             </View>
           </View>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Publishing</Text>
-            <Text style={styles.sectionDescription}>
+          <View style={[styles.sectionCard, isAndroid && styles.sectionCardAndroid]}>
+            <Text style={[styles.sectionTitle, isAndroid && styles.sectionTitleAndroid]}>
+              Publishing
+            </Text>
+            <Text
+              style={[
+                styles.sectionDescription,
+                isAndroid && styles.sectionDescriptionAndroid,
+              ]}
+            >
               Choose the story category and decide whether to publish immediately or schedule it.
             </Text>
 
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>News Category</Text>
-              <View style={styles.pickerWrapper}>
+              <View
+                style={[
+                  styles.pickerWrapper,
+                  isAndroid && styles.pickerWrapperAndroid,
+                ]}
+              >
                 <Picker
                   selectedValue={category}
                   onValueChange={(value) => setCategory(value)}
@@ -308,7 +348,7 @@ export default function AddNewsScreen() {
               </View>
             </View>
 
-            <View style={styles.publishCard}>
+            <View style={[styles.publishCard, isAndroid && styles.publishCardAndroid]}>
               <View style={styles.publishHeader}>
                 <View>
                   <Text style={styles.publishLabel}>Publish Now</Text>
@@ -333,7 +373,7 @@ export default function AddNewsScreen() {
                       onChangeText={setPublishDate}
                       placeholder="YYYY-MM-DD"
                       placeholderTextColor="#9CA3AF"
-                      style={styles.input}
+                      style={[styles.input, isAndroid && styles.inputAndroid]}
                     />
                   </View>
                   <View style={styles.scheduleField}>
@@ -343,7 +383,7 @@ export default function AddNewsScreen() {
                       onChangeText={setPublishTime}
                       placeholder="HH:MM"
                       placeholderTextColor="#9CA3AF"
-                      style={styles.input}
+                      style={[styles.input, isAndroid && styles.inputAndroid]}
                     />
                   </View>
                 </View>
@@ -351,16 +391,30 @@ export default function AddNewsScreen() {
             </View>
           </View>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>News Poster</Text>
-            <Text style={styles.sectionDescription}>
+          <View style={[styles.sectionCard, isAndroid && styles.sectionCardAndroid]}>
+            <Text style={[styles.sectionTitle, isAndroid && styles.sectionTitleAndroid]}>
+              News Poster
+            </Text>
+            <Text
+              style={[
+                styles.sectionDescription,
+                isAndroid && styles.sectionDescriptionAndroid,
+              ]}
+            >
               Select a clean portrait image for the featured card and details page.
             </Text>
 
-            <TouchableOpacity style={styles.posterPicker} activeOpacity={0.88} onPress={handleSelectPoster}>
+            <TouchableOpacity
+              style={[styles.posterPicker, isAndroid && styles.posterPickerAndroid]}
+              activeOpacity={0.88}
+              onPress={handleSelectPoster}
+            >
               {selectedPoster ? (
                 <>
-                  <Image source={{ uri: selectedPoster.uri }} style={styles.posterImage} />
+                  <Image
+                    source={{ uri: selectedPoster.uri }}
+                    style={[styles.posterImage, isAndroid && styles.posterImageAndroid]}
+                  />
                   <View style={styles.posterOverlay}>
                     <View>
                       <Text style={styles.posterOverlayLabel}>Selected Poster</Text>
@@ -375,7 +429,12 @@ export default function AddNewsScreen() {
                   </View>
                 </>
               ) : (
-                <View style={styles.posterPlaceholder}>
+                <View
+                  style={[
+                    styles.posterPlaceholder,
+                    isAndroid && styles.posterPlaceholderAndroid,
+                  ]}
+                >
                   <View style={styles.posterIconWrap}>
                     <Ionicons name="image-outline" size={28} color={colors.primary} />
                   </View>
@@ -400,15 +459,33 @@ export default function AddNewsScreen() {
             </View>
           </View>
 
-          <View style={styles.sectionCard}>
-            <Text style={styles.sectionTitle}>Live Preview</Text>
-            <Text style={styles.sectionDescription}>
+          <View style={[styles.sectionCard, isAndroid && styles.sectionCardAndroid]}>
+            <Text style={[styles.sectionTitle, isAndroid && styles.sectionTitleAndroid]}>
+              Live Preview
+            </Text>
+            <Text
+              style={[
+                styles.sectionDescription,
+                isAndroid && styles.sectionDescriptionAndroid,
+              ]}
+            >
               This preview mirrors the featured hero card on the news screen.
             </Text>
 
-            <View style={styles.previewHeroCard}>
+            <View
+              style={[
+                styles.previewHeroCard,
+                isAndroid && styles.previewHeroCardAndroid,
+              ]}
+            >
               {selectedPoster ? (
-                <Image source={{ uri: selectedPoster.uri }} style={styles.previewHeroImage} />
+                <Image
+                  source={{ uri: selectedPoster.uri }}
+                  style={[
+                    styles.previewHeroImage,
+                    isAndroid && styles.previewHeroImageAndroid,
+                  ]}
+                />
               ) : (
                 <View style={[styles.previewHeroImage, styles.previewHeroImagePlaceholder]}>
                   <Ionicons name="newspaper-outline" size={34} color="#A7B0BA" />
@@ -423,7 +500,10 @@ export default function AddNewsScreen() {
                   'rgba(0,0,0,0.95)',
                 ]}
                 locations={[0, 0.4, 0.7, 1]}
-                style={styles.previewHeroOverlay}
+                style={[
+                  styles.previewHeroOverlay,
+                  isAndroid && styles.previewHeroOverlayAndroid,
+                ]}
               >
                 <View style={styles.previewHeroCategory}>
                   <Text style={styles.previewHeroCategoryText}>{previewCategory}</Text>
@@ -450,6 +530,7 @@ export default function AddNewsScreen() {
           <TouchableOpacity
             style={[
               styles.primaryButton,
+              isAndroid && styles.primaryButtonAndroid,
               (!isFormComplete || isSubmitting) && styles.primaryButtonDisabled,
             ]}
             onPress={handlePublishPress}
@@ -461,7 +542,12 @@ export default function AddNewsScreen() {
             ) : (
               <Ionicons name="radio-outline" size={18} color={colors.white} />
             )}
-            <Text style={styles.primaryButtonText}>
+            <Text
+              style={[
+                styles.primaryButtonText,
+                isAndroid && styles.primaryButtonTextAndroid,
+              ]}
+            >
               {isSubmitting ? 'Publishing...' : 'Publish News'}
             </Text>
           </TouchableOpacity>
@@ -480,14 +566,38 @@ export default function AddNewsScreen() {
             activeOpacity={1}
             onPress={() => setIsSourcePickerVisible(false)}
           />
-          <View style={styles.sourcePickerSheet}>
+          <View
+            style={[
+              styles.sourcePickerSheet,
+              isAndroid && styles.sourcePickerSheetAndroid,
+              isAndroid && { paddingBottom: Math.max(insets.bottom + 14, 24) },
+            ]}
+          >
             <View style={styles.sourcePickerHandle} />
-            <Text style={styles.sourcePickerTitle}>Choose Poster Source</Text>
-            <Text style={styles.sourcePickerSubtitle}>
+            <Text
+              style={[
+                styles.sourcePickerTitle,
+                isAndroid && styles.sourcePickerTitleAndroid,
+              ]}
+            >
+              Choose Poster Source
+            </Text>
+            <Text
+              style={[
+                styles.sourcePickerSubtitle,
+                isAndroid && styles.sourcePickerSubtitleAndroid,
+              ]}
+            >
               Select how you want to attach the news poster.
             </Text>
 
-            <TouchableOpacity style={styles.sourcePickerOption} onPress={openCamera}>
+            <TouchableOpacity
+              style={[
+                styles.sourcePickerOption,
+                isAndroid && styles.sourcePickerOptionAndroid,
+              ]}
+              onPress={openCamera}
+            >
               <View style={styles.sourcePickerIconWrap}>
                 <Ionicons name="camera-outline" size={20} color={colors.primary} />
               </View>
@@ -499,7 +609,13 @@ export default function AddNewsScreen() {
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sourcePickerOption} onPress={openGallery}>
+            <TouchableOpacity
+              style={[
+                styles.sourcePickerOption,
+                isAndroid && styles.sourcePickerOptionAndroid,
+              ]}
+              onPress={openGallery}
+            >
               <View style={styles.sourcePickerIconWrap}>
                 <Ionicons name="images-outline" size={20} color={colors.primary} />
               </View>
@@ -540,6 +656,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EEF2F6',
   },
+  // Android publishing controls stay compact so long forms remain easy to scan.
+  secondaryHeaderAndroid: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
+  },
   secondaryHeaderRow: {
     minHeight: 28,
     justifyContent: 'center',
@@ -570,6 +692,11 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: colors.textBody,
   },
+  pageSubtitleAndroid: {
+    marginTop: 6,
+    fontSize: 12.5,
+    lineHeight: 19,
+  },
   scrollView: {
     flex: 1,
   },
@@ -577,6 +704,11 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
     gap: 18,
+  },
+  contentContainerAndroid: {
+    padding: 16,
+    paddingBottom: 30,
+    gap: 14,
   },
   sectionCard: {
     backgroundColor: colors.white,
@@ -590,10 +722,21 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 3,
   },
+  sectionCardAndroid: {
+    borderRadius: 14,
+    padding: 15,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.015,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  sectionTitleAndroid: {
+    fontSize: 16,
   },
   sectionDescription: {
     marginTop: 6,
@@ -601,6 +744,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     color: colors.textBody,
+  },
+  sectionDescriptionAndroid: {
+    marginBottom: 14,
+    fontSize: 12,
+    lineHeight: 18,
   },
   fieldGroup: {
     marginBottom: 16,
@@ -622,11 +770,24 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     backgroundColor: '#FCFDFD',
   },
+  inputAndroid: {
+    minHeight: 48,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    fontSize: 13,
+  },
   textAreaSm: {
     minHeight: 110,
   },
+  textAreaSmAndroid: {
+    minHeight: 90,
+  },
   textAreaLg: {
     minHeight: 170,
+  },
+  textAreaLgAndroid: {
+    minHeight: 140,
   },
   pickerWrapper: {
     borderWidth: 1,
@@ -634,6 +795,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: '#FCFDFD',
+  },
+  pickerWrapperAndroid: {
+    borderRadius: 10,
   },
   picker: {
     color: colors.textPrimary,
@@ -643,6 +807,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: colors.primaryLight,
     padding: 16,
+  },
+  publishCardAndroid: {
+    borderRadius: 12,
+    padding: 13,
   },
   publishHeader: {
     flexDirection: 'row',
@@ -677,6 +845,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#DCEEE3',
   },
+  posterPickerAndroid: {
+    minHeight: 220,
+    borderRadius: 14,
+  },
   posterPlaceholder: {
     flex: 1,
     minHeight: 260,
@@ -684,6 +856,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 26,
     paddingVertical: 28,
+  },
+  posterPlaceholderAndroid: {
+    minHeight: 220,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
   },
   posterIconWrap: {
     width: 58,
@@ -710,6 +887,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 320,
     resizeMode: 'cover',
+  },
+  posterImageAndroid: {
+    height: 270,
   },
   posterOverlay: {
     position: 'absolute',
@@ -778,10 +958,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
   },
+  previewHeroCardAndroid: {
+    borderRadius: 14,
+  },
   previewHeroImage: {
     width: '100%',
     height: 350,
     marginTop: -12,
+  },
+  previewHeroImageAndroid: {
+    height: 290,
   },
   previewHeroImagePlaceholder: {
     backgroundColor: '#E8EEF3',
@@ -796,6 +982,9 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'flex-end',
     padding: 20,
+  },
+  previewHeroOverlayAndroid: {
+    padding: 16,
   },
   previewHeroCategory: {
     backgroundColor: colors.primary,
@@ -859,6 +1048,14 @@ const styles = StyleSheet.create({
     shadowRadius: 22,
     elevation: 5,
   },
+  primaryButtonAndroid: {
+    minHeight: 50,
+    borderRadius: 18,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 1,
+  },
   primaryButtonDisabled: {
     opacity: 0.6,
     shadowRadius: 22,
@@ -867,6 +1064,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.white,
+  },
+  primaryButtonTextAndroid: {
+    fontSize: 14,
   },
   sourcePickerBackdrop: {
     flex: 1,
@@ -884,6 +1084,11 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 32,
   },
+  sourcePickerSheetAndroid: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+  },
   sourcePickerHandle: {
     width: 44,
     height: 5,
@@ -897,12 +1102,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textPrimary,
   },
+  sourcePickerTitleAndroid: {
+    fontSize: 16,
+  },
   sourcePickerSubtitle: {
     marginTop: 6,
     marginBottom: 20,
     fontSize: 14,
     lineHeight: 21,
     color: colors.textBody,
+  },
+  sourcePickerSubtitleAndroid: {
+    marginBottom: 16,
+    fontSize: 12.5,
+    lineHeight: 19,
   },
   sourcePickerOption: {
     flexDirection: 'row',
@@ -914,6 +1127,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 12,
     backgroundColor: '#FBFCFD',
+  },
+  sourcePickerOptionAndroid: {
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 10,
   },
   sourcePickerIconWrap: {
     width: 42,

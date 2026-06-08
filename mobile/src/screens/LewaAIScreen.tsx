@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -29,6 +30,7 @@ type LewaAIWelcomeNavigationProp = NativeStackNavigationProp<RootStackParamList,
 // Presents the first-time welcome experience before a user starts using Lewa AI.
 const LewaAIScreen: React.FC = () => {
   const navigation = useNavigation<LewaAIWelcomeNavigationProp>();
+  const isAndroid = Platform.OS === 'android';
   const robotFloat = useRef(new Animated.Value(0)).current;
   const arrowShift = useRef(new Animated.Value(0)).current;
   const [isStarting, setIsStarting] = React.useState(false);
@@ -88,17 +90,21 @@ const LewaAIScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <View style={styles.container}>
+      <View style={[styles.container, isAndroid && styles.containerAndroid]}>
         <View style={styles.artworkSection}>
-          <Image source={require('../../assets/logo-3.png')} style={styles.logo} />
+          <Image
+            source={require('../../assets/logo-3.png')}
+            style={[styles.logo, isAndroid && styles.logoAndroid]}
+          />
 
           <View style={styles.robotStage}>
-            <View style={styles.robotGlow} />
+            <View style={[styles.robotGlow, isAndroid && styles.robotGlowAndroid]} />
 
             <Animated.Image
               source={require('../../assets/bot-big-1.png')}
               style={[
                 styles.heroRobot,
+                isAndroid && styles.heroRobotAndroid,
                 {
                   transform: [{ translateY: robotFloat }],
                 },
@@ -106,19 +112,26 @@ const LewaAIScreen: React.FC = () => {
             />
           </View>
 
-          <View style={styles.miniBotShell}>
-            <Image source={require('../../assets/bot-small-1.png')} style={styles.miniBot} />
+          <View style={[styles.miniBotShell, isAndroid && styles.miniBotShellAndroid]}>
+            <Image
+              source={require('../../assets/bot-small-1.png')}
+              style={[styles.miniBot, isAndroid && styles.miniBotAndroid]}
+            />
           </View>
         </View>
 
-        <View style={styles.copySection}>
-          <Text style={styles.eyebrow}>Welcome to</Text>
-          <Text style={styles.lewaText}>Lewa</Text>
-          <Text style={styles.chatbotText}>Chatbot</Text>
+        <View style={[styles.copySection, isAndroid && styles.copySectionAndroid]}>
+          <Text style={[styles.eyebrow, isAndroid && styles.eyebrowAndroid]}>Welcome to</Text>
+          <Text style={[styles.lewaText, isAndroid && styles.titleAndroid]}>Lewa</Text>
+          <Text style={[styles.chatbotText, isAndroid && styles.chatbotTextAndroid]}>Chatbot</Text>
 
-          <TouchableOpacity style={styles.ctaButton} activeOpacity={0.9} onPress={() => void handleGetStarted()}>
-            <Text style={styles.ctaLabel}>Get started</Text>
-            <View style={styles.ctaIconShell}>
+          <TouchableOpacity
+            style={[styles.ctaButton, isAndroid && styles.ctaButtonAndroid]}
+            activeOpacity={0.9}
+            onPress={() => void handleGetStarted()}
+          >
+            <Text style={[styles.ctaLabel, isAndroid && styles.ctaLabelAndroid]}>Get started</Text>
+            <View style={[styles.ctaIconShell, isAndroid && styles.ctaIconShellAndroid]}>
               {isStarting ? (
                 <ActivityIndicator size="small" color={colors.white} />
               ) : (
@@ -157,6 +170,12 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 18,
   },
+  // I keep the Android welcome screen compact so the artwork and CTA fit comfortably.
+  containerAndroid: {
+    paddingHorizontal: 18,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
   artworkSection: {
     flex: 1,
     justifyContent: 'space-between',
@@ -166,6 +185,11 @@ const styles = StyleSheet.create({
     height: 50,
     resizeMode: 'contain',
     marginTop: 6,
+  },
+  logoAndroid: {
+    width: 44,
+    height: 44,
+    marginTop: 2,
   },
   robotStage: {
     flex: 1,
@@ -182,11 +206,22 @@ const styles = StyleSheet.create({
     top: '20%',
     right: -68,
   },
+  robotGlowAndroid: {
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    right: -54,
+  },
   heroRobot: {
     width: 360,
     height: 420,
     resizeMode: 'contain',
     right: -100,
+  },
+  heroRobotAndroid: {
+    width: 300,
+    height: 340,
+    right: -70,
   },
   miniBotShell: {
     width: 58,
@@ -198,18 +233,34 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 10,
   },
+  miniBotShellAndroid: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginBottom: 4,
+  },
   miniBot: {
     width: 42,
     height: 42,
     resizeMode: 'contain',
   },
+  miniBotAndroid: {
+    width: 36,
+    height: 36,
+  },
   copySection: {
     paddingTop: 14,
+  },
+  copySectionAndroid: {
+    paddingTop: 8,
   },
   eyebrow: {
     fontSize: 15,
     fontFamily: 'Poppins_400Regular',
     color: colors.textPrimary,
+  },
+  eyebrowAndroid: {
+    fontSize: 13,
   },
   lewaText: {
     fontSize: 46,
@@ -218,12 +269,21 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginTop: 4,
   },
+  titleAndroid: {
+    fontSize: 38,
+    lineHeight: 42,
+  },
   chatbotText: {
     fontSize: 46,
     lineHeight: 50,
     fontFamily: 'Poppins_700Bold',
     color: '#233048',
     marginBottom: 26,
+  },
+  chatbotTextAndroid: {
+    fontSize: 38,
+    lineHeight: 42,
+    marginBottom: 20,
   },
   ctaButton: {
     flexDirection: 'row',
@@ -240,10 +300,22 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 8,
   },
+  ctaButtonAndroid: {
+    minHeight: 50,
+    paddingLeft: 16,
+    paddingRight: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 1,
+  },
   ctaLabel: {
     fontSize: 17,
     fontFamily: 'Poppins_400Regular',
     color: '#475467',
+  },
+  ctaLabelAndroid: {
+    fontSize: 15,
   },
   ctaIconShell: {
     width: 42,
@@ -252,6 +324,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  ctaIconShellAndroid: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
 });
 

@@ -14,6 +14,7 @@ import {
   TextInput,
   Modal,
   Image,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -119,6 +120,7 @@ const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const CalendarScreen: React.FC = () => {
   const navigation = useNavigation<CalendarScreenNavigationProp>();
+  const isAndroid = Platform.OS === 'android';
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
@@ -263,20 +265,22 @@ const CalendarScreen: React.FC = () => {
     <ScrollView
       style={styles.scrollView}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, isAndroid && styles.scrollContentAndroid]}
     >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isAndroid && styles.headerAndroid]}>
           {/* Month/Year Controls */}
           {!showSearch ? (
             <View style={styles.controlsRow}>
               {/* Month Dropdown */}
               <TouchableOpacity
-                style={styles.monthButton}
+                style={[styles.monthButton, isAndroid && styles.controlButtonAndroid]}
                 onPress={() => setShowMonthDropdown(!showMonthDropdown)}
               >
                 <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-                <Text style={styles.monthButtonText}>{months[selectedMonth]}</Text>
+                <Text style={[styles.monthButtonText, isAndroid && styles.controlTextAndroid]}>
+                  {months[selectedMonth]}
+                </Text>
                 <Ionicons name="chevron-down" size={20} color={colors.textPrimary} />
               </TouchableOpacity>
 
@@ -284,25 +288,35 @@ const CalendarScreen: React.FC = () => {
               <View style={{ flex: 1 }} />
 
               {/* Search Button */}
-              <TouchableOpacity style={styles.searchButton} onPress={handleSearchToggle}>
+              <TouchableOpacity
+                style={[styles.searchButton, isAndroid && styles.searchButtonAndroid]}
+                onPress={handleSearchToggle}
+              >
                 <Ionicons name="search" size={20} color={colors.textBody} />
               </TouchableOpacity>
 
               {/* Year Dropdown Button */}
               <TouchableOpacity
-                style={styles.yearButton}
+                style={[styles.yearButton, isAndroid && styles.controlButtonAndroid]}
                 onPress={() => setShowYearDropdown(!showYearDropdown)}
               >
-                <Text style={styles.yearText}>{selectedYear}</Text>
+                <Text style={[styles.yearText, isAndroid && styles.controlTextAndroid]}>
+                  {selectedYear}
+                </Text>
                 <Ionicons name="chevron-down" size={16} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.searchRow}>
-              <View style={styles.searchInputContainer}>
+              <View
+                style={[
+                  styles.searchInputContainer,
+                  isAndroid && styles.searchInputContainerAndroid,
+                ]}
+              >
                 <Ionicons name="search" size={20} color={colors.textBody} />
                 <TextInput
-                  style={styles.searchInput}
+                  style={[styles.searchInput, isAndroid && styles.searchInputAndroid]}
                   placeholder="Search events..."
                   placeholderTextColor={colors.textBody}
                   value={searchQuery}
@@ -325,17 +339,23 @@ const CalendarScreen: React.FC = () => {
           onRequestClose={() => setShowMonthDropdown(false)}
         >
           <TouchableOpacity
-            style={styles.modalOverlay}
+            style={[styles.modalOverlay, isAndroid && styles.modalOverlayAndroid]}
             activeOpacity={1}
             onPress={() => setShowMonthDropdown(false)}
           >
-            <View style={styles.dropdownContainer}>
+            <View
+              style={[
+                styles.dropdownContainer,
+                isAndroid && styles.dropdownContainerAndroid,
+              ]}
+            >
               <ScrollView style={styles.dropdownScroll}>
                 {months.map((month, index) => (
                   <TouchableOpacity
                     key={index}
                     style={[
                       styles.dropdownItem,
+                      isAndroid && styles.dropdownItemAndroid,
                       selectedMonth === index && styles.dropdownItemSelected,
                     ]}
                     onPress={() => handleMonthSelect(index)}
@@ -343,6 +363,7 @@ const CalendarScreen: React.FC = () => {
                     <Text
                       style={[
                         styles.dropdownItemText,
+                        isAndroid && styles.dropdownItemTextAndroid,
                         selectedMonth === index && styles.dropdownItemTextSelected,
                       ]}
                     >
@@ -363,17 +384,23 @@ const CalendarScreen: React.FC = () => {
           onRequestClose={() => setShowYearDropdown(false)}
         >
           <TouchableOpacity
-            style={styles.modalOverlay}
+            style={[styles.modalOverlay, isAndroid && styles.modalOverlayAndroid]}
             activeOpacity={1}
             onPress={() => setShowYearDropdown(false)}
           >
-            <View style={styles.dropdownContainer}>
+            <View
+              style={[
+                styles.dropdownContainer,
+                isAndroid && styles.dropdownContainerAndroid,
+              ]}
+            >
               <ScrollView style={styles.dropdownScroll}>
                 {availableYears.map((year) => (
                   <TouchableOpacity
                     key={year}
                     style={[
                       styles.dropdownItem,
+                      isAndroid && styles.dropdownItemAndroid,
                       selectedYear === year && styles.dropdownItemSelected,
                     ]}
                     onPress={() => handleYearSelect(year)}
@@ -381,6 +408,7 @@ const CalendarScreen: React.FC = () => {
                     <Text
                       style={[
                         styles.dropdownItemText,
+                        isAndroid && styles.dropdownItemTextAndroid,
                         selectedYear === year && styles.dropdownItemTextSelected,
                       ]}
                     >
@@ -394,10 +422,15 @@ const CalendarScreen: React.FC = () => {
         </Modal>
 
         {/* Calendar Card */}
-        <View style={styles.calendarCard}>
+        <View style={[styles.calendarCard, isAndroid && styles.calendarCardAndroid]}>
           {/* Calendar Header */}
           <View style={styles.calendarHeader}>
-            <View style={styles.calendarIconContainer}>
+            <View
+              style={[
+                styles.calendarIconContainer,
+                isAndroid && styles.calendarIconContainerAndroid,
+              ]}
+            >
               <Image
                 source={require('../../assets/UB-logo-1.jpg')}
                 style={styles.ubLogo}
@@ -405,7 +438,9 @@ const CalendarScreen: React.FC = () => {
               />
             </View>
             <View style={styles.calendarHeaderText}>
-              <Text style={styles.calendarTitle}>UB Calendar</Text>
+              <Text style={[styles.calendarTitle, isAndroid && styles.calendarTitleAndroid]}>
+                UB Calendar
+              </Text>
               <Text style={styles.calendarSubtitle}>
                 Stay up to date with UB calendar through Lewa
               </Text>
@@ -416,7 +451,9 @@ const CalendarScreen: React.FC = () => {
           <View style={styles.daysOfWeekRow}>
             {daysOfWeek.map((day, index) => (
               <View key={index} style={styles.dayOfWeekCell}>
-                <Text style={styles.dayOfWeekText}>{day}</Text>
+                <Text style={[styles.dayOfWeekText, isAndroid && styles.dayOfWeekTextAndroid]}>
+                  {day}
+                </Text>
               </View>
             ))}
           </View>
@@ -426,11 +463,12 @@ const CalendarScreen: React.FC = () => {
             {calendarDays.map((day, index) => {
               const indicatorColor = getEventIndicatorColor(day);
               return (
-                <View key={index} style={styles.dayCell}>
+                <View key={index} style={[styles.dayCell, isAndroid && styles.dayCellAndroid]}>
                   {day && (
                     <Text
                       style={[
                         styles.dayText,
+                        isAndroid && styles.dayTextAndroid,
                         dayHasEvents(day) && styles.dayTextWithEvent,
                         indicatorColor && { color: indicatorColor },
                       ]}
@@ -445,7 +483,7 @@ const CalendarScreen: React.FC = () => {
         </View>
 
         {/* Events List */}
-        <View style={styles.eventsSection}>
+        <View style={[styles.eventsSection, isAndroid && styles.eventsSectionAndroid]}>
           {visibleEvents.length > 0 ? (
             <>
               {visibleEvents.map((event) => {
@@ -457,19 +495,30 @@ const CalendarScreen: React.FC = () => {
                 return (
                   <TouchableOpacity
                     key={event.id}
-                    style={styles.eventCard}
+                    style={[styles.eventCard, isAndroid && styles.eventCardAndroid]}
                     onPress={() => handleEventPress(event)}
                   >
                     {/* Top Row: Day number and Title/Date stacked */}
                     <View style={styles.eventTopRow}>
                       <View style={[
                         styles.eventDayBadge,
+                        isAndroid && styles.eventDayBadgeAndroid,
                         indicatorColor && { backgroundColor: indicatorColor }
                       ]}>
-                        <Text style={styles.eventDayNumber}>{eventDay}</Text>
+                        <Text
+                          style={[
+                            styles.eventDayNumber,
+                            isAndroid && styles.eventDayNumberAndroid,
+                          ]}
+                        >
+                          {eventDay}
+                        </Text>
                       </View>
                       <View style={styles.eventTitleContainer}>
-                        <Text style={styles.eventTitle} numberOfLines={1}>
+                        <Text
+                          style={[styles.eventTitle, isAndroid && styles.eventTitleAndroid]}
+                          numberOfLines={1}
+                        >
                           {event.title}
                         </Text>
                         <Text style={styles.eventDateText}>{formattedDate}</Text>
@@ -479,7 +528,13 @@ const CalendarScreen: React.FC = () => {
                     {/* Description Row */}
                     <View style={styles.eventDescriptionRow}>
                       <View style={styles.eventDescriptionLine} />
-                      <Text style={styles.eventDescription} numberOfLines={2}>
+                      <Text
+                        style={[
+                          styles.eventDescription,
+                          isAndroid && styles.eventDescriptionAndroid,
+                        ]}
+                        numberOfLines={2}
+                      >
                         {event.description}
                       </Text>
                     </View>
@@ -520,11 +575,20 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 100,
   },
+  scrollContentAndroid: {
+    paddingBottom: 118,
+  },
   header: {
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
     backgroundColor: colors.background,
+  },
+  // I keep the Android calendar controls compact so the full row stays balanced.
+  headerAndroid: {
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 14,
   },
   headerTop: {
     paddingHorizontal: 20,
@@ -581,6 +645,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
     color: colors.textPrimary,
   },
+  controlButtonAndroid: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    gap: 6,
+  },
+  controlTextAndroid: {
+    fontSize: 14,
+  },
   searchButton: {
     width: 48,
     height: 48,
@@ -588,6 +660,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  searchButtonAndroid: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   yearButton: {
     flexDirection: 'row',
@@ -618,11 +695,18 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     gap: 8,
   },
+  searchInputContainerAndroid: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
   searchInput: {
     flex: 1,
     fontSize: 16,
     fontFamily: 'Poppins_400Regular',
     color: colors.textPrimary,
+  },
+  searchInputAndroid: {
+    fontSize: 14,
   },
   // Modal Styles
   modalOverlay: {
@@ -631,6 +715,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingTop: 200,
     paddingHorizontal: 20,
+  },
+  modalOverlayAndroid: {
+    paddingTop: 150,
+    paddingHorizontal: 16,
   },
   dropdownContainer: {
     backgroundColor: colors.white,
@@ -642,6 +730,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  dropdownContainerAndroid: {
+    maxHeight: 260,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.025,
+    shadowRadius: 4,
+    elevation: 1,
+  },
   dropdownScroll: {
     maxHeight: 300,
   },
@@ -652,6 +747,9 @@ const styles = StyleSheet.create({
     // alignSelf: 'center',
     borderBottomColor: '#F3F4F6',
   },
+  dropdownItemAndroid: {
+    paddingVertical: 12,
+  },
   dropdownItemSelected: {
     // backgroundColor: colors.primaryLight,
   },
@@ -660,6 +758,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: colors.textPrimary,
     alignSelf: 'center',
+  },
+  dropdownItemTextAndroid: {
+    fontSize: 14,
   },
   dropdownItemTextSelected: {
     fontFamily: 'Poppins_600SemiBold',
@@ -680,6 +781,12 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: colors.border1,
   },
+  calendarCardAndroid: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    borderRadius: 12,
+    padding: 14,
+  },
   calendarHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -695,6 +802,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 8,
   },
+  calendarIconContainerAndroid: {
+    width: 54,
+    height: 54,
+    borderRadius: 10,
+    padding: 6,
+  },
   ubLogo: {
     width: '100%',
     height: '100%',
@@ -707,6 +820,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
     marginBottom: 4,
+  },
+  calendarTitleAndroid: {
+    fontSize: 16,
   },
   calendarSubtitle: {
     fontSize: 12,
@@ -728,6 +844,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: colors.primary,
   },
+  dayOfWeekTextAndroid: {
+    fontSize: 12,
+  },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -739,10 +858,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
   },
+  dayCellAndroid: {
+    paddingVertical: 5,
+  },
   dayText: {
     fontSize: 18,
     fontFamily: 'Poppins_500SemiBold',
     color: colors.textPrimary,
+  },
+  dayTextAndroid: {
+    fontSize: 14,
   },
   dayTextWithEvent: {
     fontFamily: 'Poppins_600SemiBold',
@@ -751,6 +876,10 @@ const styles = StyleSheet.create({
   eventsSection: {
     paddingHorizontal: 20,
     paddingTop: 30,
+  },
+  eventsSectionAndroid: {
+    paddingHorizontal: 16,
+    paddingTop: 22,
   },
   eventCard: {
     backgroundColor: colors.white,
@@ -762,6 +891,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+  },
+  eventCardAndroid: {
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
   },
   eventTopRow: {
     flexDirection: 'row',
@@ -777,10 +915,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  eventDayBadgeAndroid: {
+    width: 44,
+    height: 48,
+  },
   eventDayNumber: {
     fontSize: 25,
     fontFamily: 'Poppins_700Bold',
     color: colors.white,
+  },
+  eventDayNumberAndroid: {
+    fontSize: 21,
   },
   eventTitleContainer: {
     flex: 1,
@@ -789,6 +934,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
+  },
+  eventTitleAndroid: {
+    fontSize: 14,
   },
   eventDateText: {
     fontSize: 12,
@@ -812,6 +960,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     lineHeight: 20,
+  },
+  eventDescriptionAndroid: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   eventStatusBadge: {
     alignSelf: 'flex-end',
@@ -862,4 +1014,3 @@ const styles = StyleSheet.create({
 });
 
 export default CalendarScreen;
-

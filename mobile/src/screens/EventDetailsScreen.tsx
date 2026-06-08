@@ -12,6 +12,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -40,6 +41,7 @@ type EventDetailsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const EventDetailsScreen: React.FC = () => {
   const navigation = useNavigation<EventDetailsNavigationProp>();
+  const isAndroid = Platform.OS === 'android';
   const route = useRoute<EventDetailsRouteProp>();
   const { event, indicatorColor } = route.params;
 
@@ -70,42 +72,71 @@ const EventDetailsScreen: React.FC = () => {
       
 
       {/* Scrollable Content */}
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.content}>
-          <Text style={styles.eventTitle}>{event.title}</Text>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, isAndroid && styles.scrollContentAndroid]}
+      >
+        <View style={[styles.content, isAndroid && styles.contentAndroid]}>
+          <Text style={[styles.eventTitle, isAndroid && styles.eventTitleAndroid]}>
+            {event.title}
+          </Text>
 
           {/* Date and Time Badges */}
-          <View style={styles.badgesRow}>
-            <View style={styles.dateBadge}>
-              <Ionicons name="calendar-outline" size={20} color={colors.primary} />
-              <Text style={styles.badgeText}>{formattedDate}</Text>
+          <View style={[styles.badgesRow, isAndroid && styles.badgesRowAndroid]}>
+            <View style={[styles.dateBadge, isAndroid && styles.badgeAndroid]}>
+              <Ionicons
+                name="calendar-outline"
+                size={isAndroid ? 17 : 20}
+                color={colors.primary}
+              />
+              <Text style={[styles.badgeText, isAndroid && styles.badgeTextAndroid]}>
+                {formattedDate}
+              </Text>
             </View>
-            <View style={styles.timeBadge}>
-              <Ionicons name="time-outline" size={20} color={colors.primary} />
-              <Text style={styles.badgeText}>{timeRange}</Text>
+            <View style={[styles.timeBadge, isAndroid && styles.badgeAndroid]}>
+              <Ionicons name="time-outline" size={isAndroid ? 17 : 20} color={colors.primary} />
+              <Text style={[styles.badgeText, isAndroid && styles.badgeTextAndroid]}>
+                {timeRange}
+              </Text>
             </View>
           </View>
 
           {/* Divider */}
-          <View style={styles.divider} />
+          <View style={[styles.divider, isAndroid && styles.dividerAndroid]} />
 
           {/* Description Section */}
           <View style={styles.descriptionSection}>
             <View style={styles.descriptionHeader}>
-              <Text style={styles.descriptionTitle}>Description</Text>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>{event.status}</Text>
+              <Text
+                style={[
+                  styles.descriptionTitle,
+                  isAndroid && styles.descriptionTitleAndroid,
+                ]}
+              >
+                Description
+              </Text>
+              <View style={[styles.statusBadge, isAndroid && styles.statusBadgeAndroid]}>
+                <Text style={[styles.statusText, isAndroid && styles.statusTextAndroid]}>
+                  {event.status}
+                </Text>
               </View>
             </View>
 
             {/* Description Content with Timeline */}
-            <View style={styles.descriptionContent}>
+            <View
+              style={[
+                styles.descriptionContent,
+                isAndroid && styles.descriptionContentAndroid,
+              ]}
+            >
               <View style={styles.timeline}>
                 <View style={[styles.timelineDot, { backgroundColor: indicatorColor }]} />
                 <View style={styles.timelineLine} />
               </View>
               <View style={styles.descriptionTextContainer}>
-                <Text style={styles.descriptionText}>{event.description}</Text>
+                <Text style={[styles.descriptionText, isAndroid && styles.descriptionTextAndroid]}>
+                  {event.description}
+                </Text>
               </View>
             </View>
           </View>
@@ -125,6 +156,9 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 20,
+  },
+  scrollContentAndroid: {
+    paddingBottom: 32,
   },
   header: {
     paddingHorizontal: 20,
@@ -192,16 +226,29 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
   },
+  // Android detail content stays narrower and lets metadata wrap instead of collide.
+  contentAndroid: {
+    paddingHorizontal: 16,
+  },
   eventTitle: {
     fontSize: 24,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
     marginBottom: 20,
   },
+  eventTitleAndroid: {
+    fontSize: 20,
+    marginBottom: 16,
+  },
   badgesRow: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 20,
+  },
+  badgesRowAndroid: {
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
   },
   dateBadge: {
     flexDirection: 'row',
@@ -221,15 +268,27 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
   },
+  badgeAndroid: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    gap: 6,
+  },
   badgeText: {
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     color: colors.textPrimary,
   },
+  badgeTextAndroid: {
+    fontSize: 12.5,
+  },
   divider: {
     height: 1,
     backgroundColor: '#E5E7EB',
     marginBottom: 24,
+  },
+  dividerAndroid: {
+    marginBottom: 18,
   },
   descriptionSection: {
     marginBottom: 20,
@@ -245,6 +304,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
   },
+  descriptionTitleAndroid: {
+    fontSize: 16,
+  },
   statusBadge: {
     backgroundColor: colors.primaryLight,
     paddingHorizontal: 16,
@@ -252,15 +314,26 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignSelf: 'center',
   },
+  statusBadgeAndroid: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
   statusText: {
     fontSize: 12,
     fontFamily: 'Poppins_500Medium',
     color: colors.primary,
     textTransform: 'capitalize',
   },
+  statusTextAndroid: {
+    fontSize: 11,
+  },
   descriptionContent: {
     flexDirection: 'row',
     gap: 16,
+  },
+  descriptionContentAndroid: {
+    gap: 12,
   },
   timeline: {
     alignItems: 'center',
@@ -287,6 +360,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     lineHeight: 24,
+  },
+  descriptionTextAndroid: {
+    fontSize: 13,
+    lineHeight: 21,
   },
 });
 

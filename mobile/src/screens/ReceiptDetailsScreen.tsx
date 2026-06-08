@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Platform,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
@@ -51,6 +52,7 @@ type ReceiptDetailsScreenRouteProp = RouteProp<RootStackParamList, 'ReceiptDetai
 
 const ReceiptDetailsScreen: React.FC = () => {
   const navigation = useNavigation<ReceiptDetailsScreenNavigationProp>();
+  const isAndroid = Platform.OS === 'android';
   const route = useRoute<ReceiptDetailsScreenRouteProp>();
   const { receipt } = route.params;
 
@@ -104,50 +106,79 @@ const ReceiptDetailsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* Header with Back Button */}
-      <View style={styles.header}>
-        <BackIconButton style={styles.backButton} onPress={() => navigation.goBack()} />
+      <View style={[styles.header, isAndroid && styles.headerAndroid]}>
+        <BackIconButton
+          style={[styles.backButton, isAndroid && styles.backButtonAndroid]}
+          onPress={() => navigation.goBack()}
+        />
       </View>
 
       {/* main container */}
-      <View style={styles.mainContainer}>
+      <View style={[styles.mainContainer, isAndroid && styles.mainContainerAndroid]}>
         {/* Receipt Icon */}
-        <View style={styles.receiptIconContainer}>
+        <View
+          style={[
+            styles.receiptIconContainer,
+            isAndroid && styles.receiptIconContainerAndroid,
+          ]}
+        >
           <Image
             source={require('../../assets/receipt-icon.png')}
-            style={styles.receiptIcon}
+            style={[styles.receiptIcon, isAndroid && styles.receiptIconAndroid]}
           />
         </View>
 
         {/* Title */}
-        <Text style={styles.title}>Payment receipt</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, isAndroid && styles.titleAndroid]}>Payment receipt</Text>
+        <Text style={[styles.subtitle, isAndroid && styles.subtitleAndroid]}>
           {receipt.receiptType === 'school_fee'
             ? 'Your fee status has been updated'
             : 'Your subscription is now active'}
         </Text>
 
         {/* Payment Info Card */}
-        <View style={styles.paymentInfoCard}>
+        <View
+          style={[
+            styles.paymentInfoCard,
+            isAndroid && styles.paymentInfoCardAndroid,
+          ]}
+        >
           <View style={styles.paymentMethodColumn}>
-            <Image source={getPaymentMethodLogo()} style={styles.paymentMethodLogo} />  
+            <Image
+              source={getPaymentMethodLogo()}
+              style={[styles.paymentMethodLogo, isAndroid && styles.paymentMethodLogoAndroid]}
+            />
           </View>
 
           <View style={styles.paymentInfoCardRight}>
             <Text style={styles.paymentTypeLabel}>{paymentTypeLabel}</Text>
-            <Text style={styles.paymentTypeValue}>{paymentTypeValue}</Text>
+            <Text
+              style={[
+                styles.paymentTypeValue,
+                isAndroid && styles.paymentTypeValueAndroid,
+              ]}
+            >
+              {paymentTypeValue}
+            </Text>
           </View>
 
           
         </View>
 
         {/* Payment Summary */}
-        <View style={styles.summaryCard}>
+        <View style={[styles.summaryCard, isAndroid && styles.summaryCardAndroid]}>
           <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-          <Text style={styles.summaryTitle}>Payment summary</Text>
+          <Text style={[styles.summaryTitle, isAndroid && styles.summaryTitleAndroid]}>
+            Payment summary
+          </Text>
 
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Student name</Text>
-            <Text style={styles.summaryValue}>{receipt.student.name}</Text>
+            <Text style={[styles.summaryLabel, isAndroid && styles.summaryLabelAndroid]}>
+              Student name
+            </Text>
+            <Text style={[styles.summaryValue, isAndroid && styles.summaryValueAndroid]}>
+              {receipt.student.name}
+            </Text>
           </View>
 
           <View style={styles.summaryRow}>
@@ -209,12 +240,22 @@ const ReceiptDetailsScreen: React.FC = () => {
         </View>
 
         {/* Download Button */}
-        <TouchableOpacity style={styles.downloadButton} onPress={handleDownloadReceipt}>
+        <TouchableOpacity
+          style={[styles.downloadButton, isAndroid && styles.downloadButtonAndroid]}
+          onPress={handleDownloadReceipt}
+        >
           <Image
               source={require('../../assets/download-icon.png')}
               style={styles.downloadIcon}
             />
-          <Text style={styles.downloadButtonText}>Download receipt</Text>
+          <Text
+            style={[
+              styles.downloadButtonText,
+              isAndroid && styles.downloadButtonTextAndroid,
+            ]}
+          >
+            Download receipt
+          </Text>
           {/* <Ionicons name="download-outline" size={20} color={colors.white} /> */}
         </TouchableOpacity>
 
@@ -236,10 +277,20 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: colors.background,
   },
+  // Android receipt details use smaller fixed sections and lighter card elevation.
+  headerAndroid: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+  },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  backButtonAndroid: {
+    width: 38,
+    height: 38,
   },
   backText: {
     fontSize: 16,
@@ -252,6 +303,10 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
 
   },
+  mainContainerAndroid: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
   scrollView: {
     flex: 1,
   },
@@ -261,10 +316,18 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 24,
   },
+  receiptIconContainerAndroid: {
+    marginTop: 0,
+    marginBottom: 16,
+  },
   receiptIcon: {
     width: 80,
     height: 80,
     resizeMode: 'contain',
+  },
+  receiptIconAndroid: {
+    width: 64,
+    height: 64,
   },
   title: {
     fontSize: 24,
@@ -274,12 +337,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: -25,
   },
+  titleAndroid: {
+    fontSize: 20,
+    marginTop: -16,
+    marginBottom: 5,
+  },
   subtitle: {
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     textAlign: 'center',
     marginBottom: 32,
+  },
+  subtitleAndroid: {
+    fontSize: 12.5,
+    marginBottom: 20,
   },
   paymentInfoCard: {
     backgroundColor: colors.background,
@@ -291,6 +363,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  paymentInfoCardAndroid: {
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
   paymentInfoCardRight: {
     flexDirection: 'column',
     alignItems: 'flex-start',
@@ -301,6 +378,11 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 8,
     marginRight: 12,
+  },
+  paymentMethodLogoAndroid: {
+    width: 60,
+    height: 60,
+    marginRight: 10,
   },
   // paymentMethodLabel: {
   //   fontSize: 16,
@@ -324,6 +406,11 @@ const styles = StyleSheet.create({
     maxWidth: 260,
     marginTop: 8,
   },
+  paymentTypeValueAndroid: {
+    fontSize: 14,
+    maxWidth: 220,
+    marginTop: 5,
+  },
   
   summaryCard: {
     backgroundColor: colors.white,
@@ -337,11 +424,25 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     height: 320,
   },
+  summaryCardAndroid: {
+    height: 280,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 18,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   summaryTitle: {
     fontSize: 18,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
     marginBottom: 20,
+  },
+  summaryTitleAndroid: {
+    fontSize: 16,
+    marginBottom: 16,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -350,17 +451,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: Platform.OS === 'android' ? 12 : 14,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     flex: 1,
   },
+  summaryLabelAndroid: {
+    fontSize: 12,
+  },
   summaryValue: {
-    fontSize: 14,
+    fontSize: Platform.OS === 'android' ? 12 : 14,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
     flex: 1,
     textAlign: 'right',
+  },
+  summaryValueAndroid: {
+    fontSize: 12,
   },
   downloadButton: {
     backgroundColor: colors.primary,
@@ -374,10 +481,18 @@ const styles = StyleSheet.create({
     width: 250,
     alignSelf: 'center',
   },
+  downloadButtonAndroid: {
+    width: 220,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
   downloadButtonText: {
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.white,
+  },
+  downloadButtonTextAndroid: {
+    fontSize: 14,
   },
   downloadIcon: {
     width: 20,

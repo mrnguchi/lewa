@@ -53,6 +53,7 @@ type SchoolAdminChatNavigationProp = NativeStackNavigationProp<RootStackParamLis
 type SchoolAdminChatRouteProp = RouteProp<RootStackParamList, 'SchoolAdminChat'>;
 
 const MAX_MESSAGE_LENGTH = 1000;
+const IS_ANDROID = Platform.OS === 'android';
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const MIN_COMPOSER_INPUT_HEIGHT = 40;
 const MAX_COMPOSER_INPUT_HEIGHT = 150;
@@ -101,8 +102,21 @@ const ChatBubble = ({ item }: { item: ChatMessage }) => {
 
   return (
     <View style={[styles.messageRow, isUser ? styles.userRow : styles.adminRow]}>
-      <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.adminBubble]}>
-        <Text style={[styles.messageText, isUser ? styles.userMessageText : styles.adminMessageText]}>
+      <View
+        style={[
+          styles.messageBubble,
+          IS_ANDROID && styles.messageBubbleAndroid,
+          isUser ? styles.userBubble : styles.adminBubble,
+          !isUser && IS_ANDROID && styles.adminBubbleAndroid,
+        ]}
+      >
+        <Text
+          style={[
+            styles.messageText,
+            IS_ANDROID && styles.messageTextAndroid,
+            isUser ? styles.userMessageText : styles.adminMessageText,
+          ]}
+        >
           {item.text}
         </Text>
         <Text style={[styles.messageTime, isUser ? styles.userMessageTime : styles.adminMessageTime]}>
@@ -438,20 +452,26 @@ const SchoolAdminChatScreen: React.FC = () => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 6 : 0}
       >
-        <View style={styles.header}>
-          <BackIconButton style={styles.backButton} onPress={handleBack} />
+        <View style={[styles.header, IS_ANDROID && styles.headerAndroid]}>
+          <BackIconButton
+            style={[styles.backButton, IS_ANDROID && styles.backButtonAndroid]}
+            onPress={handleBack}
+          />
 
           <View style={styles.profileBlock}>
-            <View style={styles.avatarShell}>
-              <Image source={require('../../assets/bot-small-1.png')} style={styles.avatarImage} />
+            <View style={[styles.avatarShell, IS_ANDROID && styles.avatarShellAndroid]}>
+              <Image
+                source={require('../../assets/bot-small-1.png')}
+                style={[styles.avatarImage, IS_ANDROID && styles.avatarImageAndroid]}
+              />
             </View>
 
             <View style={styles.nameBlock}>
               <Text style={styles.greetingText}>{headerSubtitle}</Text>
-              <Text style={styles.userName} numberOfLines={1}>
+              <Text style={[styles.userName, IS_ANDROID && styles.userNameAndroid]} numberOfLines={1}>
                 {threadTitle}
               </Text>
             </View>
@@ -460,19 +480,24 @@ const SchoolAdminChatScreen: React.FC = () => {
 
         <View style={styles.headerDivider} />
 
-        <View style={styles.contentArea}>
+        <View style={[styles.contentArea, IS_ANDROID && styles.contentAreaAndroid]}>
           {isLoadingConversation ? (
             <View style={styles.loadingState}>
               <ActivityIndicator size="small" color={colors.primary} />
               <Text style={styles.loadingStateText}>Loading conversation...</Text>
             </View>
           ) : messages.length === 0 ? (
-            <View style={styles.emptyConversation}>
-              <View style={styles.emptyStateArtwork}>
-                <Image source={require('../../assets/bot-small-1.png')} style={styles.emptyBot} />
+            <View style={[styles.emptyConversation, IS_ANDROID && styles.emptyConversationAndroid]}>
+              <View style={[styles.emptyStateArtwork, IS_ANDROID && styles.emptyStateArtworkAndroid]}>
+                <Image
+                  source={require('../../assets/bot-small-1.png')}
+                  style={[styles.emptyBot, IS_ANDROID && styles.emptyBotAndroid]}
+                />
               </View>
-              <Text style={styles.emptyTitle}>No messages yet</Text>
-              <Text style={styles.emptyDescription}>
+              <Text style={[styles.emptyTitle, IS_ANDROID && styles.emptyTitleAndroid]}>
+                No messages yet
+              </Text>
+              <Text style={[styles.emptyDescription, IS_ANDROID && styles.emptyDescriptionAndroid]}>
                 Send a follow-up message and the School Admin team will respond here.
               </Text>
             </View>
@@ -483,7 +508,10 @@ const SchoolAdminChatScreen: React.FC = () => {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => <ChatBubble item={item} />}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.messagesContent}
+              contentContainerStyle={[
+                styles.messagesContent,
+                IS_ANDROID && styles.messagesContentAndroid,
+              ]}
               onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
             />
           )}
@@ -492,6 +520,7 @@ const SchoolAdminChatScreen: React.FC = () => {
         <View
           style={[
             styles.inputDock,
+            IS_ANDROID && styles.inputDockAndroid,
             {
               paddingBottom: inputDockPaddingBottom,
             },
@@ -501,6 +530,7 @@ const SchoolAdminChatScreen: React.FC = () => {
             <View
               style={[
                 styles.attachmentMenu,
+                IS_ANDROID && styles.attachmentMenuAndroid,
                 { bottom: composerBarHeight + inputDockPaddingBottom + 10 },
               ]}
             >
@@ -524,10 +554,11 @@ const SchoolAdminChatScreen: React.FC = () => {
           <View
             style={[
               styles.inputBar,
+              IS_ANDROID && styles.inputBarAndroid,
               isComposerExpanded && styles.inputBarExpanded,
             ]}
           >
-            <View style={styles.composerBody}>
+            <View style={[styles.composerBody, IS_ANDROID && styles.composerBodyAndroid]}>
               {pendingAttachment ? (
                 <View style={styles.attachmentChip}>
                   <View style={styles.attachmentChipIcon}>
@@ -557,7 +588,11 @@ const SchoolAdminChatScreen: React.FC = () => {
 
             <TextInput
               ref={inputRef}
-              style={[styles.input, { height: composerInputHeight }]}
+              style={[
+                styles.input,
+                IS_ANDROID && styles.inputAndroid,
+                { height: composerInputHeight },
+              ]}
               placeholder="Reply to School Admin..."
               placeholderTextColor="#98A2B3"
               value={message}
@@ -570,12 +605,20 @@ const SchoolAdminChatScreen: React.FC = () => {
             />
             </View>
 
-            <TouchableOpacity style={styles.inputAccessoryButton} activeOpacity={0.86} onPress={handleAttachmentPress}>
+            <TouchableOpacity
+              style={[styles.inputAccessoryButton, IS_ANDROID && styles.inputAccessoryButtonAndroid]}
+              activeOpacity={0.86}
+              onPress={handleAttachmentPress}
+            >
               <Ionicons name="add" size={22} color="#334155" />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.sendButton, !message.trim() && styles.sendButtonIdle]}
+              style={[
+                styles.sendButton,
+                IS_ANDROID && styles.sendButtonAndroid,
+                !message.trim() && styles.sendButtonIdle,
+              ]}
               activeOpacity={0.9}
               onPress={() => void handleSendMessage()}
             >
@@ -608,6 +651,12 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 14,
   },
+  // I keep Android support chats compact so the keyboard leaves room for the thread.
+  headerAndroid: {
+    paddingHorizontal: 12,
+    paddingTop: 3,
+    paddingBottom: 10,
+  },
   backButton: {
     width: 38,
     height: 38,
@@ -615,6 +664,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 2,
+  },
+  backButtonAndroid: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   profileBlock: {
     flexDirection: 'row',
@@ -630,10 +684,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  avatarShellAndroid: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
   avatarImage: {
     width: 30,
     height: 30,
     resizeMode: 'contain',
+  },
+  avatarImageAndroid: {
+    width: 27,
+    height: 27,
   },
   nameBlock: {
     marginLeft: 10,
@@ -649,6 +712,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
   },
+  userNameAndroid: {
+    fontSize: 15,
+  },
   headerDivider: {
     height: 1,
     marginHorizontal: 20,
@@ -657,6 +723,9 @@ const styles = StyleSheet.create({
   contentArea: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  contentAreaAndroid: {
+    paddingHorizontal: 16,
   },
   loadingState: {
     flex: 1,
@@ -675,6 +744,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingBottom: 70,
   },
+  emptyConversationAndroid: {
+    paddingBottom: 42,
+  },
   emptyStateArtwork: {
     width: 76,
     height: 76,
@@ -684,10 +756,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 18,
   },
+  emptyStateArtworkAndroid: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    marginBottom: 12,
+  },
   emptyBot: {
     width: 42,
     height: 42,
     resizeMode: 'contain',
+  },
+  emptyBotAndroid: {
+    width: 38,
+    height: 38,
   },
   emptyTitle: {
     fontSize: 28,
@@ -695,6 +777,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: '#1F2937',
     textAlign: 'center',
+  },
+  emptyTitleAndroid: {
+    fontSize: 24,
+    lineHeight: 30,
   },
   emptyDescription: {
     width: '82%',
@@ -704,6 +790,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     textAlign: 'center',
+  },
+  emptyDescriptionAndroid: {
+    width: '86%',
+    fontSize: 12.5,
+    lineHeight: 19,
   },
   errorText: {
     width: '82%',
@@ -725,6 +816,10 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 24,
   },
+  messagesContentAndroid: {
+    paddingTop: 14,
+    paddingBottom: 18,
+  },
   messageRow: {
     flexDirection: 'row',
     marginBottom: 12,
@@ -741,6 +836,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  messageBubbleAndroid: {
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   userBubble: {
     backgroundColor: colors.primary,
     borderBottomRightRadius: 8,
@@ -756,10 +856,20 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
+  adminBubbleAndroid: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   messageText: {
     fontSize: 14,
     lineHeight: 21,
     fontFamily: 'Poppins_400Regular',
+  },
+  messageTextAndroid: {
+    fontSize: 13,
+    lineHeight: 20,
   },
   userMessageText: {
     color: colors.white,
@@ -785,6 +895,10 @@ const styles = StyleSheet.create({
     position: 'relative',
     flexShrink: 0,
   },
+  inputDockAndroid: {
+    paddingHorizontal: 12,
+    paddingTop: 6,
+  },
   attachmentMenu: {
     position: 'absolute',
     left: 18,
@@ -799,6 +913,13 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 8,
     zIndex: 8,
+  },
+  attachmentMenuAndroid: {
+    borderRadius: 14,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 2,
   },
   attachmentMenuItem: {
     flexDirection: 'row',
@@ -828,6 +949,15 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 6,
   },
+  inputBarAndroid: {
+    minHeight: 54,
+    borderRadius: 27,
+    paddingVertical: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 1,
+  },
   inputBarExpanded: {
     borderRadius: 22,
     paddingTop: 10,
@@ -842,11 +972,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  inputAccessoryButtonAndroid: {
+    left: 8,
+    bottom: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
   composerBody: {
     marginLeft: 44,
     marginRight: 46,
     minHeight: 42,
     justifyContent: 'flex-end',
+  },
+  composerBodyAndroid: {
+    marginLeft: 40,
+    marginRight: 42,
   },
   attachmentChip: {
     flexDirection: 'row',
@@ -897,6 +1038,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     textAlignVertical: 'top',
   },
+  inputAndroid: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
   sendButton: {
     position: 'absolute',
     right: 8,
@@ -907,6 +1052,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
+  },
+  sendButtonAndroid: {
+    right: 8,
+    bottom: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
   sendButtonIdle: {
     backgroundColor: colors.primary,

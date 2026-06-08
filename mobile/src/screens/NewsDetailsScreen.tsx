@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -43,6 +44,7 @@ type NewsDetailsScreenRouteProp = RouteProp<RootStackParamList, 'NewsDetails'>;
  */
 export default function NewsDetailsScreen() {
   const navigation = useNavigation<NewsDetailsScreenNavigationProp>();
+  const isAndroid = Platform.OS === 'android';
   const route = useRoute<NewsDetailsScreenRouteProp>();
   const routeNews = 'news' in route.params ? route.params.news : null;
   const routeNewsId = 'newsId' in route.params ? route.params.newsId : routeNews?.id ?? null;
@@ -149,16 +151,24 @@ export default function NewsDetailsScreen() {
       <AppHeader title="News details" onBackPress={handleBack} />
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.heroImageContainer}>
-          <Image source={{ uri: news.image_url }} style={styles.heroImage} />
+        <View
+          style={[
+            styles.heroImageContainer,
+            isAndroid && styles.heroImageContainerAndroid,
+          ]}
+        >
+          <Image
+            source={{ uri: news.image_url }}
+            style={[styles.heroImage, isAndroid && styles.heroImageAndroid]}
+          />
         </View>
 
-        <View style={styles.contentContainer}>
-          <View style={styles.categoryBadge}>
+        <View style={[styles.contentContainer, isAndroid && styles.contentContainerAndroid]}>
+          <View style={[styles.categoryBadge, isAndroid && styles.categoryBadgeAndroid]}>
             <Text style={styles.categoryText}>{news.category}</Text>
           </View>
 
-          <Text style={styles.title}>{news.title}</Text>
+          <Text style={[styles.title, isAndroid && styles.titleAndroid]}>{news.title}</Text>
 
           <View style={styles.metaContainer}>
             <Text style={styles.date}>{articleMeta?.publishedDate}</Text>
@@ -174,10 +184,12 @@ export default function NewsDetailsScreen() {
             <Text style={styles.sourceText}>Lewa News</Text>
           </View>
 
-          <Text style={styles.description}>{news.description}</Text>
+          <Text style={[styles.description, isAndroid && styles.descriptionAndroid]}>
+            {news.description}
+          </Text>
         </View>
 
-        <View style={styles.bottomSpacer} />
+        <View style={[styles.bottomSpacer, isAndroid && styles.bottomSpacerAndroid]} />
       </ScrollView>
     </View>
   );
@@ -271,14 +283,33 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  // Android article media is shorter and uses a very mild card shadow.
+  heroImageContainerAndroid: {
+    marginTop: 14,
+    marginBottom: 12,
+    width: '92%',
+    borderRadius: 10,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   heroImage: {
     width: '100%',
     height: 380,
     borderRadius: 12,
     resizeMode: 'cover',
   },
+  heroImageAndroid: {
+    height: 280,
+    borderRadius: 10,
+  },
   contentContainer: {
     padding: 20,
+  },
+  contentContainerAndroid: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   categoryBadge: {
     backgroundColor: colors.primary,
@@ -287,6 +318,11 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignSelf: 'flex-start',
     marginBottom: 12,
+  },
+  categoryBadgeAndroid: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginBottom: 10,
   },
   categoryText: {
     color: colors.white,
@@ -299,6 +335,11 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: 12,
     lineHeight: 32,
+  },
+  titleAndroid: {
+    fontSize: 18,
+    lineHeight: 26,
+    marginBottom: 10,
   },
   metaContainer: {
     flexDirection: 'row',
@@ -339,7 +380,14 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: colors.textPrimary,
   },
+  descriptionAndroid: {
+    fontSize: 13,
+    lineHeight: 21,
+  },
   bottomSpacer: {
     height: 40,
+  },
+  bottomSpacerAndroid: {
+    height: 28,
   },
 });

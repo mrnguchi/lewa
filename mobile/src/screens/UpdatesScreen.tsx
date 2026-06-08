@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   TextInput,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -38,6 +39,7 @@ type UpdatesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>
  */
 export default function UpdatesScreen() {
   const navigation = useNavigation<UpdatesScreenNavigationProp>();
+  const isAndroid = Platform.OS === 'android';
   const {
     data: articles = [],
     isPending: isInitialLoading,
@@ -137,7 +139,9 @@ export default function UpdatesScreen() {
         <AppHeader />
         <View style={styles.loaderContainer}>
           <SpinningLoader size={88} />
-          <Text style={styles.loaderText}>Loading the latest Lewa updates...</Text>
+          <Text style={[styles.loaderText, isAndroid && styles.loaderTextAndroid]}>
+            Loading the latest Lewa updates...
+          </Text>
         </View>
       </View>
     );
@@ -165,26 +169,26 @@ export default function UpdatesScreen() {
           />
         }
       >
-        <View style={styles.searchContainer}>
+        <View style={[styles.searchContainer, isAndroid && styles.searchContainerAndroid]}>
           <Ionicons name="search" size={20} color="#9CA3AF" />
           <TextInput
             value={searchQuery}
             onChangeText={handleSearchChange}
             placeholder="Search news..."
             placeholderTextColor="#9CA3AF"
-            style={styles.searchInput}
+            style={[styles.searchInput, isAndroid && styles.searchInputAndroid]}
           />
         </View>
 
         {featuredNews ? (
           <TouchableOpacity
-            style={styles.featuredCard}
+            style={[styles.featuredCard, isAndroid && styles.featuredCardAndroid]}
             activeOpacity={0.9}
             onPress={() => navigation.navigate('NewsDetails', { news: featuredNews })}
           >
             <Image
               source={{ uri: featuredNews.image_url }}
-              style={styles.featuredImage}
+              style={[styles.featuredImage, isAndroid && styles.featuredImageAndroid]}
             />
 
             <LinearGradient
@@ -195,15 +199,23 @@ export default function UpdatesScreen() {
                 'rgba(0,0,0,0.95)',
               ]}
               locations={[0, 0.4, 0.7, 1]}
-              style={styles.featuredOverlay}
+              style={[styles.featuredOverlay, isAndroid && styles.featuredOverlayAndroid]}
             >
               <View style={styles.featuredCategory}>
                 <Text style={styles.featuredCategoryText}>{featuredNews.category}</Text>
               </View>
 
-              <Text style={styles.featuredTitle}>{featuredNews.title}</Text>
+              <Text style={[styles.featuredTitle, isAndroid && styles.featuredTitleAndroid]}>
+                {featuredNews.title}
+              </Text>
 
-              <Text style={styles.featuredDescription} numberOfLines={3}>
+              <Text
+                style={[
+                  styles.featuredDescription,
+                  isAndroid && styles.featuredDescriptionAndroid,
+                ]}
+                numberOfLines={3}
+              >
                 {featuredNews.intro}
               </Text>
 
@@ -234,13 +246,14 @@ export default function UpdatesScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.categoryContainer}
+          style={[styles.categoryContainer, isAndroid && styles.categoryContainerAndroid]}
         >
           {NEWS_CATEGORIES.map((category) => (
             <TouchableOpacity
               key={category}
               style={[
                 styles.categoryChip,
+                isAndroid && styles.categoryChipAndroid,
                 selectedCategory === category && styles.categoryChipActive,
               ]}
               onPress={() => handleCategoryChange(category)}
@@ -248,6 +261,7 @@ export default function UpdatesScreen() {
               <Text
                 style={[
                   styles.categoryText,
+                  isAndroid && styles.categoryTextAndroid,
                   selectedCategory === category && styles.categoryTextActive,
                 ]}
               >
@@ -257,23 +271,28 @@ export default function UpdatesScreen() {
           ))}
         </ScrollView>
 
-        <View style={styles.newsContainer}>
+        <View style={[styles.newsContainer, isAndroid && styles.newsContainerAndroid]}>
           {visibleNews.length ? (
             visibleNews.map((news) => (
               <TouchableOpacity
                 key={news.id}
-                style={styles.newsCard}
+                style={[styles.newsCard, isAndroid && styles.newsCardAndroid]}
                 activeOpacity={0.7}
                 onPress={() => navigation.navigate('NewsDetails', { news })}
               >
-                <Image source={{ uri: news.image_url }} style={styles.newsImage} />
+                <Image
+                  source={{ uri: news.image_url }}
+                  style={[styles.newsImage, isAndroid && styles.newsImageAndroid]}
+                />
 
                 <View style={styles.newsContent}>
                   <Text style={styles.newsDate}>
                     {formatNewsPublishedDate(news.published_at)}
                   </Text>
 
-                  <Text style={styles.newsTitle}>{news.title}</Text>
+                  <Text style={[styles.newsTitle, isAndroid && styles.newsTitleAndroid]}>
+                    {news.title}
+                  </Text>
 
                   <View style={styles.newsFooter}>
                     <Text style={styles.newsTimeAgo}>
@@ -296,12 +315,17 @@ export default function UpdatesScreen() {
         </View>
 
         {visibleNewsCount < otherNews.length && (
-          <TouchableOpacity style={styles.loadMoreButton} onPress={handleLoadMore}>
-            <Text style={styles.loadMoreText}>Load More</Text>
+          <TouchableOpacity
+            style={[styles.loadMoreButton, isAndroid && styles.loadMoreButtonAndroid]}
+            onPress={handleLoadMore}
+          >
+            <Text style={[styles.loadMoreText, isAndroid && styles.loadMoreTextAndroid]}>
+              Load More
+            </Text>
           </TouchableOpacity>
         )}
 
-        <View style={styles.bottomSpacer} />
+        <View style={[styles.bottomSpacer, isAndroid && styles.bottomSpacerAndroid]} />
       </ScrollView>
     </View>
   );
@@ -324,6 +348,9 @@ const styles = StyleSheet.create({
     color: colors.textBody,
     textAlign: 'center',
   },
+  loaderTextAndroid: {
+    fontSize: 13,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -341,11 +368,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
+  // Android news cards use tighter media and near-flat shadows for a cleaner feed.
+  searchContainerAndroid: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    shadowOpacity: 0.015,
+    shadowRadius: 2,
+    elevation: 1,
+  },
   searchInput: {
     marginLeft: 10,
     flex: 1,
     fontSize: 16,
     color: colors.textPrimary,
+  },
+  searchInputAndroid: {
+    fontSize: 14,
   },
   featuredCard: {
     marginTop: 20,
@@ -354,10 +395,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
   },
+  featuredCardAndroid: {
+    marginTop: 16,
+    marginHorizontal: 16,
+    borderRadius: 14,
+  },
   featuredImage: {
     width: '100%',
     height: 350,
     marginTop: -12,
+  },
+  featuredImageAndroid: {
+    height: 280,
   },
   featuredOverlay: {
     position: 'absolute',
@@ -367,6 +416,9 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'flex-end',
     padding: 20,
+  },
+  featuredOverlayAndroid: {
+    padding: 16,
   },
   featuredCategory: {
     backgroundColor: colors.primary,
@@ -386,10 +438,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
+  featuredTitleAndroid: {
+    fontSize: 17,
+    marginBottom: 6,
+  },
   featuredDescription: {
     fontSize: 14,
     color: '#eaeced',
     marginBottom: 12,
+  },
+  featuredDescriptionAndroid: {
+    fontSize: 12.5,
+    marginBottom: 8,
   },
   featuredFooter: {
     marginTop: 10,
@@ -440,6 +500,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingLeft: 20,
   },
+  categoryContainerAndroid: {
+    marginTop: 16,
+    paddingLeft: 16,
+  },
   categoryChip: {
     paddingHorizontal: 18,
     paddingVertical: 10,
@@ -447,11 +511,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     marginRight: 10,
   },
+  categoryChipAndroid: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginRight: 8,
+  },
   categoryChipActive: {
     backgroundColor: '#1F2937',
   },
   categoryText: {
     color: '#374151',
+  },
+  categoryTextAndroid: {
+    fontSize: 12.5,
   },
   categoryTextActive: {
     color: colors.white,
@@ -459,6 +532,10 @@ const styles = StyleSheet.create({
   newsContainer: {
     marginTop: 20,
     paddingHorizontal: 20,
+  },
+  newsContainerAndroid: {
+    marginTop: 16,
+    paddingHorizontal: 16,
   },
   newsCard: {
     flexDirection: 'row',
@@ -468,11 +545,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginBottom: 14,
   },
+  newsCardAndroid: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
   newsImage: {
     width: 100,
     height: 100,
     borderRadius: 12,
     marginRight: 12,
+  },
+  newsImageAndroid: {
+    width: 88,
+    height: 88,
+    borderRadius: 10,
+    marginRight: 10,
   },
   newsContent: {
     flex: 1,
@@ -490,6 +579,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 22,
     marginTop: -28,
+  },
+  newsTitleAndroid: {
+    fontSize: 14,
+    lineHeight: 19,
+    marginTop: -22,
   },
   newsFooter: {
     flexDirection: 'row',
@@ -531,12 +625,23 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
   },
+  loadMoreButtonAndroid: {
+    marginHorizontal: 16,
+    paddingVertical: 11,
+    borderRadius: 14,
+  },
   loadMoreText: {
     color: colors.white,
     fontSize: 14,
     fontWeight: '600',
   },
+  loadMoreTextAndroid: {
+    fontSize: 13,
+  },
   bottomSpacer: {
     height: 120,
+  },
+  bottomSpacerAndroid: {
+    height: 128,
   },
 });

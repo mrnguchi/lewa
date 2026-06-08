@@ -77,6 +77,7 @@ const QUICK_ACTIONS = [
 ];
 
 const MAX_MESSAGE_LENGTH = 1000;
+const IS_ANDROID = Platform.OS === 'android';
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const MIN_COMPOSER_INPUT_HEIGHT = 40;
 const MAX_COMPOSER_INPUT_HEIGHT = 150;
@@ -140,8 +141,21 @@ const ChatBubble = ({ item }: { item: ChatMessage }) => {
 
   return (
     <View style={[styles.messageRow, isUser ? styles.userRow : styles.assistantRow]}>
-      <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.assistantBubble]}>
-        <Text style={[styles.messageText, isUser ? styles.userMessageText : styles.assistantMessageText]}>
+      <View
+        style={[
+          styles.messageBubble,
+          IS_ANDROID && styles.messageBubbleAndroid,
+          isUser ? styles.userBubble : styles.assistantBubble,
+          !isUser && IS_ANDROID && styles.assistantBubbleAndroid,
+        ]}
+      >
+        <Text
+          style={[
+            styles.messageText,
+            IS_ANDROID && styles.messageTextAndroid,
+            isUser ? styles.userMessageText : styles.assistantMessageText,
+          ]}
+        >
           {item.text}
         </Text>
         <Text style={[styles.messageTime, isUser ? styles.userMessageTime : styles.assistantMessageTime]}>
@@ -527,42 +541,54 @@ const LewaAIChatScreen: React.FC = () => {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 6 : 0}
       >
-        <View style={styles.header}>
-          <BackIconButton style={styles.backButton} onPress={handleBackToChats} />
+        <View style={[styles.header, IS_ANDROID && styles.headerAndroid]}>
+          <BackIconButton
+            style={[styles.backButton, IS_ANDROID && styles.backButtonAndroid]}
+            onPress={handleBackToChats}
+          />
 
           <View style={styles.profileBlock}>
-            <View style={styles.avatarShell}>
-              <Image source={require('../../assets/bot-small-1.png')} style={styles.avatarImage} />
+            <View style={[styles.avatarShell, IS_ANDROID && styles.avatarShellAndroid]}>
+              <Image
+                source={require('../../assets/bot-small-1.png')}
+                style={[styles.avatarImage, IS_ANDROID && styles.avatarImageAndroid]}
+              />
             </View>
 
             <View style={styles.nameBlock}>
               <Text style={styles.greetingText}>{greeting}</Text>
-              <Text style={styles.userName} numberOfLines={1}>
+              <Text style={[styles.userName, IS_ANDROID && styles.userNameAndroid]} numberOfLines={1}>
                 {displayName}
               </Text>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.menuButton} activeOpacity={0.86} onPress={() => setIsMenuVisible(true)}>
+          <TouchableOpacity
+            style={[styles.menuButton, IS_ANDROID && styles.menuButtonAndroid]}
+            activeOpacity={0.86}
+            onPress={() => setIsMenuVisible(true)}
+          >
             <Ionicons name="menu" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.headerDivider} />
 
-        <View style={styles.contentArea}>
+        <View style={[styles.contentArea, IS_ANDROID && styles.contentAreaAndroid]}>
           {isLoadingConversation ? (
             <View style={styles.loadingState}>
               <ActivityIndicator size="small" color={colors.primary} />
               <Text style={styles.loadingStateText}>Loading chat...</Text>
             </View>
           ) : messages.length === 0 ? (
-            <View style={styles.emptyConversation}>
-              <Text style={styles.emptyTitle}>Need anything ?</Text>
-              <Text style={styles.emptyDescription}>
+            <View style={[styles.emptyConversation, IS_ANDROID && styles.emptyConversationAndroid]}>
+              <Text style={[styles.emptyTitle, IS_ANDROID && styles.emptyTitleAndroid]}>
+                Need anything ?
+              </Text>
+              <Text style={[styles.emptyDescription, IS_ANDROID && styles.emptyDescriptionAndroid]}>
                 Lewa&apos;s smart AI assistant helps you find what you need faster and easier.
               </Text>
 
@@ -575,7 +601,7 @@ const LewaAIChatScreen: React.FC = () => {
                 {QUICK_ACTIONS.map((item) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={styles.suggestionChip}
+                    style={[styles.suggestionChip, IS_ANDROID && styles.suggestionChipAndroid]}
                     activeOpacity={0.9}
                     onPress={() => handleSuggestionPress(item.prompt)}
                   >
@@ -586,7 +612,10 @@ const LewaAIChatScreen: React.FC = () => {
                         color="#31445F"
                       />
                     </View>
-                    <Text style={styles.suggestionText} numberOfLines={1}>
+                    <Text
+                      style={[styles.suggestionText, IS_ANDROID && styles.suggestionTextAndroid]}
+                      numberOfLines={1}
+                    >
                       {item.label}
                     </Text>
                   </TouchableOpacity>
@@ -600,7 +629,10 @@ const LewaAIChatScreen: React.FC = () => {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => <ChatBubble item={item} />}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.messagesContent}
+              contentContainerStyle={[
+                styles.messagesContent,
+                IS_ANDROID && styles.messagesContentAndroid,
+              ]}
               onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
               ListHeaderComponent={
                 <View style={styles.dayBadge}>
@@ -615,6 +647,7 @@ const LewaAIChatScreen: React.FC = () => {
         <View
           style={[
             styles.inputDock,
+            IS_ANDROID && styles.inputDockAndroid,
             {
               paddingBottom: inputDockPaddingBottom,
             },
@@ -624,6 +657,7 @@ const LewaAIChatScreen: React.FC = () => {
             <View
               style={[
                 styles.attachmentMenu,
+                IS_ANDROID && styles.attachmentMenuAndroid,
                 { bottom: composerBarHeight + inputDockPaddingBottom + 10 },
               ]}
             >
@@ -647,10 +681,11 @@ const LewaAIChatScreen: React.FC = () => {
           <View
             style={[
               styles.inputBar,
+              IS_ANDROID && styles.inputBarAndroid,
               isComposerExpanded && styles.inputBarExpanded,
             ]}
           >
-            <View style={styles.composerBody}>
+            <View style={[styles.composerBody, IS_ANDROID && styles.composerBodyAndroid]}>
               {pendingAttachment ? (
                 <View style={styles.attachmentChip}>
                   <View style={styles.attachmentChipIcon}>
@@ -680,7 +715,11 @@ const LewaAIChatScreen: React.FC = () => {
 
             <TextInput
               ref={inputRef}
-              style={[styles.input, { height: composerInputHeight }]}
+              style={[
+                styles.input,
+                IS_ANDROID && styles.inputAndroid,
+                { height: composerInputHeight },
+              ]}
               placeholder="Ask anything within UB..."
               placeholderTextColor="#98A2B3"
               value={message}
@@ -696,12 +735,20 @@ const LewaAIChatScreen: React.FC = () => {
             />
             </View>
 
-            <TouchableOpacity style={styles.inputAccessoryButton} activeOpacity={0.86} onPress={handleAttachmentPress}>
+            <TouchableOpacity
+              style={[styles.inputAccessoryButton, IS_ANDROID && styles.inputAccessoryButtonAndroid]}
+              activeOpacity={0.86}
+              onPress={handleAttachmentPress}
+            >
               <Ionicons name="add" size={22} color="#334155" />
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.sendButton, !message.trim() && styles.sendButtonIdle]}
+              style={[
+                styles.sendButton,
+                IS_ANDROID && styles.sendButtonAndroid,
+                !message.trim() && styles.sendButtonIdle,
+              ]}
               activeOpacity={0.9}
               onPress={handlePrimaryAction}
             >
@@ -716,7 +763,13 @@ const LewaAIChatScreen: React.FC = () => {
 
         {isMenuVisible ? (
           <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={closeMenu}>
-            <View style={[styles.menuCard, { top: insets.top + 60 }]}>
+            <View
+              style={[
+                styles.menuCard,
+                IS_ANDROID && styles.menuCardAndroid,
+                { top: insets.top + 60 },
+              ]}
+            >
               <Text style={styles.menuLabel}>{threadTitle}</Text>
 
               <TouchableOpacity style={styles.menuItem} onPress={handleCreateNewChat}>
@@ -758,6 +811,12 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 14,
   },
+  // I keep Android chat controls compact so the keyboard does not crowd the conversation.
+  headerAndroid: {
+    paddingHorizontal: 12,
+    paddingTop: 3,
+    paddingBottom: 10,
+  },
   backButton: {
     width: 38,
     height: 38,
@@ -765,6 +824,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 2,
+  },
+  backButtonAndroid: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   profileBlock: {
     flexDirection: 'row',
@@ -781,10 +845,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  avatarShellAndroid: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
   avatarImage: {
     width: 30,
     height: 30,
     resizeMode: 'contain',
+  },
+  avatarImageAndroid: {
+    width: 27,
+    height: 27,
   },
   nameBlock: {
     marginLeft: 10,
@@ -800,12 +873,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
     color: colors.textPrimary,
   },
+  userNameAndroid: {
+    fontSize: 15,
+  },
   menuButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  menuButtonAndroid: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   headerDivider: {
     height: 1,
@@ -815,6 +896,9 @@ const styles = StyleSheet.create({
   contentArea: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  contentAreaAndroid: {
+    paddingHorizontal: 16,
   },
   loadingState: {
     flex: 1,
@@ -833,12 +917,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingBottom: 70,
   },
+  emptyConversationAndroid: {
+    paddingBottom: 42,
+  },
   emptyTitle: {
     fontSize: 38,
     lineHeight: 44,
     fontFamily: 'Poppins_700Bold',
     color: '#1F2937',
     textAlign: 'center',
+  },
+  emptyTitleAndroid: {
+    fontSize: 30,
+    lineHeight: 36,
   },
   emptyDescription: {
     width: '78%',
@@ -848,6 +939,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     textAlign: 'center',
+  },
+  emptyDescriptionAndroid: {
+    width: '86%',
+    fontSize: 12.5,
+    lineHeight: 19,
   },
   errorText: {
     width: '82%',
@@ -879,6 +975,10 @@ const styles = StyleSheet.create({
     paddingRight: 12,
     paddingVertical: 8,
   },
+  suggestionChipAndroid: {
+    minHeight: 32,
+    paddingVertical: 6,
+  },
   suggestionIconShell: {
     width: 18,
     height: 18,
@@ -892,9 +992,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
     color: '#344054',
   },
+  suggestionTextAndroid: {
+    fontSize: 11.5,
+  },
   messagesContent: {
     paddingTop: 18,
     paddingBottom: 24,
+  },
+  messagesContentAndroid: {
+    paddingTop: 14,
+    paddingBottom: 18,
   },
   dayBadge: {
     alignSelf: 'center',
@@ -925,6 +1032,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  messageBubbleAndroid: {
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   userBubble: {
     backgroundColor: colors.primary,
     borderBottomRightRadius: 8,
@@ -940,6 +1052,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 2,
   },
+  assistantBubbleAndroid: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   typingBubble: {
     minWidth: 74,
     alignItems: 'flex-start',
@@ -948,6 +1066,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     fontFamily: 'Poppins_400Regular',
+  },
+  messageTextAndroid: {
+    fontSize: 13,
+    lineHeight: 20,
   },
   userMessageText: {
     color: colors.white,
@@ -973,6 +1095,10 @@ const styles = StyleSheet.create({
     position: 'relative',
     flexShrink: 0,
   },
+  inputDockAndroid: {
+    paddingHorizontal: 12,
+    paddingTop: 6,
+  },
   attachmentMenu: {
     position: 'absolute',
     left: 18,
@@ -987,6 +1113,13 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 8,
     zIndex: 8,
+  },
+  attachmentMenuAndroid: {
+    borderRadius: 14,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 2,
   },
   attachmentMenuItem: {
     flexDirection: 'row',
@@ -1016,6 +1149,15 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 6,
   },
+  inputBarAndroid: {
+    minHeight: 54,
+    borderRadius: 27,
+    paddingVertical: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 1,
+  },
   inputBarExpanded: {
     borderRadius: 22,
     paddingTop: 10,
@@ -1030,11 +1172,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  inputAccessoryButtonAndroid: {
+    left: 8,
+    bottom: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
   composerBody: {
     marginLeft: 44,
     marginRight: 46,
     minHeight: 42,
     justifyContent: 'flex-end',
+  },
+  composerBodyAndroid: {
+    marginLeft: 40,
+    marginRight: 42,
   },
   attachmentChip: {
     flexDirection: 'row',
@@ -1085,6 +1238,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     textAlignVertical: 'top',
   },
+  inputAndroid: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
   sendButton: {
     position: 'absolute',
     right: 8,
@@ -1095,6 +1252,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
+  },
+  sendButtonAndroid: {
+    right: 8,
+    bottom: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
   sendButtonIdle: {
     backgroundColor: colors.primary,
@@ -1115,6 +1279,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 20,
     elevation: 8,
+  },
+  menuCardAndroid: {
+    right: 16,
+    borderRadius: 16,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 2,
   },
   menuLabel: {
     fontSize: 12,

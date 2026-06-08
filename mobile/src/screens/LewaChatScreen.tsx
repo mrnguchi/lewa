@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -47,6 +48,7 @@ type RootStackParamList = {
 };
 
 type LewaChatNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+const IS_ANDROID = Platform.OS === 'android';
 
 // Keeps static thread avatars visually varied without introducing profile photos yet.
 const THREAD_AVATAR_COLORS = ['#167846', '#DC9754', '#2563EB', '#D97706', '#7C3AED', '#D14343'];
@@ -93,7 +95,7 @@ const ConversationRow = ({
   return (
     <View style={[styles.threadRowWrap, isDeleteVisible && styles.threadRowWrapSelected]}>
       <TouchableOpacity
-        style={styles.threadRow}
+        style={[styles.threadRow, IS_ANDROID && styles.threadRowAndroid]}
         activeOpacity={0.88}
         delayLongPress={260}
         onPress={() => onPress?.(item)}
@@ -102,15 +104,18 @@ const ConversationRow = ({
         <View
           style={[
             styles.threadAvatar,
+            IS_ANDROID && styles.threadAvatarAndroid,
             { backgroundColor: getAvatarBackgroundColor(item.title) },
           ]}
         >
-          <Text style={styles.threadAvatarText}>{getAvatarLetter(item.title)}</Text>
+          <Text style={[styles.threadAvatarText, IS_ANDROID && styles.threadAvatarTextAndroid]}>
+            {getAvatarLetter(item.title)}
+          </Text>
         </View>
 
         <View style={styles.threadBody}>
           <View style={styles.threadTopRow}>
-            <Text style={styles.threadTitle} numberOfLines={1}>
+            <Text style={[styles.threadTitle, IS_ANDROID && styles.threadTitleAndroid]} numberOfLines={1}>
               {item.title}
             </Text>
             <Text style={[styles.threadTimestamp, isUnread && styles.threadTimestampUnread]}>
@@ -120,7 +125,11 @@ const ConversationRow = ({
 
           <View style={styles.threadBottomRow}>
             <Text
-              style={[styles.threadPreview, isUnread && styles.threadPreviewUnread]}
+              style={[
+                styles.threadPreview,
+                IS_ANDROID && styles.threadPreviewAndroid,
+                isUnread && styles.threadPreviewUnread,
+              ]}
               numberOfLines={1}
             >
               {getPreviewText(item.preview)}
@@ -156,18 +165,27 @@ const EmptyAiState = ({
 }: {
   onPress: () => void;
 }) => (
-  <View style={styles.emptyStateWrap}>
-    <View style={styles.emptyStateArtwork}>
-      <Image source={require('../../assets/bot-small-1.png')} style={styles.emptyBot} />
+  <View style={[styles.emptyStateWrap, IS_ANDROID && styles.emptyStateWrapAndroid]}>
+    <View style={[styles.emptyStateArtwork, IS_ANDROID && styles.emptyStateArtworkAndroid]}>
+      <Image
+        source={require('../../assets/bot-small-1.png')}
+        style={[styles.emptyBot, IS_ANDROID && styles.emptyBotAndroid]}
+      />
     </View>
 
-    <Text style={styles.emptyStateTitle}>No chats yet</Text>
-    <Text style={styles.emptyStateText}>
+    <Text style={[styles.emptyStateTitle, IS_ANDROID && styles.emptyStateTitleAndroid]}>No chats yet</Text>
+    <Text style={[styles.emptyStateText, IS_ANDROID && styles.emptyStateTextAndroid]}>
       Start a new conversation and your recent AI chats will appear here for quick return.
     </Text>
 
-    <TouchableOpacity style={styles.primaryActionButton} onPress={onPress} activeOpacity={0.88}>
-      <Text style={styles.primaryActionText}>Start a new chat</Text>
+    <TouchableOpacity
+      style={[styles.primaryActionButton, IS_ANDROID && styles.primaryActionButtonAndroid]}
+      onPress={onPress}
+      activeOpacity={0.88}
+    >
+      <Text style={[styles.primaryActionText, IS_ANDROID && styles.primaryActionTextAndroid]}>
+        Start a new chat
+      </Text>
       <Ionicons name="arrow-forward" size={18} color={colors.white} />
     </TouchableOpacity>
   </View>
@@ -193,18 +211,29 @@ const SchoolAdminTab = ({
 }) => {
   if (threads.length === 0) {
     return (
-      <View style={styles.emptyStateWrap}>
-        <View style={styles.emptyStateArtwork}>
-          <Image source={require('../../assets/bot-small-1.png')} style={styles.emptyBot} />
+      <View style={[styles.emptyStateWrap, IS_ANDROID && styles.emptyStateWrapAndroid]}>
+        <View style={[styles.emptyStateArtwork, IS_ANDROID && styles.emptyStateArtworkAndroid]}>
+          <Image
+            source={require('../../assets/bot-small-1.png')}
+            style={[styles.emptyBot, IS_ANDROID && styles.emptyBotAndroid]}
+          />
         </View>
 
-        <Text style={styles.emptyStateTitle}>No support chats yet</Text>
-        <Text style={styles.emptyStateText}>
+        <Text style={[styles.emptyStateTitle, IS_ANDROID && styles.emptyStateTitleAndroid]}>
+          No support chats yet
+        </Text>
+        <Text style={[styles.emptyStateText, IS_ANDROID && styles.emptyStateTextAndroid]}>
           Submit a complaint from the support desk and your School Admin conversation will appear here.
         </Text>
 
-        <TouchableOpacity style={styles.primaryActionButton} onPress={onOpenSupportDesk} activeOpacity={0.88}>
-          <Text style={styles.primaryActionText}>Open support desk</Text>
+        <TouchableOpacity
+          style={[styles.primaryActionButton, IS_ANDROID && styles.primaryActionButtonAndroid]}
+          onPress={onOpenSupportDesk}
+          activeOpacity={0.88}
+        >
+          <Text style={[styles.primaryActionText, IS_ANDROID && styles.primaryActionTextAndroid]}>
+            Open support desk
+          </Text>
           <Ionicons name="arrow-forward" size={18} color={colors.white} />
         </TouchableOpacity>
       </View>
@@ -213,8 +242,8 @@ const SchoolAdminTab = ({
 
   return (
     <View style={styles.listSection}>
-      <Text style={styles.sectionTitle}>School Admin</Text>
-      <Text style={styles.sectionSubtitle}>
+      <Text style={[styles.sectionTitle, IS_ANDROID && styles.sectionTitleAndroid]}>School Admin</Text>
+      <Text style={[styles.sectionSubtitle, IS_ANDROID && styles.sectionSubtitleAndroid]}>
         Complaint threads and direct follow-up messages from school support.
       </Text>
 
@@ -264,15 +293,21 @@ const LewaAiTab = ({
     <View style={styles.listSection}>
       <View style={styles.aiHeaderRow}>
         <View style={styles.aiHeaderText}>
-          <Text style={styles.sectionTitle}>Lewa AI</Text>
-          <Text style={styles.sectionSubtitle}>
+          <Text style={[styles.sectionTitle, IS_ANDROID && styles.sectionTitleAndroid]}>Lewa AI</Text>
+          <Text style={[styles.sectionSubtitle, IS_ANDROID && styles.sectionSubtitleAndroid]}>
             Your round-the-clock AI assistant for school-related questions, and more!
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.newChatChip} onPress={onStartChat} activeOpacity={0.88}>
+        <TouchableOpacity
+          style={[styles.newChatChip, IS_ANDROID && styles.newChatChipAndroid]}
+          onPress={onStartChat}
+          activeOpacity={0.88}
+        >
           <Ionicons name="add" size={16} color={colors.primary} />
-          <Text style={styles.newChatChipText}>New chat</Text>
+          <Text style={[styles.newChatChipText, IS_ANDROID && styles.newChatChipTextAndroid]}>
+            New chat
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -522,36 +557,58 @@ const LewaChatScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
-        <View style={styles.headerCard}>
-          <Text style={styles.pageTitle}>Lewa Chat</Text>
-          <Text style={styles.pageSubtitle}>
+        <View style={[styles.headerCard, IS_ANDROID && styles.headerCardAndroid]}>
+          <Text style={[styles.pageTitle, IS_ANDROID && styles.pageTitleAndroid]}>Lewa Chat</Text>
+          <Text style={[styles.pageSubtitle, IS_ANDROID && styles.pageSubtitleAndroid]}>
             Your support conversations and AI assistance .
           </Text>
 
-          <View style={styles.tabsContainer}>
+          <View style={[styles.tabsContainer, IS_ANDROID && styles.tabsContainerAndroid]}>
             <TouchableOpacity
-              style={[styles.tab, activeTab === 'school_admin' && styles.tabActive]}
+              style={[
+                styles.tab,
+                IS_ANDROID && styles.tabAndroid,
+                activeTab === 'school_admin' && styles.tabActive,
+              ]}
               activeOpacity={0.88}
               onPress={() => handleSelectTab('school_admin')}
             >
-              <Text style={[styles.tabText, activeTab === 'school_admin' && styles.tabTextActive]}>
+              <Text
+                style={[
+                  styles.tabText,
+                  IS_ANDROID && styles.tabTextAndroid,
+                  activeTab === 'school_admin' && styles.tabTextActive,
+                ]}
+              >
                 School Admin
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.tab, activeTab === 'lewa_ai' && styles.tabActive]}
+              style={[
+                styles.tab,
+                IS_ANDROID && styles.tabAndroid,
+                activeTab === 'lewa_ai' && styles.tabActive,
+              ]}
               activeOpacity={0.88}
               onPress={() => handleSelectTab('lewa_ai')}
             >
-              <Text style={[styles.tabText, activeTab === 'lewa_ai' && styles.tabTextActive]}>
+              <Text
+                style={[
+                  styles.tabText,
+                  IS_ANDROID && styles.tabTextAndroid,
+                  activeTab === 'lewa_ai' && styles.tabTextActive,
+                ]}
+              >
                 Lewa AI
               </Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.contentBlock}>{activeTabContent}</View>
+        <View style={[styles.contentBlock, IS_ANDROID && styles.contentBlockAndroid]}>
+          {activeTabContent}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -581,10 +638,27 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 8,
   },
+  // Android uses a lighter surface so the chat hub stays clean and compact.
+  headerCardAndroid: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 15,
+    paddingBottom: 15,
+    borderRadius: 20,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    elevation: 1,
+  },
   pageTitle: {
     fontSize: 28,
     fontFamily: 'Poppins_700Bold',
     color: colors.white,
+  },
+  pageTitleAndroid: {
+    fontSize: 23,
   },
   pageSubtitle: {
     marginTop: 6,
@@ -592,6 +666,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: 'Poppins_400Regular',
     color: 'rgba(255,255,255,0.74)',
+  },
+  pageSubtitleAndroid: {
+    marginTop: 3,
+    fontSize: 12.5,
+    lineHeight: 19,
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -601,6 +680,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
+  tabsContainerAndroid: {
+    gap: 8,
+    marginTop: 15,
+    padding: 4,
+    borderRadius: 16,
+  },
   tab: {
     flex: 1,
     paddingHorizontal: 20,
@@ -608,6 +693,11 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: 'transparent',
     alignItems: 'center',
+  },
+  tabAndroid: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 14,
   },
   tabActive: {
     backgroundColor: colors.white,
@@ -617,6 +707,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
     color: 'rgba(255,255,255,0.7)',
   },
+  tabTextAndroid: {
+    fontSize: 13,
+  },
   tabTextActive: {
     color: colors.textPrimary,
   },
@@ -624,6 +717,10 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingBottom: 118,
+  },
+  contentBlockAndroid: {
+    paddingHorizontal: 16,
+    paddingBottom: 108,
   },
   feedbackState: {
     flex: 1,
@@ -666,12 +763,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: colors.primary,
   },
+  sectionTitleAndroid: {
+    fontSize: 16,
+  },
   sectionSubtitle: {
     marginTop: 4,
     fontSize: 13,
     lineHeight: 20,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
+  },
+  sectionSubtitleAndroid: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   listContent: {
     paddingTop: 18,
@@ -696,6 +800,15 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 4,
   },
+  threadRowAndroid: {
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
+  },
   threadAvatar: {
     width: 54,
     height: 54,
@@ -704,10 +817,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 14,
   },
+  threadAvatarAndroid: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    marginRight: 11,
+  },
   threadAvatarText: {
     fontSize: 22,
     fontFamily: 'Poppins_700Bold',
     color: colors.white,
+  },
+  threadAvatarTextAndroid: {
+    fontSize: 18,
   },
   threadBody: {
     flex: 1,
@@ -731,6 +853,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_700Bold',
     color: colors.textPrimary,
   },
+  threadTitleAndroid: {
+    fontSize: 14,
+  },
   threadTimestamp: {
     fontSize: 11,
     fontFamily: 'Poppins_500Medium',
@@ -744,6 +869,9 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
+  },
+  threadPreviewAndroid: {
+    fontSize: 11.5,
   },
   threadPreviewUnread: {
     color: colors.textPrimary,
@@ -801,10 +929,17 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     backgroundColor: '#E6F4EC',
   },
+  newChatChipAndroid: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
   newChatChipText: {
     fontSize: 13,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.primary,
+  },
+  newChatChipTextAndroid: {
+    fontSize: 12,
   },
   emptyStateWrap: {
     flex: 1,
@@ -812,6 +947,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
     paddingBottom: 80,
+  },
+  emptyStateWrapAndroid: {
+    paddingHorizontal: 16,
+    paddingBottom: 52,
   },
   emptyStateArtwork: {
     width: 82,
@@ -822,10 +961,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 18,
   },
+  emptyStateArtworkAndroid: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    marginBottom: 12,
+  },
   emptyBot: {
     width: 58,
     height: 58,
     resizeMode: 'contain',
+  },
+  emptyBotAndroid: {
+    width: 48,
+    height: 48,
   },
   emptyStateTitle: {
     fontSize: 20,
@@ -834,6 +983,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 18,
   },
+  emptyStateTitleAndroid: {
+    marginTop: 10,
+    fontSize: 18,
+  },
   emptyStateText: {
     marginTop: 8,
     fontSize: 13.5,
@@ -841,6 +994,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
     textAlign: 'center',
+  },
+  emptyStateTextAndroid: {
+    fontSize: 12.5,
+    lineHeight: 19,
   },
   primaryActionButton: {
     flexDirection: 'row',
@@ -852,10 +1009,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 20,
   },
+  primaryActionButtonAndroid: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginTop: 16,
+  },
   primaryActionText: {
     fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.white,
+  },
+  primaryActionTextAndroid: {
+    fontSize: 13,
   },
 });
 
