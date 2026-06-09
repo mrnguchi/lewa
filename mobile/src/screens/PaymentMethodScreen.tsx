@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppHeader from '../components/AppHeader';
 import { useAuth } from '../hooks/useAuth';
 import { showErrorToast, showSuccessToast } from '../services/toast';
+import { resetToMainTab } from '../navigation/resetNavigation';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IS_ANDROID = Platform.OS === 'android';
@@ -124,7 +125,7 @@ const PaymentMethodScreen: React.FC = () => {
   useEffect(() => {
     if (paymentType === 'fee' && user?.fee_status === 'PAID') {
       showSuccessToast("You've completed fees for this school year.");
-      navigation.navigate('MainTabs', { screen: 'Home' });
+      resetToMainTab(navigation);
       return;
     }
 
@@ -136,8 +137,8 @@ const PaymentMethodScreen: React.FC = () => {
 
     if (paymentType === 'subscription') {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        // Navigate to home instead of going back
-        navigation.navigate('MainTabs', { screen: 'Home' });
+        // Subscription payments return to a clean Home root.
+        resetToMainTab(navigation);
         return true; // Prevent default back behavior
       });
 
@@ -152,8 +153,8 @@ const PaymentMethodScreen: React.FC = () => {
   // Custom back handler
   const handleBack = () => {
     if (paymentType === 'subscription') {
-      // Go directly to home for subscription flow
-      navigation.navigate('MainTabs', { screen: 'Home' });
+      // Go directly to a clean Home root for subscription flow.
+      resetToMainTab(navigation);
     } else {
       // Normal back navigation for fee flow
       navigation.goBack();
@@ -169,7 +170,7 @@ const PaymentMethodScreen: React.FC = () => {
   const handleNext = () => {
     if (paymentType === 'fee' && user?.fee_status === 'PAID') {
       showSuccessToast("You've completed fees for this school year.");
-      navigation.navigate('MainTabs', { screen: 'Home' });
+      resetToMainTab(navigation);
       return;
     }
 

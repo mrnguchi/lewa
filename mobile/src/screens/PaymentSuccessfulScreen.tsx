@@ -25,6 +25,7 @@ import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { showErrorToast } from '../services/toast';
 import BackIconButton from '../components/BackIconButton';
+import { resetToMainTab } from '../navigation/resetNavigation';
 
 type RootStackParamList = {
   MainTabs: { screen: string };
@@ -57,10 +58,7 @@ const PaymentSuccessfulScreen: React.FC = () => {
     try {
       await refreshUserData();
     } finally {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
-      });
+      resetToMainTab(navigation);
     }
   }, [navigation, refreshUserData]);
 

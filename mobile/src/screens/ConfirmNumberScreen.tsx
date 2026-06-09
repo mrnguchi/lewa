@@ -29,6 +29,7 @@ import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import { showErrorToast, showSuccessToast } from '../services/toast';
 import { CURRENT_ACADEMIC_YEAR } from '../constants/payment';
+import { resetToMainTab } from '../navigation/resetNavigation';
 
 type RootStackParamList = {
   MainTabs: { screen: string };
@@ -107,7 +108,7 @@ const ConfirmNumberScreen: React.FC = () => {
   useEffect(() => {
     if (paymentType === 'fee' && user?.fee_status === 'PAID') {
       showSuccessToast("You've completed fees for this school year.");
-      navigation.navigate('MainTabs', { screen: 'Home' });
+      resetToMainTab(navigation);
       return;
     }
 
@@ -132,7 +133,7 @@ const ConfirmNumberScreen: React.FC = () => {
 
     if (paymentType === 'fee' && user?.fee_status === 'PAID') {
       showSuccessToast("You've completed fees for this school year.");
-      navigation.navigate('MainTabs', { screen: 'Home' });
+      resetToMainTab(navigation);
       return;
     }
 

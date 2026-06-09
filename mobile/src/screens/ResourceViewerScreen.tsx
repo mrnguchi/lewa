@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
+import Pdf from 'react-native-pdf';
 
 import AppHeader from '../components/AppHeader';
 import SpinningLoader from '../components/SpinningLoader';
 import { colors } from '../theme/colors';
-import { buildResourceViewerUrl } from '../services/resources';
+import { getCachedResourceFileUri } from '../services/resources';
 import { ResourceItem } from '../types/resources';
 import { useAndroidNavigationClearance } from '../hooks/useAndroidNavigationClearance';
 
@@ -22,7 +22,7 @@ type ResourceViewerRouteProp = RouteProp<RootStackParamList, 'ResourceViewer'>;
 type ResourceViewerNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ResourceViewer'>;
 
 /**
- * Displays a resource document inside the app using the embedded web view.
+ * Displays a cached resource document inside the native PDF reader.
  */
 export default function ResourceViewerScreen() {
   const navigation = useNavigation<ResourceViewerNavigationProp>();
@@ -35,6 +35,35 @@ export default function ResourceViewerScreen() {
   const { resource } = route.params;
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [pdfUri, setPdfUri] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [numberOfPages, setNumberOfPages] = useState(0);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  // I cache the document locally so opening it again is immediate and reliable.
+  const prepareDocument = useCallback(async () => {
+    setIsLoading(true);
+    setHasError(false);
+    setPdfUri(null);
+    setCurrentPage(1);
+    setNumberOfPages(0);
+
+    try {
+      const localUri = await getCachedResourceFileUri(resource, loadAttempt > 0);
+      setPdfUri(localUri);
+    } catch {
+      setHasError(true);
+      setIsLoading(false);
+    }
+  }, [loadAttempt, resource]);
+
+  useEffect(() => {
+    prepareDocument();
+  }, [prepareDocument]);
+
+  const handleRetry = () => {
+    setLoadAttempt((currentAttempt) => currentAttempt + 1);
+  };
 
   return (
     <View style={styles.container}>
@@ -56,26 +85,48 @@ export default function ResourceViewerScreen() {
             <Ionicons name="document-text-outline" size={42} color={colors.primary} />
             <Text style={styles.errorTitle}>Unable to open this document</Text>
             <Text style={styles.errorText}>
-              The PDF could not be loaded in the embedded reader right now.
+              Check your connection and try opening the PDF again.
             </Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              activeOpacity={0.88}
+              onPress={handleRetry}
+            >
+              <Ionicons name="refresh" size={18} color={colors.white} />
+              <Text style={styles.retryButtonText}>Try again</Text>
+            </TouchableOpacity>
           </View>
-        ) : (
+        ) : pdfUri ? (
           <>
-            <WebView
-              source={{ uri: buildResourceViewerUrl(resource.file_url) }}
-              style={styles.webView}
-              originWhitelist={['*']}
-              allowsBackForwardNavigationGestures
-              onLoadStart={() => {
-                setIsLoading(true);
-                setHasError(false);
+            <Pdf
+              source={{ uri: pdfUri }}
+              style={styles.pdf}
+              fitPolicy={0}
+              minScale={1}
+              maxScale={4}
+              spacing={8}
+              enableDoubleTapZoom
+              trustAllCerts={false}
+              onLoadComplete={(pageCount) => {
+                setNumberOfPages(pageCount);
+                setIsLoading(false);
               }}
-              onLoadEnd={() => setIsLoading(false)}
+              onPageChanged={(page, pageCount) => {
+                setCurrentPage(page);
+                setNumberOfPages(pageCount);
+              }}
               onError={() => {
                 setHasError(true);
                 setIsLoading(false);
               }}
             />
+            {numberOfPages > 0 && !isLoading && (
+              <View style={styles.pageBadge}>
+                <Text style={styles.pageBadgeText}>
+                  {currentPage} / {numberOfPages}
+                </Text>
+              </View>
+            )}
             {isLoading && (
               <View style={styles.loaderOverlay}>
                 <SpinningLoader size={74} />
@@ -85,6 +136,13 @@ export default function ResourceViewerScreen() {
               </View>
             )}
           </>
+        ) : (
+          <View style={styles.loaderOverlay}>
+            <SpinningLoader size={74} />
+            <Text style={[styles.loaderText, isAndroid && styles.loaderTextAndroid]}>
+              Preparing resource...
+            </Text>
+          </View>
         )}
       </View>
     </View>
@@ -153,9 +211,10 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     elevation: 0,
   },
-  webView: {
+  pdf: {
     flex: 1,
-    backgroundColor: colors.white,
+    width: '100%',
+    backgroundColor: '#E9EDF1',
   },
   loaderOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -191,5 +250,39 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  retryButton: {
+    minWidth: 138,
+    height: 46,
+    marginTop: 8,
+    paddingHorizontal: 18,
+    borderRadius: 23,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  retryButtonText: {
+    fontSize: 13,
+    fontFamily: 'Poppins_600SemiBold',
+    color: colors.white,
+  },
+  pageBadge: {
+    position: 'absolute',
+    right: 14,
+    bottom: 14,
+    minWidth: 58,
+    height: 30,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+    backgroundColor: 'rgba(31, 43, 56, 0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Poppins_600SemiBold',
+    color: colors.white,
   },
 });

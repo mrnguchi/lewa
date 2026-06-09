@@ -45,7 +45,12 @@ export default function ResourceCard({
       <View style={[styles.preview, compact && styles.compactPreview]}>
         <Image
           source={require('../../assets/pdf-icon.png')}
-          style={[styles.pdfIcon, compact && styles.compactPdfIcon]}
+          style={[
+            styles.pdfIcon,
+            compact && styles.compactPdfIcon,
+            isAndroid && styles.androidPdfIcon,
+            isAndroid && compact && styles.androidCompactPdfIcon,
+          ]}
         />
         <View style={styles.typeBadge}>
           <Text style={styles.typeBadgeText}>
@@ -125,6 +130,14 @@ const styles = StyleSheet.create({
   compactPdfIcon: {
     width: 54,
     height: 54,
+  },
+  androidPdfIcon: {
+    width: 74,
+    height: 74,
+  },
+  androidCompactPdfIcon: {
+    width: 60,
+    height: 60,
   },
   typeBadge: {
     position: 'absolute',

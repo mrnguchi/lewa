@@ -29,7 +29,7 @@ export default {
     android: {
       package: "com.mrnguchi.lewa",
       adaptiveIcon: {
-        foregroundImage: "./assets/new-app-icon.png",
+        foregroundImage: "./assets/new-app-icon-foreground.png",
         backgroundColor: "#FFFFFF",
       },
       edgeToEdgeEnabled: true,

@@ -32,6 +32,7 @@ import { useAndroidNavigationClearance } from '../hooks/useAndroidNavigationClea
 
 import BackIconButton from '../components/BackIconButton';
 import { colors } from '../theme/colors';
+import { resetToMainTab } from '../navigation/resetNavigation';
 import { useAppSync } from '../contexts/AppSyncContext';
 import { showErrorToast, showSuccessToast } from '../services/toast';
 import {
@@ -305,7 +306,7 @@ const SchoolAdminChatScreen: React.FC = () => {
       return;
     }
 
-    navigation.navigate('MainTabs', { screen: 'LewaChat' });
+    resetToMainTab(navigation, 'LewaChat');
   };
 
   // Sends a follow-up student message into the School Admin thread.

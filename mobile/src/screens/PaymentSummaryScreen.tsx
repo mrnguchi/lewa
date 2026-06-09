@@ -24,6 +24,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppHeader from '../components/AppHeader';
 import { api } from '../services/api';
 import { showErrorToast, showSuccessToast } from '../services/toast';
+import { resetToMainTab } from '../navigation/resetNavigation';
 
 
 type RootStackParamList = {
@@ -215,17 +216,17 @@ const PaymentSummaryScreen: React.FC = () => {
           payment.failureReason ||
             'Payment failed. No money was received. Please try again.'
         );
-        navigation.navigate('MainTabs', { screen: 'Home' });
+        resetToMainTab(navigation);
         return;
       }
 
       showSuccessToast("We'll keep tracking this payment. Check notifications for updates.");
-      navigation.navigate('MainTabs', { screen: 'Home' });
+      resetToMainTab(navigation);
     } catch {
       setShowCancelModal(false);
       allowNavigationRef.current = true;
       showErrorToast('This payment has started. You can check its status later.');
-      navigation.navigate('MainTabs', { screen: 'Home' });
+      resetToMainTab(navigation);
     }
   };
 

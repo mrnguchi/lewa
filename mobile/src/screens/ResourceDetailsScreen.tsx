@@ -226,8 +226,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   androidPdfIcon: {
-    width: 170,
-    height: 170,
+    width: 190,
+    height: 190,
     marginTop: 8,
     marginBottom: 8,
   },

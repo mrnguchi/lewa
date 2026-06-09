@@ -19,7 +19,8 @@ import {
   Poppins_600SemiBold,
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
-import { useNavigation } from '@react-navigation/native';
+import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -39,7 +40,6 @@ import { ResourceItem } from '../types/resources';
 import { useLatestNewsQuery, useResourcesQuery } from '../query/contentQueries';
 
 type RootStackParamList = {
-  MainTabs: { screen?: string };
   FeeSelection: undefined;
   PaymentMethod: { paymentType: string; amount: number };
   Receipts: undefined;
@@ -49,7 +49,18 @@ type RootStackParamList = {
   ResourceViewer: { resource: ResourceItem };
 };
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type MainTabParamList = {
+  Home: undefined;
+  Calendar: undefined;
+  'Lewa News': undefined;
+  Resources: undefined;
+  LewaChat: undefined;
+};
+
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'Home'>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 const HOME_NEWS_LIMIT = 4;
 const HOME_RESOURCE_LIMIT = 4;
@@ -162,14 +173,14 @@ export default function HomeScreen() {
    * Opens the full Lewa News tab when the user asks to view all articles.
    */
   const handleViewAllPress = () => {
-    navigation.navigate('MainTabs', { screen: 'Lewa News' });
+    navigation.navigate('Lewa News');
   };
 
   /**
    * Opens the full resources tab from the home preview.
    */
   const handleViewResourcesPress = () => {
-    navigation.navigate('MainTabs', { screen: 'Resources' });
+    navigation.navigate('Resources');
   };
 
   /**

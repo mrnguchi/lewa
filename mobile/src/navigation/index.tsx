@@ -38,6 +38,7 @@ function MainTabs() {
     <View style={{ flex: 1 }}>
       <Tab.Navigator
         tabBar={(props) => <AppBar {...props} />}
+        backBehavior="none"
         screenOptions={{
           headerShown: false,
         }}
@@ -110,7 +111,8 @@ export default function RootNavigator() {
         component={PaymentProcessingScreen}
         options={{
           headerShown: false,
-          gestureEnabled: false, // Prevent back during processing
+          // Keep iOS swipe attempts visible so the screen can explain why it is locked.
+          gestureEnabled: true,
         }}
       />
       <Stack.Screen

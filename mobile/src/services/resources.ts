@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
@@ -127,25 +126,22 @@ export const downloadResourceFile = async (resource: ResourceItem) => {
 /**
  * Ensures a resource PDF is available locally and returns the cached file path.
  */
-export const getCachedResourceFileUri = async (resource: ResourceItem) => {
+export const getCachedResourceFileUri = async (
+  resource: ResourceItem,
+  forceRefresh = false
+) => {
   const fileUri = `${FileSystem.cacheDirectory}${buildDownloadFileName(resource)}`;
   const fileInfo = await FileSystem.getInfoAsync(fileUri);
 
-  if (fileInfo.exists) {
+  if (forceRefresh && fileInfo.exists) {
+    await FileSystem.deleteAsync(fileUri, { idempotent: true });
+  } else if (
+    fileInfo.exists &&
+    (!('size' in fileInfo) || Number(fileInfo.size) > 0)
+  ) {
     return fileUri;
   }
 
   const downloadResult = await FileSystem.downloadAsync(resource.file_url, fileUri);
   return downloadResult.uri;
-};
-
-/**
- * Returns the best viewer URL for the current platform's embedded PDF rendering.
- */
-export const buildResourceViewerUrl = (fileUrl: string) => {
-  if (Platform.OS === 'android') {
-    return `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(fileUrl)}`;
-  }
-
-  return fileUrl;
 };

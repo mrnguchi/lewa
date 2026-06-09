@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import AppHeader from '../components/AppHeader';
 import { colors } from '../theme/colors';
+import { resetToMainTab } from '../navigation/resetNavigation';
 import {
   fetchNewsArticleById,
   formatNewsPublishedDate,
@@ -104,9 +105,7 @@ export default function NewsDetailsScreen() {
       return;
     }
 
-    navigation.navigate('MainTabs', {
-      screen: 'Lewa News',
-    });
+    resetToMainTab(navigation, 'Lewa News');
   };
 
   const articleMeta = useMemo(() => {

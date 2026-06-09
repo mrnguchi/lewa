@@ -33,6 +33,7 @@ import { useAndroidNavigationClearance } from '../hooks/useAndroidNavigationClea
 
 import BackIconButton from '../components/BackIconButton';
 import { colors } from '../theme/colors';
+import { resetToMainTab } from '../navigation/resetNavigation';
 import { useAuth } from '../hooks/useAuth';
 import { showErrorToast, showSuccessToast } from '../services/toast';
 import {
@@ -338,7 +339,7 @@ const LewaAIChatScreen: React.FC = () => {
       return;
     }
 
-    navigation.navigate('MainTabs', { screen: 'LewaChat' });
+    resetToMainTab(navigation, 'LewaChat');
   };
 
   // Resets the screen into a fresh draft chat without creating a saved thread yet.

@@ -4,7 +4,7 @@
  * Screen for processing payment with loading animation and error handling
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,21 +14,31 @@ import {
   Modal,
   ActivityIndicator,
   Platform,
+  BackHandler,
 } from 'react-native';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
 import SpinningLoader from '../components/SpinningLoader';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+  usePreventRemove,
+  useRoute,
+  RouteProp,
+} from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../services/api';
 import { showErrorToast, showSuccessToast } from '../services/toast';
+import { resetToFeeSelection, resetToMainTab } from '../navigation/resetNavigation';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MAX_POLL_DURATION_MS = 60 * 1000;
 const POLL_DELAY_MS = 5000;
 const FORCE_PROVIDER_CHECK_MS = 20 * 1000;
 const NOT_STARTED_GRACE_MS = 15 * 1000;
+const ANDROID_EXIT_WINDOW_MS = 2000;
+const PROCESSING_BACK_MESSAGE = 'Please hold on while we confirm your payment.';
 
 const getPaymentHelp = (paymentMethod?: string | null) => {
   const method = paymentMethod?.toLowerCase() ?? '';
@@ -74,6 +84,9 @@ const PaymentProcessingScreen: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [pollRun, setPollRun] = useState(0);
   const [isCancellingPendingPayment, setIsCancellingPendingPayment] = useState(false);
+  const [isNavigationLocked, setIsNavigationLocked] = useState(true);
+  const lastAndroidBackPressRef = useRef(0);
+  const pendingNavigationRef = useRef<(() => void) | null>(null);
   const paymentHelp = getPaymentHelp(paymentMethod);
 
   const [fontsLoaded] = useFonts({
@@ -81,6 +94,63 @@ const PaymentProcessingScreen: React.FC = () => {
     Poppins_500Medium,
     Poppins_600SemiBold,
     Poppins_700Bold,
+  });
+
+  // I unlock the route only for payment outcomes and the modal actions.
+  const leaveProcessingScreen = useCallback((navigate: () => void) => {
+    pendingNavigationRef.current = navigate;
+    setIsNavigationLocked(false);
+  }, []);
+
+  useEffect(() => {
+    if (isNavigationLocked || !pendingNavigationRef.current) {
+      return;
+    }
+
+    const navigate = pendingNavigationRef.current;
+    pendingNavigationRef.current = null;
+    navigate();
+  }, [isNavigationLocked]);
+
+  // I explain the lock once, then let a second Android back press minimize the app.
+  const handleBlockedBack = useCallback(() => {
+    const now = Date.now();
+
+    if (
+      Platform.OS === 'android' &&
+      now - lastAndroidBackPressRef.current <= ANDROID_EXIT_WINDOW_MS
+    ) {
+      BackHandler.exitApp();
+      return true;
+    }
+
+    lastAndroidBackPressRef.current = now;
+    showSuccessToast(PROCESSING_BACK_MESSAGE, ANDROID_EXIT_WINDOW_MS);
+    return true;
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') {
+        return undefined;
+      }
+
+      lastAndroidBackPressRef.current = 0;
+      const backHandler = BackHandler.addEventListener(
+        'hardwareBackPress',
+        handleBlockedBack
+      );
+
+      return () => {
+        lastAndroidBackPressRef.current = 0;
+        backHandler.remove();
+      };
+    }, [handleBlockedBack])
+  );
+
+  // I block iOS swipe-back while payment confirmation is still active.
+  usePreventRemove(isNavigationLocked, () => {
+    handleBlockedBack();
   });
 
   useEffect(() => {
@@ -158,7 +228,9 @@ const PaymentProcessingScreen: React.FC = () => {
             clearTimeout(pollTimeout);
           }
 
-          navigation.replace('PaymentSuccessful', { reference });
+          leaveProcessingScreen(() => {
+            navigation.replace('PaymentSuccessful', { reference });
+          });
           return;
         }
 
@@ -240,7 +312,7 @@ const PaymentProcessingScreen: React.FC = () => {
         clearTimeout(pollTimeout);
       }
     };
-  }, [reference, navigation, pollRun]);
+  }, [leaveProcessingScreen, reference, navigation, pollRun]);
 
   if (!fontsLoaded) {
     return null;
@@ -251,9 +323,9 @@ const PaymentProcessingScreen: React.FC = () => {
 
     if (modalMode === 'failed' || modalMode === 'notStarted') {
       if (paymentType === 'fee') {
-        navigation.navigate('FeeSelection');
+        leaveProcessingScreen(() => resetToFeeSelection(navigation));
       } else {
-        navigation.navigate('MainTabs', { screen: 'Home' });
+        leaveProcessingScreen(() => resetToMainTab(navigation));
       }
 
       return;
@@ -286,7 +358,9 @@ const PaymentProcessingScreen: React.FC = () => {
         const payment = response.data?.data?.payment;
 
         if (payment?.status === 'successful') {
-          navigation.replace('PaymentSuccessful', { reference });
+          leaveProcessingScreen(() => {
+            navigation.replace('PaymentSuccessful', { reference });
+          });
           return;
         }
 
@@ -309,7 +383,7 @@ const PaymentProcessingScreen: React.FC = () => {
       }
     }
 
-    navigation.navigate('MainTabs', { screen: 'Home' });
+    leaveProcessingScreen(() => resetToMainTab(navigation));
   };
 
   return (
@@ -330,7 +404,7 @@ const PaymentProcessingScreen: React.FC = () => {
         visible={showErrorModal}
         transparent={true}
         animationType="fade"
-        onRequestClose={handleCancel}
+        onRequestClose={handleBlockedBack}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, isAndroid && styles.androidModalContent]}>
