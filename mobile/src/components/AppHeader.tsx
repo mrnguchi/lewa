@@ -33,6 +33,7 @@ import {
 } from '../services/notifications';
 import { uploadStudentProfileImage } from '../services/profile';
 import { showErrorToast, showSuccessToast } from '../services/toast';
+import { useAndroidNavigationClearance } from '../hooks/useAndroidNavigationClearance';
 
 interface AppHeaderProps {
   variant?: 'default' | 'hero' | 'home';
@@ -184,6 +185,10 @@ export default function AppHeader({
   const isHome = variant === 'home';
   const isStackHeader = Boolean(title);
   const isAndroid = Platform.OS === 'android';
+  const {
+    hasVisibleAndroidNavControls,
+    contentBottomPadding,
+  } = useAndroidNavigationClearance();
   const displayName = name?.trim() || user?.full_name?.split(' ')[0] || 'Student';
   const displayGreeting = greeting?.trim() || 'Hello';
 
@@ -472,7 +477,9 @@ export default function AppHeader({
   };
 
   const handleLanguagePress = () => {
-    setLanguageMenuVisible((visible) => !visible);
+    // Keep the language picker gated until translation is ready.
+    setLanguageMenuVisible(false);
+    Alert.alert('Coming soon', 'This feature will be available soon.');
   };
 
   const handleLanguageSelect = (language: LanguageCode) => {
@@ -920,7 +927,13 @@ export default function AppHeader({
             }}
           />
 
-          <View style={[styles.notificationSheet, isAndroid && styles.androidBottomSheet]}>
+          <View
+            style={[
+              styles.notificationSheet,
+              isAndroid && styles.androidBottomSheet,
+              isAndroid && { paddingBottom: contentBottomPadding + 4 },
+            ]}
+          >
             <View style={styles.notificationSheetHandle} />
 
             <View style={styles.notificationSheetHeader}>
@@ -1019,7 +1032,16 @@ export default function AppHeader({
             </TouchableOpacity>
 
             {failedPaymentNotification && (
-              <View style={[styles.failedPaymentSheet, isAndroid && styles.androidBottomSheet]}>
+              <View
+                style={[
+                  styles.failedPaymentSheet,
+                  isAndroid && styles.androidBottomSheet,
+                  isAndroid && {
+                    bottom: contentBottomPadding,
+                    paddingBottom: hasVisibleAndroidNavControls ? 18 : 20,
+                  },
+                ]}
+              >
                 <View style={styles.failedPaymentIcon}>
                   <Ionicons name="alert-circle" size={34} color="#DC2626" />
                 </View>
@@ -1061,7 +1083,16 @@ export default function AppHeader({
             )}
 
             {pendingPaymentNotification && (
-              <View style={[styles.failedPaymentSheet, isAndroid && styles.androidBottomSheet]}>
+              <View
+                style={[
+                  styles.failedPaymentSheet,
+                  isAndroid && styles.androidBottomSheet,
+                  isAndroid && {
+                    bottom: contentBottomPadding,
+                    paddingBottom: hasVisibleAndroidNavControls ? 18 : 20,
+                  },
+                ]}
+              >
                 <View style={[styles.failedPaymentIcon, styles.pendingPaymentIcon]}>
                   <Ionicons name="hourglass" size={32} color={colors.textPrimary} />
                 </View>

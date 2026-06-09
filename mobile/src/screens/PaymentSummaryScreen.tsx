@@ -4,7 +4,7 @@
  * Screen for displaying payment summary before confirmation
  */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import {
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppHeader from '../components/AppHeader';
 import { api } from '../services/api';
@@ -125,26 +125,29 @@ const PaymentSummaryScreen: React.FC = () => {
     fetchPaymentData();
   }, [navigation, reference]);
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      if (allowNavigationRef.current) {
-        return;
-      }
+  // I only guard back navigation while the payment summary is the active screen.
+  useFocusEffect(
+    useCallback(() => {
+      const unsubscribe = navigation.addListener('beforeRemove', (event) => {
+        if (allowNavigationRef.current) {
+          return;
+        }
 
-      event.preventDefault();
-      setShowCancelModal(true);
-    });
+        event.preventDefault();
+        setShowCancelModal(true);
+      });
 
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      setShowCancelModal(true);
-      return true;
-    });
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        setShowCancelModal(true);
+        return true;
+      });
 
-    return () => {
-      unsubscribe();
-      backHandler.remove();
-    };
-  }, [navigation]);
+      return () => {
+        unsubscribe();
+        backHandler.remove();
+      };
+    }, [navigation])
+  );
 
   if (!fontsLoaded || isLoading) {
     return (
@@ -272,14 +275,14 @@ const PaymentSummaryScreen: React.FC = () => {
       } as any);
 
       allowNavigationRef.current = true;
-      navigation.navigate('PaymentProcessing', { reference });
+      navigation.replace('PaymentProcessing', { reference });
     } catch (error: any) {
       if (shouldCheckPaymentStatusAfterTriggerError(error)) {
         showErrorToast(
           'We could not confirm whether the payment prompt started. Checking the payment status now.'
         );
         allowNavigationRef.current = true;
-        navigation.navigate('PaymentProcessing', { reference });
+        navigation.replace('PaymentProcessing', { reference });
         return;
       }
 

@@ -161,7 +161,7 @@ export default function AddResourceScreen() {
       >
         <View style={[styles.secondaryHeader, isAndroid && styles.androidSecondaryHeader]}>
           <Text style={[styles.pageSubtitle, isAndroid && styles.androidPageSubtitle]}>
-            Upload a polished PDF resource with the exact details the resource library expects.
+            Add the course details and choose the PDF you want to share.
           </Text>
         </View>
 
@@ -209,6 +209,7 @@ export default function AddResourceScreen() {
                     onValueChange={(value) => setType(value as ResourceType)}
                     style={[styles.darkPicker, isAndroid && styles.androidPicker]}
                     dropdownIconColor={colors.white}
+                    mode="dropdown"
                   >
                     <Picker.Item label="Handout" value="handout" color={colors.white} />
                     <Picker.Item label="Past Question" value="pastQuestion" color={colors.white} />
@@ -224,6 +225,7 @@ export default function AddResourceScreen() {
                     onValueChange={(value) => setLevel(Number(value))}
                     style={[styles.darkPicker, isAndroid && styles.androidPicker]}
                     dropdownIconColor={colors.white}
+                    mode="dropdown"
                   >
                     {RESOURCE_LEVELS.map((levelValue) => (
                       <Picker.Item
@@ -246,6 +248,7 @@ export default function AddResourceScreen() {
                   onValueChange={(value) => setFaculty(String(value))}
                   style={[styles.picker, isAndroid && styles.androidPicker]}
                   dropdownIconColor={colors.textPrimary}
+                  mode="dropdown"
                 >
                   <Picker.Item label="Select Faculty" value="" color="#9CA3AF" />
                   {UB_FACULTIES.map((facultyOption) => (
@@ -396,14 +399,14 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   androidFormCard: {
-    borderRadius: 18,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: '#EEF2F5',
-    shadowOpacity: 0.025,
-    shadowRadius: 5,
+    borderRadius: 0,
+    padding: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
     elevation: 0,
-    gap: 14,
+    gap: 16,
   },
   fieldGroup: {
     gap: 8,
@@ -432,9 +435,10 @@ const styles = StyleSheet.create({
   },
   androidInput: {
     minHeight: 46,
-    borderRadius: 13,
+    borderRadius: 10,
     paddingHorizontal: 13,
     fontSize: 12.5,
+    borderColor: '#E3E8EC',
   },
   textArea: {
     minHeight: 120,
@@ -462,15 +466,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   androidPickerShell: {
-    minHeight: 46,
-    borderRadius: 13,
+    height: 48,
+    borderRadius: 10,
+    borderColor: '#E3E8EC',
+    justifyContent: 'center',
+    overflow: 'visible',
   },
   picker: {
     color: colors.textPrimary,
   },
+  // I give Android's native picker enough room so its selected value stays centered.
   androidPicker: {
-    height: 46,
-    fontSize: 12.5,
+    height: 52,
+    marginVertical: -2,
+    marginHorizontal: -4,
+    fontSize: 13,
   },
   darkPickerShell: {
     borderRadius: 16,
@@ -480,8 +490,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   androidDarkPickerShell: {
-    minHeight: 46,
-    borderRadius: 13,
+    height: 48,
+    borderRadius: 10,
+    justifyContent: 'center',
+    overflow: 'visible',
   },
   darkPicker: {
     color: colors.white,
@@ -497,7 +509,7 @@ const styles = StyleSheet.create({
   },
   androidFilePickerButton: {
     height: 46,
-    borderRadius: 13,
+    borderRadius: 10,
     gap: 8,
   },
   filePickerButtonText: {
@@ -519,7 +531,7 @@ const styles = StyleSheet.create({
   },
   androidFilePreview: {
     minHeight: 46,
-    borderRadius: 13,
+    borderRadius: 10,
     gap: 8,
     paddingHorizontal: 13,
   },
@@ -545,7 +557,7 @@ const styles = StyleSheet.create({
   androidSubmitButton: {
     marginTop: 16,
     minHeight: 48,
-    borderRadius: 16,
+    borderRadius: 12,
     gap: 8,
   },
   submitButtonDisabled: {

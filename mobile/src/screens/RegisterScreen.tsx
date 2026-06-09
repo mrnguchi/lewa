@@ -26,6 +26,7 @@ import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import CustomToast from '../components/CustomToast';
 import { colors } from '../theme/colors';
+import { getAuthErrorMessage } from '../utils/authMessages';
 
 // List of faculties at the University of Buea
 const FACULTIES = [
@@ -211,56 +212,56 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
     // Validate all fields
     if (!validateFullName(fullName)) {
       errors.add('fullName');
-      setErrorMessage('Please enter your full name (first and last name)');
+      setErrorMessage('Enter your first and last name.');
       setFieldErrors(errors);
       return;
     }
 
     if (!faculty) {
       errors.add('faculty');
-      setErrorMessage('Please select your faculty');
+      setErrorMessage('Select your faculty.');
       setFieldErrors(errors);
       return;
     }
 
     if (!department) {
       errors.add('department');
-      setErrorMessage('Please select your department');
+      setErrorMessage('Select your department.');
       setFieldErrors(errors);
       return;
     }
 
     if (!level) {
       errors.add('level');
-      setErrorMessage('Please select your level');
+      setErrorMessage('Select your level.');
       setFieldErrors(errors);
       return;
     }
 
     if (!validateMatricule(matricule)) {
       errors.add('matricule');
-      setErrorMessage('Invalid matricule format (e.g., FE12A001)');
+      setErrorMessage('Enter a valid student matricule.');
       setFieldErrors(errors);
       return;
     }
 
     if (!validatePhoneNumber(phoneNumber)) {
       errors.add('phoneNumber');
-      setErrorMessage('Invalid phone number (must be 9 digits starting with 6 or 7)');
+      setErrorMessage('Enter a valid 9-digit phone number starting with 6 or 7.');
       setFieldErrors(errors);
       return;
     }
 
     if (!validatePassword(password)) {
       errors.add('password');
-      setErrorMessage('Password must be at least 6 characters');
+      setErrorMessage('Your password must contain at least 6 characters.');
       setFieldErrors(errors);
       return;
     }
 
     if (password !== confirmPassword) {
       errors.add('confirmPassword');
-      setErrorMessage('Passwords do not match');
+      setErrorMessage('The passwords do not match.');
       setFieldErrors(errors);
       return;
     }
@@ -280,27 +281,22 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
         faculty: faculty,
         department: department,
         level: level, // User-selected level
-      });
-
-      console.log('Registration response:', response.data);
+      }, {
+        suppressErrorToast: true,
+      } as any);
 
       // Extract data from response - backend now returns { success, data: { token, data: {...} } }
       const registrationData = response.data.data;
       const token = registrationData.token;
       const userData = registrationData.data;
 
-      console.log('Extracted token:', token);
-      console.log('Extracted user data:', userData);
-
       // Auto-login the user
       await login(token, userData);
-
-      console.log('User registered and logged in successfully');
 
       setIsLoading(false);
 
       // Show success toast
-      setToastMessage('Registration successful! Welcome to Lewa!');
+      setToastMessage('Your account is ready. Welcome to Lewa!');
       setToastType('success');
       setToastVisible(true);
 
@@ -312,15 +308,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
     } catch (error: any) {
       setIsLoading(false);
 
-      let errorMsg = error.userMessage || 'Registration failed. Please try again.';
-
-      if (error.code === 'ECONNABORTED') {
-        errorMsg = 'Request timeout. Please check your internet connection and try again.';
-      } else if (error.response) {
-        errorMsg = error.response.data?.message || 'Registration failed. Please try again.';
-      } else if (error.request) {
-        errorMsg = 'Cannot connect to server. Please check if the backend is running.';
-      }
+      const errorMsg = getAuthErrorMessage(error, 'register');
 
       setErrorMessage(errorMsg);
 
@@ -344,41 +332,48 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    // I keep the Android navigation inset on the same surface as the signup form.
+    <SafeAreaView
+      style={styles.authSafeArea}
+      edges={isAndroid ? ['bottom'] : []}
     >
-      {/* Custom Toast */}
-      <CustomToast
-        message={toastMessage}
-        type={toastType}
-        visible={toastVisible}
-        onHide={() => setToastVisible(false)}
-      />
-
-      {/* Green header section with logo */}
-      <View style={[styles.header, isAndroid && styles.androidHeader]}>
-        <Image
-          source={require('../../assets/splash-icon.png')}
-          style={[
-            styles.logo,
-            isAndroid && (isCompactHeight ? styles.androidCompactLogo : styles.androidLogo),
-          ]}
-          resizeMode="contain"
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={isAndroid ? undefined : 'padding'}
+      >
+        {/* Custom Toast */}
+        <CustomToast
+          message={toastMessage}
+          type={toastType}
+          variant="surface"
+          visible={toastVisible}
+          onHide={() => setToastVisible(false)}
+          duration={2000}
         />
-      </View>
 
-      {/* White content section */}
-      <View style={[styles.contentContainer, isAndroid && styles.androidContentContainer]}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            isAndroid && styles.androidScrollContent,
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+        {/* Green header section with logo */}
+        <View style={[styles.header, isAndroid && styles.androidHeader]}>
+          <Image
+            source={require('../../assets/splash-icon.png')}
+            style={[
+              styles.logo,
+              isAndroid && (isCompactHeight ? styles.androidCompactLogo : styles.androidLogo),
+            ]}
+            resizeMode="contain"
+          />
+        </View>
+
+        {/* White content section */}
+        <View style={[styles.contentContainer, isAndroid && styles.androidContentContainer]}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[
+              styles.scrollContent,
+              isAndroid && styles.androidScrollContent,
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
           {/* "Get Started" heading */}
           <Text style={[styles.heading, isAndroid && styles.androidHeading]}>
             Get Started
@@ -732,14 +727,19 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onLoginPress, onRegiste
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </View>
-    </KeyboardAvoidingView>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 
 const styles = StyleSheet.create({
+  authSafeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: '#167846',

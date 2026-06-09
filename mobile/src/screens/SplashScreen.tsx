@@ -1,17 +1,20 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Image, Text, Animated } from 'react-native';
 
 interface SplashScreenProps {
+  isReady: boolean;
   onFinish: () => void;
 }
 
-const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
+const SplashScreen: React.FC<SplashScreenProps> = ({ isReady, onFinish }) => {
   const logoOpacity = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.8)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
   const textTranslateY = useRef(new Animated.Value(20)).current;
   const loaderOpacity = useRef(new Animated.Value(0)).current;
   const spinValue = useRef(new Animated.Value(0)).current;
+  const hasFinished = useRef(false);
+  const [minimumAnimationComplete, setMinimumAnimationComplete] = useState(false);
 
   useEffect(() => {
     // Logo animation - fade in and scale
@@ -56,21 +59,33 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
     ]).start();
 
     // Spinning animation for the loader
-    Animated.loop(
+    const spinnerAnimation = Animated.loop(
       Animated.timing(spinValue, {
         toValue: 1,
         duration: 1000,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    spinnerAnimation.start();
 
-    // time wait before Navigating
+    // Keep the brand animation visible briefly while startup data is restored.
     const timer = setTimeout(() => {
-      onFinish();
-    }, 2000);
+      setMinimumAnimationComplete(true);
+    }, 1200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      spinnerAnimation.stop();
+    };
   }, []);
+
+  useEffect(() => {
+    // Leave the splash once local startup data and the minimum animation are ready.
+    if (isReady && minimumAnimationComplete && !hasFinished.current) {
+      hasFinished.current = true;
+      onFinish();
+    }
+  }, [isReady, minimumAnimationComplete, onFinish]);
 
   const spin = spinValue.interpolate({
     inputRange: [0, 1],
@@ -143,10 +158,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '400',
     letterSpacing: 0.5,
-    marginBottom: 20,
   },
   loaderContainer: {
-    marginTop: 12,
+    marginTop: 28,
   },
   spinner: {
     width: 32,
@@ -159,4 +173,3 @@ const styles = StyleSheet.create({
 });
 
 export default SplashScreen;
-

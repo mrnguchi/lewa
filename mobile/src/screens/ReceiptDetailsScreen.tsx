@@ -19,6 +19,7 @@ import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BackIconButton from '../components/BackIconButton';
 
 interface Receipt {
@@ -53,6 +54,7 @@ type ReceiptDetailsScreenRouteProp = RouteProp<RootStackParamList, 'ReceiptDetai
 const ReceiptDetailsScreen: React.FC = () => {
   const navigation = useNavigation<ReceiptDetailsScreenNavigationProp>();
   const isAndroid = Platform.OS === 'android';
+  const insets = useSafeAreaInsets();
   const route = useRoute<ReceiptDetailsScreenRouteProp>();
   const { receipt } = route.params;
 
@@ -106,7 +108,13 @@ const ReceiptDetailsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {/* Header with Back Button */}
-      <View style={[styles.header, isAndroid && styles.headerAndroid]}>
+      <View
+        style={[
+          styles.header,
+          isAndroid && styles.headerAndroid,
+          { paddingTop: insets.top + 8 },
+        ]}
+      >
         <BackIconButton
           style={[styles.backButton, isAndroid && styles.backButtonAndroid]}
           onPress={() => navigation.goBack()}
@@ -273,14 +281,12 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 60,
     paddingBottom: 20,
     backgroundColor: colors.background,
   },
   // Android receipt details use smaller fixed sections and lighter card elevation.
   headerAndroid: {
     paddingHorizontal: 16,
-    paddingTop: 12,
     paddingBottom: 10,
   },
   backButton: {

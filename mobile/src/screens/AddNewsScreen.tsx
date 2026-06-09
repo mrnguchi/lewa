@@ -338,7 +338,9 @@ export default function AddNewsScreen() {
                 <Picker
                   selectedValue={category}
                   onValueChange={(value) => setCategory(value)}
-                  style={styles.picker}
+                  style={[styles.picker, isAndroid && styles.pickerAndroid]}
+                  dropdownIconColor={colors.textPrimary}
+                  mode="dropdown"
                 >
                   <Picker.Item label="Select a category" value="" color="#9CA3AF" />
                   {NEWS_CATEGORIES.filter((item) => item !== 'All').map((item) => (
@@ -797,10 +799,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCFDFD',
   },
   pickerWrapperAndroid: {
+    height: 48,
     borderRadius: 10,
+    justifyContent: 'center',
+    overflow: 'visible',
   },
   picker: {
     color: colors.textPrimary,
+  },
+  // Android's native picker needs a little more internal height to avoid clipping its value.
+  pickerAndroid: {
+    height: 52,
+    marginVertical: -2,
+    marginHorizontal: -4,
+    fontSize: 13,
   },
   publishCard: {
     marginTop: 4,

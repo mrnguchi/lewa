@@ -1,4 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+
+const SECURE_TOKEN_KEY = 'lewa.auth.token';
+const LEGACY_TOKEN_KEY = 'authToken';
+const STUDENT_ID_KEY = 'studentId';
+const USER_DATA_KEY = 'userData';
 
 /**
  * User data interface matching backend response
@@ -25,14 +31,29 @@ export interface UserData {
  */
 export const authStorage = {
   /**
+   * Stores the token securely and removes the older AsyncStorage copy.
+   */
+  async saveToken(token: string): Promise<void> {
+    const secureStorageAvailable = await SecureStore.isAvailableAsync();
+
+    if (secureStorageAvailable) {
+      await SecureStore.setItemAsync(SECURE_TOKEN_KEY, token);
+      await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
+      return;
+    }
+
+    await AsyncStorage.setItem(LEGACY_TOKEN_KEY, token);
+  },
+
+  /**
    * Save authentication data (token + user data)
    */
   async saveAuthData(token: string, userData: UserData): Promise<void> {
     try {
       await Promise.all([
-        AsyncStorage.setItem('authToken', token),
-        AsyncStorage.setItem('studentId', userData.id),
-        AsyncStorage.setItem('userData', JSON.stringify(userData)),
+        this.saveToken(token),
+        AsyncStorage.setItem(STUDENT_ID_KEY, userData.id),
+        AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(userData)),
       ]);
     } catch (error) {
       throw error;
@@ -44,9 +65,25 @@ export const authStorage = {
    */
   async getToken(): Promise<string | null> {
     try {
-      return await AsyncStorage.getItem('authToken');
+      const secureStorageAvailable = await SecureStore.isAvailableAsync();
+
+      if (secureStorageAvailable) {
+        const secureToken = await SecureStore.getItemAsync(SECURE_TOKEN_KEY);
+        if (secureToken) {
+          return secureToken;
+        }
+      }
+
+      // Migrate sessions created before SecureStore was introduced.
+      const legacyToken = await AsyncStorage.getItem(LEGACY_TOKEN_KEY);
+      if (legacyToken && secureStorageAvailable) {
+        await SecureStore.setItemAsync(SECURE_TOKEN_KEY, legacyToken);
+        await AsyncStorage.removeItem(LEGACY_TOKEN_KEY);
+      }
+
+      return legacyToken;
     } catch {
-      return null;
+      return AsyncStorage.getItem(LEGACY_TOKEN_KEY);
     }
   },
 
@@ -55,7 +92,7 @@ export const authStorage = {
    */
   async getUserData(): Promise<UserData | null> {
     try {
-      const data = await AsyncStorage.getItem('userData');
+      const data = await AsyncStorage.getItem(USER_DATA_KEY);
       if (!data) return null;
 
       // Safely parse JSON
@@ -74,7 +111,7 @@ export const authStorage = {
    */
   async getStudentId(): Promise<string | null> {
     try {
-      return await AsyncStorage.getItem('studentId');
+      return await AsyncStorage.getItem(STUDENT_ID_KEY);
     } catch {
       return null;
     }
@@ -88,7 +125,7 @@ export const authStorage = {
       const currentData = await this.getUserData();
       if (currentData) {
         const updatedData = { ...currentData, ...userData };
-        await AsyncStorage.setItem('userData', JSON.stringify(updatedData));
+        await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(updatedData));
         return updatedData;
       }
       return null;
@@ -98,11 +135,22 @@ export const authStorage = {
   },
 
   /**
-   * Clears every AsyncStorage entry owned by the app during logout.
+   * Clears only session data so onboarding and content caches remain intact.
    */
   async clearAuthData(): Promise<void> {
     try {
-      await AsyncStorage.clear();
+      const secureStorageAvailable = await SecureStore.isAvailableAsync();
+
+      await Promise.all([
+        secureStorageAvailable
+          ? SecureStore.deleteItemAsync(SECURE_TOKEN_KEY)
+          : Promise.resolve(),
+        AsyncStorage.multiRemove([
+          LEGACY_TOKEN_KEY,
+          STUDENT_ID_KEY,
+          USER_DATA_KEY,
+        ]),
+      ]);
     } catch (error) {
       throw error;
     }

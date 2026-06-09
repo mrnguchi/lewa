@@ -11,13 +11,10 @@
 
 import React from 'react';
 import {
-  Dimensions,
   Platform,
-  StatusBar,
   Text,
   TouchableOpacity,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +22,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { colors } from '../theme/colors';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useAppSync } from '../contexts/AppSyncContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAndroidNavigationClearance } from '../hooks/useAndroidNavigationClearance';
 
 interface TabItem {
   id: string;
@@ -44,26 +41,20 @@ const tabs: TabItem[] = [
 
 const AppBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {
   const { chatUnreadCount } = useAppSync();
-  const insets = useSafeAreaInsets();
-  const windowDimensions = useWindowDimensions();
   const isAndroid = Platform.OS === 'android';
-  const screenToWindowGap = Math.max(
-    0,
-    Dimensions.get('screen').height - windowDimensions.height
-  );
-  const androidStatusSpace = StatusBar.currentHeight ?? insets.top;
-  const estimatedAndroidNavSpace = Math.max(0, screenToWindowGap - androidStatusSpace);
-  const hasVisibleAndroidNavControls =
-    isAndroid &&
-    (insets.bottom >= 32 || estimatedAndroidNavSpace >= 32 || screenToWindowGap >= 64);
-  // I only lift the floating bar when Android reports real system navigation space.
+  const {
+    hasVisibleAndroidNavControls,
+    navigationInset,
+  } = useAndroidNavigationClearance();
+
+  // I use Android's measured navigation space so three-button controls stay clear.
   const bottomOffset = isAndroid
     ? hasVisibleAndroidNavControls
-      ? 42
+      ? navigationInset + 8
       : 18
     : 25;
   const androidSystemNavSurfaceHeight = hasVisibleAndroidNavControls
-    ? Math.max(50, insets.bottom + 8, estimatedAndroidNavSpace + 8, bottomOffset + 8)
+    ? navigationInset + 12
     : 0;
   const messageBadgeLabel =
     chatUnreadCount > 99 ? '99+' : chatUnreadCount > 0 ? String(chatUnreadCount) : null;
@@ -80,36 +71,77 @@ const AppBar: React.FC<BottomTabBarProps> = ({ state, navigation }) => {
         />
       )}
 
-      <View style={[styles.container, { bottom: bottomOffset }, isAndroid && styles.androidContainer]}>
+      <View
+        style={[
+          styles.container,
+          { bottom: bottomOffset },
+          isAndroid && styles.androidContainer,
+          hasVisibleAndroidNavControls && styles.androidControlsContainer,
+        ]}
+      >
         {tabs.map((tab, index) => {
           const isActive = state.index === index;
           const iconColor = isActive ? colors.primary : 'rgba(255, 255, 255, 0.72)';
           const ioniconName = tab.id === 'Home' ? tab.iconName : `${tab.iconName}-outline`;
+          const iconSize = hasVisibleAndroidNavControls
+            ? isActive
+              ? 19
+              : 21
+            : isActive
+              ? 21
+              : 23;
 
           return (
             <TouchableOpacity
               key={tab.id}
-              style={[styles.tabButton, isActive && styles.tabButtonActive]}
+              style={[
+                styles.tabButton,
+                hasVisibleAndroidNavControls && styles.androidTabButton,
+                isActive && styles.tabButtonActive,
+                isActive && hasVisibleAndroidNavControls && styles.androidTabButtonActive,
+              ]}
               onPress={() => navigation.navigate(tab.id)}
               activeOpacity={0.7}
             >
               {tab.iconLibrary === 'material' ? (
                 <MaterialCommunityIcons
                   name={tab.iconName}
-                  size={isActive ? 21 : 23}
+                  size={iconSize}
                   color={iconColor}
                 />
               ) : (
                 <Ionicons
                   name={ioniconName as any}
-                  size={isActive ? 21 : 23}
+                  size={iconSize}
                   color={iconColor}
                 />
               )}
-              {isActive && <Text style={styles.tabLabel}>{tab.label}</Text>}
+              {isActive && (
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    hasVisibleAndroidNavControls && styles.androidTabLabel,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              )}
               {tab.id === 'LewaChat' && messageBadgeLabel && (
-                <View style={[styles.messageBadge, isActive && styles.messageBadgeActive]}>
-                  <Text style={styles.messageBadgeText}>{messageBadgeLabel}</Text>
+                <View
+                  style={[
+                    styles.messageBadge,
+                    hasVisibleAndroidNavControls && styles.androidMessageBadge,
+                    isActive && styles.messageBadgeActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.messageBadgeText,
+                      hasVisibleAndroidNavControls && styles.androidMessageBadgeText,
+                    ]}
+                  >
+                    {messageBadgeLabel}
+                  </Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -149,8 +181,15 @@ const styles = StyleSheet.create({
   },
   androidContainer: {
     shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowRadius: 4,
     elevation: 2,
+  },
+  androidControlsContainer: {
+    left: 12,
+    right: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRadius: 30,
   },
   tabButton: {
     width: 40,
@@ -167,12 +206,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     gap: 7,
   },
+  androidTabButton: {
+    width: 36,
+    height: 40,
+    borderRadius: 20,
+  },
+  androidTabButtonActive: {
+    width: 112,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
   tabLabel: {
     flexShrink: 1,
     fontSize: 11,
     color: colors.primary,
     fontFamily: 'Poppins_600SemiBold',
     textAlign: 'center',
+  },
+  androidTabLabel: {
+    fontSize: 10,
   },
   messageBadge: {
     position: 'absolute',
@@ -193,11 +245,23 @@ const styles = StyleSheet.create({
     right: 5,
     borderColor: colors.white,
   },
+  androidMessageBadge: {
+    top: 2,
+    right: 0,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+  },
   messageBadgeText: {
     fontSize: 9,
     lineHeight: 12,
     color: colors.white,
     fontFamily: 'Poppins_700Bold',
+  },
+  androidMessageBadgeText: {
+    fontSize: 8,
+    lineHeight: 10,
   },
 });
 

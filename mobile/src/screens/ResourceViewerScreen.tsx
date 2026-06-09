@@ -10,6 +10,7 @@ import SpinningLoader from '../components/SpinningLoader';
 import { colors } from '../theme/colors';
 import { buildResourceViewerUrl } from '../services/resources';
 import { ResourceItem } from '../types/resources';
+import { useAndroidNavigationClearance } from '../hooks/useAndroidNavigationClearance';
 
 type RootStackParamList = {
   ResourceViewer: {
@@ -26,6 +27,10 @@ type ResourceViewerNavigationProp = NativeStackNavigationProp<RootStackParamList
 export default function ResourceViewerScreen() {
   const navigation = useNavigation<ResourceViewerNavigationProp>();
   const isAndroid = Platform.OS === 'android';
+  const {
+    hasVisibleAndroidNavControls,
+    contentBottomPadding,
+  } = useAndroidNavigationClearance();
   const route = useRoute<ResourceViewerRouteProp>();
   const { resource } = route.params;
   const [isLoading, setIsLoading] = useState(true);
@@ -35,7 +40,17 @@ export default function ResourceViewerScreen() {
     <View style={styles.container}>
       <AppHeader title={resource.title} onBackPress={() => navigation.goBack()} />
 
-      <View style={[styles.viewerShell, isAndroid && styles.viewerShellAndroid]}>
+      <View
+        style={[
+          styles.viewerShell,
+          isAndroid && styles.viewerShellAndroid,
+          isAndroid && {
+            marginBottom: hasVisibleAndroidNavControls
+              ? contentBottomPadding
+              : 8,
+          },
+        ]}
+      >
         {hasError ? (
           <View style={styles.errorState}>
             <Ionicons name="document-text-outline" size={42} color={colors.primary} />
@@ -131,13 +146,12 @@ const styles = StyleSheet.create({
   },
   // Android keeps the document viewer close to the screen edge with a mild shadow.
   viewerShellAndroid: {
-    marginHorizontal: 12,
-    marginBottom: 12,
-    borderRadius: 14,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 3,
-    elevation: 1,
+    marginHorizontal: 0,
+    marginBottom: 8,
+    borderRadius: 0,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   webView: {
     flex: 1,

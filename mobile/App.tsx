@@ -25,6 +25,7 @@ import {
   syncStudentPushToken,
 } from "./src/services/notifications";
 import { navigationRef } from "./src/navigation/navigationRef";
+import { appPreferences } from "./src/utils/appPreferences";
 import * as Sentry from "@sentry/react-native";
 
 Sentry.init({
@@ -61,6 +62,7 @@ function AppContent() {
   const [showVerifyPhone, setShowVerifyPhone] = useState(false);
   const [showVerifyOTP, setShowVerifyOTP] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
   const lastHandledNotificationRef = useRef<string | null>(null);
 
@@ -72,6 +74,21 @@ function AppContent() {
   useEffect(() => {
     // Hide the native splash screen immediately when app loads
     ExpoSplashScreen.hideAsync();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Load first-launch state while the custom splash animation is visible.
+    appPreferences.hasCompletedOnboarding().then((completed) => {
+      if (isMounted) {
+        setHasCompletedOnboarding(completed);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -141,10 +158,22 @@ function AppContent() {
 
   const handleSplashFinish = useCallback(() => {
     setShowSplash(false);
-    setShowOnboarding(true);
-  }, []);
 
-  const handleOnboardingFinish = useCallback(() => {
+    if (isAuthenticated) {
+      return;
+    }
+
+    if (hasCompletedOnboarding) {
+      setShowWelcome(true);
+      return;
+    }
+
+    setShowOnboarding(true);
+  }, [hasCompletedOnboarding, isAuthenticated]);
+
+  const handleOnboardingFinish = useCallback(async () => {
+    await appPreferences.markOnboardingCompleted();
+    setHasCompletedOnboarding(true);
     setShowOnboarding(false);
     setShowWelcome(true);
   }, []);
@@ -218,7 +247,12 @@ function AppContent() {
   }, []);
 
   if (showSplash) {
-    return <SplashScreen onFinish={handleSplashFinish} />;
+    return (
+      <SplashScreen
+        isReady={!authLoading && hasCompletedOnboarding !== null}
+        onFinish={handleSplashFinish}
+      />
+    );
   }
 
   if (showOnboarding) {

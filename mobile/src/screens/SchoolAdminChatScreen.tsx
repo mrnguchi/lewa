@@ -28,6 +28,7 @@ import {
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAndroidNavigationClearance } from '../hooks/useAndroidNavigationClearance';
 
 import BackIconButton from '../components/BackIconButton';
 import { colors } from '../theme/colors';
@@ -138,6 +139,7 @@ const SchoolAdminChatScreen: React.FC = () => {
     refreshSync,
   } = useAppSync();
   const insets = useSafeAreaInsets();
+  const { contentBottomPadding } = useAndroidNavigationClearance();
   const { width: screenWidth } = useWindowDimensions();
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const inputRef = useRef<TextInput>(null);
@@ -189,7 +191,9 @@ const SchoolAdminChatScreen: React.FC = () => {
       COMPOSER_VERTICAL_PADDING +
       (pendingAttachment ? ATTACHMENT_CHIP_BLOCK_HEIGHT : 0)
   );
-  const inputDockPaddingBottom = Math.max(insets.bottom, 14);
+  const inputDockPaddingBottom = IS_ANDROID
+    ? contentBottomPadding
+    : Math.max(insets.bottom, 14);
   const isComposerExpanded =
     composerInputHeight > MIN_COMPOSER_INPUT_HEIGHT ||
     message.length > 56 ||

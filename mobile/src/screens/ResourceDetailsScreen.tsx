@@ -22,6 +22,7 @@ import { colors } from '../theme/colors';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AppHeader from '../components/AppHeader';
+import { useAndroidNavigationClearance } from '../hooks/useAndroidNavigationClearance';
 
 // Navigation types
 type RootStackParamList = {
@@ -47,6 +48,7 @@ const ResourceDetailsScreen: React.FC = () => {
   const route = useRoute<ResourceDetailsScreenRouteProp>();
   const { resource, type } = route.params;
   const isAndroid = Platform.OS === 'android';
+  const { contentBottomPadding } = useAndroidNavigationClearance();
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -76,7 +78,11 @@ const ResourceDetailsScreen: React.FC = () => {
       {/* Scrollable Content */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, isAndroid && styles.androidScrollContent]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isAndroid && styles.androidScrollContent,
+          isAndroid && { paddingBottom: contentBottomPadding + 16 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* PDF Icon */}
@@ -220,9 +226,10 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   androidPdfIcon: {
-    width: 230,
-    height: 230,
-    marginBottom: 14,
+    width: 170,
+    height: 170,
+    marginTop: 8,
+    marginBottom: 8,
   },
   infoCard: {
     backgroundColor: colors.white,
@@ -235,12 +242,13 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   androidInfoCard: {
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#EEF2F5',
-    shadowOpacity: 0.025,
-    shadowRadius: 5,
+    borderRadius: 0,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
     elevation: 0,
   },
   infoHeader: {
@@ -308,8 +316,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   androidActionButton: {
-    borderRadius: 10,
-    paddingVertical: 11,
+    borderRadius: 9,
+    paddingVertical: 10,
     gap: 6,
   },
   downloadIcon: {

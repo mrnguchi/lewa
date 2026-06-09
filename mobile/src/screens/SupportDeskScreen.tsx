@@ -365,54 +365,66 @@ const SupportDeskScreen: React.FC = () => {
         transparent={true}
         animationType="fade"
         onRequestClose={handleCloseModal}
+        statusBarTranslucent
+        navigationBarTranslucent
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={handleCloseModal}
+        {/* I resize the whole sheet so every field stays reachable above the keyboard. */}
+        <KeyboardAvoidingView
+          style={styles.modalKeyboardView}
+          behavior={isAndroid ? 'height' : 'padding'}
+          keyboardVerticalOffset={0}
         >
-          <View
-            style={[
-              styles.complaintModal,
-              isAndroid && styles.complaintModalAndroid,
-              isAndroid && { paddingBottom: Math.max(insets.bottom + 14, 24) },
-            ]}
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={handleCloseModal}
           >
-            <TouchableOpacity activeOpacity={1}>
+            <TouchableOpacity
+              style={[
+                styles.complaintModal,
+                isAndroid && styles.complaintModalAndroid,
+                isAndroid && { paddingBottom: Math.max(insets.bottom + 10, 18) },
+              ]}
+              activeOpacity={1}
+            >
               <View style={styles.complaintHeader}>
-                <Text
-                  style={[
-                    styles.complaintTitle,
-                    isAndroid && styles.complaintTitleAndroid,
-                  ]}
+                <View>
+                  <Text
+                    style={[
+                      styles.complaintTitle,
+                      isAndroid && styles.complaintTitleAndroid,
+                    ]}
+                  >
+                    Submit a Complaint
+                  </Text>
+                  <Text
+                    style={[
+                      styles.complaintSubtitle,
+                      isAndroid && styles.complaintSubtitleAndroid,
+                    ]}
+                  >
+                    We'll get back to you soon
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.complaintCloseButton}
+                  onPress={handleCloseModal}
                 >
-                  Submit a Complaint
-                </Text>
-                <TouchableOpacity onPress={handleCloseModal}>
                   <Ionicons name="close" size={24} color={colors.textPrimary} />
                 </TouchableOpacity>
               </View>
 
-              <Text
-                style={[
-                  styles.complaintSubtitle,
-                  isAndroid && styles.complaintSubtitleAndroid,
+              {/* The form scrolls inside the resized sheet when the keyboard is open. */}
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                style={styles.formScrollContainer}
+                contentContainerStyle={[
+                  styles.formScrollContent,
+                  isAndroid && styles.formScrollContentAndroid,
                 ]}
               >
-                We'll get back to you soon
-              </Text>
-
-              {/* Scrollable Form Content */}
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-              >
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  style={styles.formScrollContainer}
-                >
                     {/* Student Name */}
                     <View style={[styles.formGroup, isAndroid && styles.formGroupAndroid]}>
                       <Text style={[styles.label, isAndroid && styles.labelAndroid]}>
@@ -592,10 +604,9 @@ const SupportDeskScreen: React.FC = () => {
                   )}
                 </TouchableOpacity>
               </ScrollView>
-              </KeyboardAvoidingView>
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Success Notification */}
@@ -704,42 +715,31 @@ const styles = StyleSheet.create({
   faqContainer: {
     paddingHorizontal: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-
   },
-  // Android FAQ cards stay almost flat so the list feels light and easy to scan.
   faqContainerAndroid: {
     paddingHorizontal: 16,
     marginBottom: 18,
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
   },
   faqItem: {
     backgroundColor: colors.white,
     borderRadius: 12,
     marginBottom: 12,
-    // shadowColor: '#000',
-    // shadowOffset: { width: 0, height: 2 },
-    // shadowOpacity: 0.08,
-    // shadowRadius: 8,
-    // elevation: 3,
-    // overflow: 'hidden',
-  },
-  faqItemAndroid: {
-    borderRadius: 10,
-    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#EEF1F3',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.015,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.025,
+    shadowRadius: 6,
     elevation: 1,
+  },
+  // I keep Android FAQ shadows especially light so the cards do not look raised.
+  faqItemAndroid: {
+    borderRadius: 10,
+    marginBottom: 10,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.01,
+    shadowRadius: 2,
+    elevation: 0,
   },
   faqQuestion: {
     flexDirection: 'row',
@@ -824,6 +824,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   // Modal styles (matching Resources screen)
+  modalKeyboardView: {
+    flex: 1,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -836,20 +839,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 40,
-    maxHeight: '95%',
+    maxHeight: '92%',
   },
   complaintModalAndroid: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 16,
     paddingTop: 16,
-    maxHeight: '90%',
+    maxHeight: '88%',
   },
   complaintHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  complaintCloseButton: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginTop: -6,
+    marginRight: -6,
   },
   complaintTitle: {
     fontSize: 20,
@@ -863,16 +874,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins_400Regular',
     color: colors.textBody,
-    marginBottom: 20,
+    marginTop: 6,
   },
   complaintSubtitleAndroid: {
     fontSize: 12.5,
-    marginBottom: 14,
+    marginTop: 4,
   },
   formScrollContainer: {
-    height: '100%',
-    
-    // flex: 1,
+    flexShrink: 1,
+  },
+  formScrollContent: {
+    paddingBottom: 8,
+  },
+  formScrollContentAndroid: {
+    paddingBottom: 4,
   },
   formGroup: {
     marginBottom: 20,

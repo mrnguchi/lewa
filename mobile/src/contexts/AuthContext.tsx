@@ -51,20 +51,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   /**
-   * Load authentication data from AsyncStorage
+   * Restores the local session first so returning users can enter quickly.
    */
   const loadStoredAuth = async () => {
     try {
-      const storedToken = await authStorage.getToken();
-      const storedUser = await authStorage.getUserData();
+      const [storedToken, storedUser] = await Promise.all([
+        authStorage.getToken(),
+        authStorage.getUserData(),
+      ]);
 
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(storedUser);
+
+        // Refresh quietly after local restoration without blocking app startup.
+        refreshStoredUser(storedUser.id).catch(() => undefined);
+      } else if (storedToken || storedUser) {
+        await authStorage.clearAuthData();
       }
     } catch {
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /**
+   * Refreshes cached profile data and clears only sessions rejected by the backend.
+   */
+  const refreshStoredUser = async (studentId: string) => {
+    try {
+      const response = await api.get(`/api/students/${studentId}`, {
+        suppressErrorToast: true,
+      } as any);
+      const freshUserData = response.data.data;
+
+      const updatedUser = await authStorage.updateUserData(freshUserData);
+      if (updatedUser) {
+        setUser(updatedUser);
+      }
+    } catch (error: any) {
+      const status = error?.response?.status;
+
+      if (status === 401 || status === 403) {
+        await authStorage.clearAuthData();
+        setToken(null);
+        setUser(null);
+      }
     }
   };
 
@@ -113,15 +145,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Refresh user data from backend
    */
   const refreshUserData = async () => {
-    try {
-      const studentId = await authStorage.getStudentId();
-      if (studentId) {
-        const response = await api.get(`/api/students/${studentId}`);
-        const freshUserData = response.data.data;
-        await updateUser(freshUserData);
-      }
-    } catch {
-      // Keep stale local data when refresh fails.
+    const studentId = await authStorage.getStudentId();
+    if (studentId) {
+      await refreshStoredUser(studentId);
     }
   };
 

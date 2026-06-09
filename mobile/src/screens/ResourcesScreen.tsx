@@ -11,6 +11,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   TextInput,
   Modal,
   RefreshControl,
@@ -28,6 +29,7 @@ import { colors } from '../theme/colors';
 import { downloadResourceFile } from '../services/resources';
 import { ResourceItem, ResourceType } from '../types/resources';
 import { useResourcesQuery } from '../query/contentQueries';
+import { useAndroidNavigationClearance } from '../hooks/useAndroidNavigationClearance';
 
 type RootStackParamList = {
   ResourceViewer: {
@@ -47,6 +49,7 @@ const EMPTY_LEVEL = 'All';
 const ResourcesScreen: React.FC = () => {
   const navigation = useNavigation<ResourcesScreenNavigationProp>();
   const isAndroid = Platform.OS === 'android';
+  const { contentBottomPadding } = useAndroidNavigationClearance();
   const [activeTab, setActiveTab] = useState<ResourceType>('handout');
   const {
     data: resources = [],
@@ -170,107 +173,127 @@ const ResourcesScreen: React.FC = () => {
 
       <AppHeader />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, isAndroid && styles.androidScrollContent]}
+      <FlatList
+        data={isLoading ? [] : filteredData}
+        keyExtractor={(resource) => resource.id}
+        renderItem={({ item }) => (
+          <ResourceCard
+            meta={getResourceMeta(item)}
+            onDownloadPress={handleDownloadPress}
+            onPress={handleOpenResource}
+            resource={item}
+          />
+        )}
+        numColumns={2}
+        columnWrapperStyle={[
+          styles.cardsRow,
+          isAndroid && styles.androidCardsRow,
+        ]}
+        style={styles.resourceList}
+        contentContainerStyle={[
+          styles.listContent,
+          {
+            paddingBottom: isAndroid
+              ? contentBottomPadding + 90
+              : 122,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        removeClippedSubviews={isAndroid}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
-      >
-        <View style={[styles.header, isAndroid && styles.androidHeader]}>
-          <Text style={[styles.title, isAndroid && styles.androidTitle]}>
-            Handouts{'\n'}& past questions
-          </Text>
+        ListHeaderComponent={
+          <>
+            <View style={[styles.header, isAndroid && styles.androidHeader]}>
+              <Text style={[styles.title, isAndroid && styles.androidTitle]}>Resources</Text>
+              <Text style={[styles.subtitle, isAndroid && styles.androidSubtitle]}>
+                Find handouts and past questions for your courses.
+              </Text>
 
-          <View style={[styles.searchContainer, isAndroid && styles.androidSearchContainer]}>
-            <Ionicons name="search" size={isAndroid ? 18 : 20} color="#9CA3AF" style={styles.searchIcon} />
-            <TextInput
-              style={[styles.searchInput, isAndroid && styles.androidSearchInput]}
-              placeholder="Resources"
-              placeholderTextColor="#9CA3AF"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            <TouchableOpacity
-              style={[styles.filterButton, isAndroid && styles.androidFilterButton]}
-              onPress={() => setShowFilterModal(true)}
-            >
-              <MaterialCommunityIcons name="filter-variant" size={isAndroid ? 21 : 24} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-        </View>
+              <View style={[styles.searchContainer, isAndroid && styles.androidSearchContainer]}>
+                <Ionicons name="search" size={isAndroid ? 18 : 20} color="#9CA3AF" style={styles.searchIcon} />
+                <TextInput
+                  style={[styles.searchInput, isAndroid && styles.androidSearchInput]}
+                  placeholder="Search by course code or title"
+                  placeholderTextColor="#9CA3AF"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                <TouchableOpacity
+                  style={[styles.filterButton, isAndroid && styles.androidFilterButton]}
+                  onPress={() => setShowFilterModal(true)}
+                >
+                  <MaterialCommunityIcons name="filter-variant" size={isAndroid ? 21 : 24} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-        <View style={[styles.tabsContainer, isAndroid && styles.androidTabsContainer]}>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              isAndroid && styles.androidTab,
-              activeTab === 'handout' && styles.tabActive,
-            ]}
-            onPress={() => setActiveTab('handout')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                isAndroid && styles.androidTabText,
-                activeTab === 'handout' && styles.tabTextActive,
-              ]}
-            >
-              Handouts
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              isAndroid && styles.androidTab,
-              activeTab === 'pastQuestion' && styles.tabActive,
-            ]}
-            onPress={() => setActiveTab('pastQuestion')}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                isAndroid && styles.androidTabText,
-                activeTab === 'pastQuestion' && styles.tabTextActive,
-              ]}
-            >
-              Past questions
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {isLoading ? (
-          <View style={[styles.loaderSection, isAndroid && styles.androidLoaderSection]}>
-            <SpinningLoader size={isAndroid ? 64 : 76} />
-            <Text style={[styles.loaderText, isAndroid && styles.androidLoaderText]}>
-              Loading your resources...
-            </Text>
-          </View>
-        ) : filteredData.length === 0 ? (
-          <View style={[styles.emptyState, isAndroid && styles.androidEmptyState]}>
-            <Ionicons name="document-text-outline" size={isAndroid ? 36 : 42} color={colors.primary} />
-            <Text style={[styles.emptyTitle, isAndroid && styles.androidEmptyTitle]}>
-              No resources found
-            </Text>
-            <Text style={[styles.emptyText, isAndroid && styles.androidEmptyText]}>
-              Try a different search term or reset the current filters.
-            </Text>
-          </View>
-        ) : (
-          <View style={[styles.cardsGrid, isAndroid && styles.androidCardsGrid]}>
-            {filteredData.map((resource) => (
-              <ResourceCard
-                key={resource.id}
-                meta={getResourceMeta(resource)}
-                onDownloadPress={handleDownloadPress}
-                onPress={handleOpenResource}
-                resource={resource}
-              />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+            <View style={[styles.tabsContainer, isAndroid && styles.androidTabsContainer]}>
+              <TouchableOpacity
+                style={[
+                  styles.tab,
+                  isAndroid && styles.androidTab,
+                  activeTab === 'handout' && styles.tabActive,
+                ]}
+                onPress={() => setActiveTab('handout')}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    isAndroid && styles.androidTabText,
+                    activeTab === 'handout' && styles.tabTextActive,
+                  ]}
+                >
+                  Handouts
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.tab,
+                  isAndroid && styles.androidTab,
+                  activeTab === 'pastQuestion' && styles.tabActive,
+                ]}
+                onPress={() => setActiveTab('pastQuestion')}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    isAndroid && styles.androidTabText,
+                    activeTab === 'pastQuestion' && styles.tabTextActive,
+                  ]}
+                >
+                  Past questions
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={[styles.loaderSection, isAndroid && styles.androidLoaderSection]}>
+              <SpinningLoader size={isAndroid ? 64 : 76} />
+              <Text style={[styles.loaderText, isAndroid && styles.androidLoaderText]}>
+                Loading your resources...
+              </Text>
+            </View>
+          ) : filteredData.length === 0 ? (
+            <View style={[styles.emptyState, isAndroid && styles.androidEmptyState]}>
+              <Ionicons name="document-text-outline" size={isAndroid ? 36 : 42} color={colors.primary} />
+              <Text style={[styles.emptyTitle, isAndroid && styles.androidEmptyTitle]}>
+                No resources found
+              </Text>
+              <Text style={[styles.emptyText, isAndroid && styles.androidEmptyText]}>
+                Try a different search term or reset the current filters.
+              </Text>
+            </View>
+          ) : null
+        }
+      />
 
       <Modal
         visible={showFilterModal}
@@ -387,14 +410,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollView: {
+  resourceList: {
     flex: 1,
   },
-  scrollContent: {
-    paddingBottom: 36,
-  },
-  androidScrollContent: {
-    paddingBottom: 28,
+  listContent: {
+    flexGrow: 1,
   },
   header: {
     paddingHorizontal: 20,
@@ -407,16 +427,27 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   title: {
-    fontSize: 28,
-    lineHeight: 36,
+    fontSize: 26,
+    lineHeight: 34,
     fontFamily: 'Poppins_700Bold',
     color: colors.textPrimary,
-    marginBottom: 20,
   },
   androidTitle: {
-    fontSize: 24,
-    lineHeight: 31,
-    marginBottom: 14,
+    fontSize: 22,
+    lineHeight: 29,
+  },
+  subtitle: {
+    marginTop: 3,
+    marginBottom: 16,
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: 'Poppins_400Regular',
+    color: colors.textBody,
+  },
+  androidSubtitle: {
+    marginBottom: 12,
+    fontSize: 11.5,
+    lineHeight: 18,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -425,7 +456,7 @@ const styles = StyleSheet.create({
     borderRadius: 62,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    marginBottom: 20,
+    marginBottom: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -435,7 +466,7 @@ const styles = StyleSheet.create({
   androidSearchContainer: {
     paddingHorizontal: 13,
     paddingVertical: 7,
-    marginBottom: 14,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#EEF2F5',
     shadowOpacity: 0.02,
@@ -463,41 +494,46 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 12,
-    marginBottom: 20,
-    marginTop: -10,
+    gap: 6,
+    marginHorizontal: 20,
+    marginBottom: 18,
+    padding: 5,
+    borderRadius: 10,
+    backgroundColor: '#E9EEF2',
   },
   androidTabsContainer: {
-    paddingHorizontal: 16,
-    gap: 8,
-    marginTop: -6,
-    marginBottom: 15,
+    marginHorizontal: 16,
+    gap: 4,
+    marginBottom: 14,
+    padding: 4,
+    borderRadius: 9,
   },
   tab: {
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#E5E7EB',
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 7,
+    alignItems: 'center',
   },
   androidTab: {
-    paddingHorizontal: 17,
-    paddingVertical: 8,
-    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 6,
   },
   tabActive: {
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.white,
   },
   tabText: {
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
-    color: '#6B7280',
+    color: colors.textBody,
   },
   androidTabText: {
     fontSize: 12.5,
   },
   tabTextActive: {
-    color: colors.white,
+    color: colors.primary,
+    fontFamily: 'Poppins_600SemiBold',
   },
   loaderSection: {
     paddingTop: 80,
@@ -546,13 +582,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
   },
-  cardsGrid: {
+  cardsRow: {
     paddingHorizontal: 20,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  androidCardsGrid: {
+  androidCardsRow: {
     paddingHorizontal: 16,
   },
   modalOverlay: {

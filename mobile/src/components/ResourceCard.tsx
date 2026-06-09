@@ -5,8 +5,9 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  View,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
 import { colors } from '../theme/colors';
 import { ResourceItem } from '../types/resources';
@@ -41,10 +42,17 @@ export default function ResourceCard({
       activeOpacity={0.92}
       onPress={() => onPress(resource)}
     >
-      <Image
-        source={require('../../assets/pdf-icon.png')}
-        style={[styles.pdfIcon, compact && styles.compactPdfIcon]}
-      />
+      <View style={[styles.preview, compact && styles.compactPreview]}>
+        <Image
+          source={require('../../assets/pdf-icon.png')}
+          style={[styles.pdfIcon, compact && styles.compactPdfIcon]}
+        />
+        <View style={styles.typeBadge}>
+          <Text style={styles.typeBadgeText}>
+            {resource.type === 'pastQuestion' ? 'Past question' : 'Handout'}
+          </Text>
+        </View>
+      </View>
 
       <Text style={[styles.cardCode, compact && styles.compactCardCode]}>
         {resource.code}
@@ -52,27 +60,27 @@ export default function ResourceCard({
       <Text style={[styles.cardTitle, compact && styles.compactCardTitle]} numberOfLines={2}>
         {resource.title}
       </Text>
-      <Text style={[styles.cardMeta, compact && styles.compactCardMeta]} numberOfLines={1}>
-        {meta}
-      </Text>
-
-      <TouchableOpacity
-        style={[styles.downloadButton, compact && styles.compactDownloadButton]}
-        activeOpacity={0.92}
-        onPress={(event) => {
-          event.stopPropagation();
-          onDownloadPress(resource);
-        }}
-      >
-        <Text style={[styles.downloadButtonText, compact && styles.compactDownloadButtonText]}>
-          Download
+      <View style={styles.cardFooter}>
+        <Text style={[styles.cardMeta, compact && styles.compactCardMeta]} numberOfLines={2}>
+          {meta}
         </Text>
-        <MaterialCommunityIcons
-          name="download-network"
-          size={compact ? 15 : 18}
-          color={colors.white}
-        />
-      </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.downloadButton, compact && styles.compactDownloadButton]}
+          activeOpacity={0.88}
+          accessibilityLabel={`Download ${resource.title}`}
+          onPress={(event) => {
+            event.stopPropagation();
+            onDownloadPress(resource);
+          }}
+        >
+          <Ionicons
+            name="download-outline"
+            size={compact ? 16 : 18}
+            color={colors.textPrimary}
+          />
+        </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -81,39 +89,57 @@ const styles = StyleSheet.create({
   card: {
     width: '48%',
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 12,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E9EEF2',
   },
   androidCard: {
     width: '49%',
-    borderWidth: 1,
-    borderColor: '#EEF2F5',
-    shadowOpacity: 0.025,
-    shadowRadius: 3,
-    elevation: 0,
+    borderColor: '#E7ECEF',
   },
   compactCard: {
     width: '49.2%',
-    padding: 10,
+    padding: 9,
     marginBottom: 12,
   },
+  preview: {
+    minHeight: 92,
+    borderRadius: 8,
+    backgroundColor: '#F3F6F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 10,
+  },
+  compactPreview: {
+    minHeight: 76,
+    marginBottom: 8,
+  },
   pdfIcon: {
-    width: 110,
-    height: 110,
+    width: 68,
+    height: 68,
     resizeMode: 'contain',
-    marginBottom: 1,
-    alignSelf: 'center',
   },
   compactPdfIcon: {
-    width: 82,
-    height: 82,
-    marginBottom: 0,
+    width: 54,
+    height: 54,
+  },
+  typeBadge: {
+    position: 'absolute',
+    left: 7,
+    bottom: 7,
+    maxWidth: '82%',
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  typeBadgeText: {
+    fontSize: 8.5,
+    fontFamily: 'Poppins_600SemiBold',
+    color: colors.textPrimary,
   },
   cardCode: {
     fontSize: 14,
@@ -135,40 +161,37 @@ const styles = StyleSheet.create({
   compactCardTitle: {
     fontSize: 10,
     lineHeight: 14,
-    marginTop: 5,
-    marginBottom: 5,
-  },
-  cardMeta: {
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    color: '#6B7280',
-    marginBottom: 12,
-  },
-  compactCardMeta: {
-    fontSize: 10,
-    lineHeight: 14,
+    marginTop: 4,
     marginBottom: 8,
   },
-  downloadButton: {
-    minHeight: 38,
-    borderRadius: 8,
-    backgroundColor: colors.textPrimary,
+  cardFooter: {
+    minHeight: 34,
     flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  cardMeta: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: 'Poppins_400Regular',
+    color: '#6B7280',
+  },
+  compactCardMeta: {
+    fontSize: 9,
+    lineHeight: 13,
+  },
+  downloadButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#EAF4EE',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
   compactDownloadButton: {
-    minHeight: 32,
-    borderRadius: 7,
-    gap: 5,
-  },
-  downloadButtonText: {
-    fontSize: 12,
-    fontFamily: 'Poppins_600SemiBold',
-    color: colors.white,
-  },
-  compactDownloadButtonText: {
-    fontSize: 10.5,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
   },
 });

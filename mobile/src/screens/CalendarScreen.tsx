@@ -307,14 +307,18 @@ const CalendarScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.searchRow}>
+            <View style={[styles.searchRow, isAndroid && styles.searchRowAndroid]}>
               <View
                 style={[
                   styles.searchInputContainer,
                   isAndroid && styles.searchInputContainerAndroid,
                 ]}
               >
-                <Ionicons name="search" size={20} color={colors.textBody} />
+                <Ionicons
+                  name="search"
+                  size={isAndroid ? 17 : 20}
+                  color={colors.textBody}
+                />
                 <TextInput
                   style={[styles.searchInput, isAndroid && styles.searchInputAndroid]}
                   placeholder="Search events..."
@@ -324,8 +328,15 @@ const CalendarScreen: React.FC = () => {
                   autoFocus
                 />
               </View>
-              <TouchableOpacity onPress={handleSearchToggle}>
-                <Ionicons name="close" size={24} color={colors.textBody} />
+              <TouchableOpacity
+                style={isAndroid && styles.searchCloseButtonAndroid}
+                onPress={handleSearchToggle}
+              >
+                <Ionicons
+                  name="close"
+                  size={isAndroid ? 21 : 24}
+                  color={colors.textBody}
+                />
               </TouchableOpacity>
             </View>
           )}
@@ -685,6 +696,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  searchRowAndroid: {
+    gap: 8,
+  },
   searchInputContainer: {
     flex: 1,
     flexDirection: 'row',
@@ -696,8 +710,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   searchInputContainerAndroid: {
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    height: 46,
+    paddingHorizontal: 14,
+    paddingVertical: 0,
+    borderRadius: 23,
+    gap: 7,
   },
   searchInput: {
     flex: 1,
@@ -706,7 +723,15 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   searchInputAndroid: {
-    fontSize: 14,
+    height: 46,
+    paddingVertical: 0,
+    fontSize: 12.5,
+  },
+  searchCloseButtonAndroid: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Modal Styles
   modalOverlay: {

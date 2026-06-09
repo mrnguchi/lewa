@@ -207,9 +207,9 @@ const PaymentProcessingScreen: React.FC = () => {
         if (error?.response) {
           stopPollingWithModal(
             'pending',
-            'Verification delayed',
+            'Payment status unavailable',
             providerMessage ||
-              'We could not verify this payment from the server right now. Please tap Try again before starting a new payment.'
+              'We could not confirm your payment status right now. If you approved the request on your phone, wait a moment and check again.'
           );
           return;
         }
@@ -217,8 +217,8 @@ const PaymentProcessingScreen: React.FC = () => {
         if (Date.now() - startedAt >= Math.min(15000, MAX_POLL_DURATION_MS)) {
           stopPollingWithModal(
             'connection',
-            'Connection interrupted',
-            'We could not verify the payment because the app could not reach the backend. If you approved it, tap Try again when your internet is stable.'
+            'Payment status unavailable',
+            'We could not confirm your payment status right now. Check your internet connection, then tap Check again.'
           );
           return;
         }
@@ -393,7 +393,7 @@ const PaymentProcessingScreen: React.FC = () => {
                 >
                   {modalMode === 'failed' || modalMode === 'notStarted'
                     ? 'Start over'
-                    : 'Try again'}
+                    : 'Check again'}
                 </Text>
               </TouchableOpacity>
             </View>

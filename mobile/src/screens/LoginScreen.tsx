@@ -15,6 +15,7 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   useWindowDimensions,
@@ -26,6 +27,7 @@ import { api } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 import CustomToast from '../components/CustomToast';
 import { colors } from '../theme/colors';
+import { getAuthErrorMessage } from '../utils/authMessages';
 
 interface LoginScreenProps {
   onRegisterPress: () => void;
@@ -108,6 +110,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     return pass.length >= 6;
   };
 
+  // Keep password recovery gated until the full flow is ready.
+  const handleForgotPasswordPress = () => {
+    Alert.alert('Coming soon', 'This feature will be available soon.');
+  };
+
   // Handle form submission
   const handleLogin = async () => {
     const errors = new Set<string>();
@@ -116,7 +123,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     // Validate matricule
     if (!validateMatricule(matricule)) {
       errors.add('matricule');
-      setErrorMessage('Invalid matricule format (e.g., FE12A001)');
+      setErrorMessage('Enter a valid student matricule.');
       setFieldErrors(errors);
       return;
     }
@@ -124,7 +131,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
     // Validate password
     if (!validatePassword(password)) {
       errors.add('password');
-      setErrorMessage('Password must be at least 6 characters');
+      setErrorMessage('Your password must contain at least 6 characters.');
       setFieldErrors(errors);
       return;
     }
@@ -139,50 +146,34 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
       const response = await api.post('/api/auth/login', {
         matricule: matricule.toUpperCase(),
         password: password,
-      });
-
-      console.log('LOGIN RESPONSE DEBUG');
-      console.log('Full response:', JSON.stringify(response.data, null, 2));
-      console.log('response.data:', response.data);
-      console.log('response.data.data:', response.data.data);
+      }, {
+        suppressErrorToast: true,
+      } as any);
 
       // Extract data from response - backend returns { success, data: { token, data: {...} } }
       const loginData = response.data.data;
       const token = loginData.token;
       const userData = loginData.data;
 
-      console.log('Extracted token:', token);
-      console.log('Extracted user data:', JSON.stringify(userData, null, 2));
-
       // Use centralized auth login
       await login(token, userData);
-
-      console.log('User logged in successfully via AuthContext');
 
       setIsLoading(false);
 
       // Show success toast
-      setToastMessage('Login successful!');
+      setToastMessage('Welcome back! You are now signed in.');
       setToastType('success');
       setToastVisible(true);
 
       // Navigate to main app after toast duration
       setTimeout(() => {
         onLoginSuccess();
-      }, 1000);
+      }, 1600);
 
     } catch (error: any) {
       setIsLoading(false);
 
-      let errorMsg = error.userMessage || 'Login failed. Please check your credentials and try again.';
-
-      if (error.code === 'ECONNABORTED') {
-        errorMsg = 'Request timeout. Please check your internet connection and try again.';
-      } else if (error.response) {
-        errorMsg = error.response.data?.message || 'Login failed. Please check your credentials and try again.';
-      } else if (error.request) {
-        errorMsg = 'Cannot connect to server.';
-      }
+      const errorMsg = getAuthErrorMessage(error, 'login');
 
       setErrorMessage(errorMsg);
 
@@ -203,41 +194,48 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    // I keep the Android navigation inset on the same surface as the login form.
+    <SafeAreaView
+      style={styles.authSafeArea}
+      edges={isAndroid ? ['bottom'] : []}
     >
-      {/* Custom Toast */}
-      <CustomToast
-        message={toastMessage}
-        type={toastType}
-        visible={toastVisible}
-        onHide={() => setToastVisible(false)}
-      />
-
-      {/* Green header section with logo */}
-      <View style={[styles.header, isAndroid && styles.androidHeader]}>
-        <Image
-          source={require('../../assets/splash-icon.png')}
-          style={[
-            styles.logo,
-            isAndroid && (isCompactHeight ? styles.androidCompactLogo : styles.androidLogo),
-          ]}
-          resizeMode="contain"
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={isAndroid ? undefined : 'padding'}
+      >
+        {/* Custom Toast */}
+        <CustomToast
+          message={toastMessage}
+          type={toastType}
+          variant="surface"
+          visible={toastVisible}
+          onHide={() => setToastVisible(false)}
+          duration={1800}
         />
-      </View>
 
-      {/* White content section */}
-      <View style={[styles.contentContainer, isAndroid && styles.androidContentContainer]}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            isAndroid && styles.androidScrollContent,
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+        {/* Green header section with logo */}
+        <View style={[styles.header, isAndroid && styles.androidHeader]}>
+          <Image
+            source={require('../../assets/splash-icon.png')}
+            style={[
+              styles.logo,
+              isAndroid && (isCompactHeight ? styles.androidCompactLogo : styles.androidLogo),
+            ]}
+            resizeMode="contain"
+          />
+        </View>
+
+        {/* White content section */}
+        <View style={[styles.contentContainer, isAndroid && styles.androidContentContainer]}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={[
+              styles.scrollContent,
+              isAndroid && styles.androidScrollContent,
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
           {/* "Welcome back" heading */}
           <Text style={[styles.heading, isAndroid && styles.androidHeading]}>
             Welcome back
@@ -298,7 +296,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
           {/* Forgot Password Link */}
           <View style={[styles.forgotPasswordContainer, isAndroid && styles.androidForgotPasswordContainer]}>
             <TouchableOpacity
-              onPress={onForgotPassword}
+              onPress={handleForgotPasswordPress}
               style={styles.forgotPasswordLink}
             >
               <Text style={[styles.forgotPasswordText, isAndroid && styles.androidSmallText]}>
@@ -333,13 +331,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </View>
-    </KeyboardAvoidingView>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  authSafeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: '#167846',

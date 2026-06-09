@@ -14,7 +14,7 @@ export default {
     scheme: "lewa",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/app-icon.png",
+    icon: "./assets/new-app-icon.png",
     userInterfaceStyle: "light",
     newArchEnabled: true,
     splash: {
@@ -29,17 +29,23 @@ export default {
     android: {
       package: "com.mrnguchi.lewa",
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-foreground.png",
-        backgroundColor: "#167846",
+        foregroundImage: "./assets/new-app-icon.png",
+        backgroundColor: "#FFFFFF",
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
+    },
+    // Keep Android's three-button navigation area consistent with the app surface.
+    androidNavigationBar: {
+      backgroundColor: "#F9FAFB",
+      barStyle: "dark-content",
     },
     web: {
       favicon: "./assets/splash-icon.png",
     },
     plugins: [
       "expo-font",
+      "expo-secure-store",
       [
         "expo-notifications",
         {
